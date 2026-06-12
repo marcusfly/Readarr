@@ -3,6 +3,7 @@
       "target": "esnext",
       "allowJs": true,
       "checkJs": false,
+      "skipLibCheck": true,
       "baseUrl": "src",
       "jsx": "react",
       "module": "esnext",

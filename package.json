@@ -33,7 +33,7 @@
     "@microsoft/signalr": "8.0.7",
     "@sentry/browser": "7.119.1",
     "@sentry/integrations": "7.119.1",
-    "@types/node": "20.16.11",
+    "@types/node": "22.15.21",
     "@types/react": "18.2.79",
     "@types/react-dom": "18.2.25",
     "classnames": "2.5.1",
