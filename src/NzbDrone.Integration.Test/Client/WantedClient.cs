@@ -7,7 +7,7 @@ namespace NzbDrone.Integration.Test.Client
 {
     public class WantedClient : ClientBase<BookResource>
     {
-        public WantedClient(IRestClient restClient, string apiKey, string resource)
+        public WantedClient(RestClient restClient, string apiKey, string resource)
             : base(restClient, apiKey, resource)
         {
         }
