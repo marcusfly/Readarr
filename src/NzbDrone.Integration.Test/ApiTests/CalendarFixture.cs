@@ -4,7 +4,7 @@ using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Integration.Test.Client;
-using Readarr.Api.V1.Books;
+using Readarr.Api.V3.Books;
 using RestSharp;
 
 namespace NzbDrone.Integration.Test.ApiTests

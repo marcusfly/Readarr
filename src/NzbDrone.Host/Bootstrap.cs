@@ -40,7 +40,7 @@ namespace NzbDrone.Host
             "Readarr.Host",
             "Readarr.Core",
             "Readarr.SignalR",
-            "Readarr.Api.V1",
+            "Readarr.Api.V3",
             "Readarr.Http"
         };
 

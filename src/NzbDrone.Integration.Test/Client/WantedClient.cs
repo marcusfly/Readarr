@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Readarr.Api.V1.Books;
+using Readarr.Api.V3.Books;
 using Readarr.Http;
 using RestSharp;
 
