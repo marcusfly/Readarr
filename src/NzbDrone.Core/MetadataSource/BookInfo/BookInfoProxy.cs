@@ -17,11 +17,16 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaCover;
+using NzbDrone.Core.MetadataSource.Contracts;
+using NzbDrone.Core.MetadataSource.Identity;
 
 namespace NzbDrone.Core.MetadataSource.BookInfo
 {
-    public class BookInfoProxy : IProvideAuthorInfo, IProvideBookInfo, ISearchForNewBook, ISearchForNewAuthor, ISearchForNewEntity
+    public class BookInfoProxy : IMetadataProviderV1
     {
+        private const string OpenLibraryProvider = "openlibrary";
+        private const int MaxRetryAttempts = 3;
+
         private static readonly JsonSerializerOptions SerializerSettings = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = false,
@@ -37,6 +42,20 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
         private readonly IMetadataRequestBuilder _requestBuilder;
         private readonly ICached<HashSet<string>> _cache;
         private readonly CachingService _authorCache;
+        private readonly Action<TimeSpan> _sleep;
+
+        public MetadataProviderDescriptor Descriptor { get; } =
+            new MetadataProviderDescriptor(
+                OpenLibraryProvider,
+                "Open Library",
+                100,
+                MetadataProviderCapability.AuthorLookup |
+                MetadataProviderCapability.BookLookup |
+                MetadataProviderCapability.AuthorSearch |
+                MetadataProviderCapability.BookSearch |
+                MetadataProviderCapability.EntitySearch |
+                MetadataProviderCapability.IsbnSearch |
+                MetadataProviderCapability.AsinSearch);
 
         public BookInfoProxy(IHttpClient httpClient,
                              ICachedHttpResponseService cachedHttpClient,
@@ -46,6 +65,19 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                              IMetadataRequestBuilder requestBuilder,
                              Logger logger,
                              ICacheManager cacheManager)
+            : this(httpClient, cachedHttpClient, authorService, bookService, editionService, requestBuilder, logger, cacheManager, Thread.Sleep)
+        {
+        }
+
+        internal BookInfoProxy(IHttpClient httpClient,
+                               ICachedHttpResponseService cachedHttpClient,
+                               IAuthorService authorService,
+                               IBookService bookService,
+                               IEditionService editionService,
+                               IMetadataRequestBuilder requestBuilder,
+                               Logger logger,
+                               ICacheManager cacheManager,
+                               Action<TimeSpan> sleep)
         {
             _httpClient = httpClient;
             _cachedHttpClient = cachedHttpClient;
@@ -55,6 +87,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             _requestBuilder = requestBuilder;
             _cache = cacheManager.GetCache<HashSet<string>>(GetType());
             _logger = logger;
+            _sleep = sleep;
 
             _authorCache = new CachingService(new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions { SizeLimit = 10 })));
             _authorCache.DefaultCachePolicy = new CacheDefaults { DefaultCacheDurationSeconds = 60 };
@@ -70,7 +103,12 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
         private static string WorkCoverUrl(long coverId)
             => $"https://covers.openlibrary.org/b/id/{coverId}-L.jpg";
 
-        private IHttpRequestBuilderFactory OlFactory => _requestBuilder.GetRequestBuilder();
+        private IHttpRequestBuilderFactory OlFactory => _requestBuilder.GetRequestBuilder(OpenLibraryProvider);
+
+        public bool SupportsIdentifier(MetadataIdentifier identifier)
+        {
+            return identifier.Provider == OpenLibraryProvider;
+        }
 
         public HashSet<string> GetChangedAuthors(DateTime startTime)
         {
@@ -85,6 +123,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         public Author GetAuthorInfo(string foreignAuthorId, bool useCache = true)
         {
+            foreignAuthorId = NormalizeOpenLibraryResourceId(foreignAuthorId);
             _logger.Debug("Getting Author details for OL author {0}", foreignAuthorId);
 
             try
@@ -100,6 +139,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         public Tuple<string, Book, List<AuthorMetadata>> GetBookInfo(string foreignBookId)
         {
+            foreignBookId = NormalizeOpenLibraryResourceId(foreignBookId);
+
             try
             {
                 return PollBook(foreignBookId);
@@ -186,30 +227,33 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             try
             {
                 var lowerTitle = title.ToLowerInvariant().Trim();
-                var split = lowerTitle.Split(':');
-                var prefix = split[0];
+                var separatorIndex = lowerTitle.IndexOf(':');
 
-                if (split.Length == 2 && new[] { "author", "work", "edition", "isbn", "asin" }.Contains(prefix))
+                if (separatorIndex > 0)
                 {
-                    var slug = split[1].Trim();
-                    if (slug.IsNullOrWhiteSpace() || slug.Any(char.IsWhiteSpace))
+                    var prefix = lowerTitle[..separatorIndex];
+                    if (new[] { "author", "work", "edition", "isbn", "asin" }.Contains(prefix))
                     {
-                        return new List<Book>();
-                    }
+                        var slug = title[(separatorIndex + 1) ..].Trim();
+                        if (slug.IsNullOrWhiteSpace() || slug.Any(char.IsWhiteSpace))
+                        {
+                            return new List<Book>();
+                        }
 
-                    switch (prefix)
-                    {
-                        case "author":
-                            return SearchByOlAuthorId(slug);
-                        case "work":
-                            return SearchByOlWorkId(slug);
-                        case "edition":
-                            return SearchByOlEditionId(slug, getAllEditions);
-                        case "isbn":
-                            return SearchByIsbn(slug);
-                        case "asin":
-                            // No OL ASIN index; fall through to text search
-                            return SearchOl(slug, getAllEditions);
+                        switch (prefix)
+                        {
+                            case "author":
+                                return SearchByOlAuthorId(slug);
+                            case "work":
+                                return SearchByOlWorkId(slug);
+                            case "edition":
+                                return SearchByOlEditionId(slug, getAllEditions);
+                            case "isbn":
+                                return SearchByIsbn(slug);
+                            case "asin":
+                                // No OL ASIN index; fall through to text search
+                                return SearchOl(slug, getAllEditions);
+                        }
                     }
                 }
 
@@ -281,14 +325,16 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private List<Book> SearchByOlAuthorId(string authorOlid)
         {
+            authorOlid = NormalizeOpenLibraryResourceId(authorOlid);
+
             try
             {
                 var author = PollAuthor(authorOlid);
                 var books = author.Books.Value;
-                var authorMetaDict = new Dictionary<string, AuthorMetadata> { { authorOlid, author.Metadata.Value } };
+                var authorMetaDict = new Dictionary<string, AuthorMetadata> { { author.Metadata.Value.ForeignAuthorId, author.Metadata.Value } };
                 foreach (var book in books)
                 {
-                    AddDbIds(authorOlid, book, authorMetaDict);
+                    AddDbIds(author.Metadata.Value.ForeignAuthorId, book, authorMetaDict);
                 }
 
                 return books;
@@ -306,6 +352,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private List<Book> SearchByOlWorkId(string workOlid)
         {
+            workOlid = NormalizeOpenLibraryResourceId(workOlid);
+
             try
             {
                 var tuple = GetBookInfo(workOlid);
@@ -325,6 +373,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private List<Book> SearchByOlEditionId(string editionOlid, bool getAllEditions)
         {
+            editionOlid = NormalizeOpenLibraryResourceId(editionOlid);
+
             var req = OlFactory.Create()
                 .Resource($"/books/{editionOlid}.json")
                 .Build();
@@ -358,11 +408,11 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
             if (!getAllEditions)
             {
+                var targetEditionId = CreateEditionMetadataId(editionOlid);
+
                 foreach (var book in books)
                 {
-                    var targetIsbn = edition.Isbn13?.FirstOrDefault() ?? editionOlid;
-                    var target = book.Editions.Value.FirstOrDefault(e => e.ForeignEditionId == targetIsbn)
-                              ?? book.Editions.Value.FirstOrDefault(e => e.ForeignEditionId == editionOlid);
+                    var target = book.Editions.Value.FirstOrDefault(e => e.ForeignEditionId == targetEditionId);
 
                     if (target != null)
                     {
@@ -449,6 +499,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private Author PollAuthorUncached(string foreignAuthorId)
         {
+            foreignAuthorId = NormalizeOpenLibraryResourceId(foreignAuthorId);
+
             // GET /authors/{id}.json
             var authorReq = OlFactory.Create()
                 .Resource($"/authors/{foreignAuthorId}.json")
@@ -456,7 +508,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             authorReq.SuppressHttpError = true;
 
             HttpResponse authorResp;
-            for (var i = 0; i < 60; i++)
+            for (var i = 0; i < MaxRetryAttempts; i++)
             {
                 authorResp = _cachedHttpClient.Get(authorReq, i == 0, TimeSpan.FromMinutes(30));
 
@@ -517,6 +569,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private Tuple<string, Book, List<AuthorMetadata>> PollBook(string foreignBookId)
         {
+            foreignBookId = NormalizeOpenLibraryResourceId(foreignBookId);
+
             // GET /works/{id}.json
             var workReq = OlFactory.Create()
                 .Resource($"/works/{foreignBookId}.json")
@@ -524,7 +578,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             workReq.SuppressHttpError = true;
 
             HttpResponse workResp;
-            for (var i = 0; i < 60; i++)
+            for (var i = 0; i < MaxRetryAttempts; i++)
             {
                 workResp = _cachedHttpClient.Get(workReq, i == 0, TimeSpan.FromMinutes(30));
 
@@ -565,7 +619,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                         {
                             var author = PollAuthor(authorOlid);
                             authorMetadata.Add(author.Metadata.Value);
-                            primaryAuthorId ??= authorOlid;
+                            primaryAuthorId ??= author.Metadata.Value.ForeignAuthorId;
                         }
                         catch (Exception e)
                         {
@@ -706,15 +760,18 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             }
 
             _logger.Info("Open Library returned 429, backing off for {0}s", seconds);
-            Thread.Sleep(TimeSpan.FromSeconds(seconds));
+            _sleep(TimeSpan.FromSeconds(seconds));
         }
 
-        private static AuthorMetadata MapAuthorMetadata(OLAuthorResource resource, string foreignAuthorId)
+        internal static AuthorMetadata MapAuthorMetadata(OLAuthorResource resource, string foreignAuthorId)
         {
+            foreignAuthorId = NormalizeOpenLibraryResourceId(foreignAuthorId);
+            var metadataId = CreateAuthorMetadataId(foreignAuthorId);
+
             var metadata = new AuthorMetadata
             {
-                ForeignAuthorId = foreignAuthorId,
-                TitleSlug = foreignAuthorId,
+                ForeignAuthorId = metadataId,
+                TitleSlug = metadataId,
                 Name = (resource.PersonalName ?? resource.Name ?? string.Empty).CleanSpaces(),
                 Overview = resource.Bio?.Value,
                 Aliases = resource.AlternateNames ?? new List<string>(),
@@ -776,8 +833,9 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             return metadata;
         }
 
-        private static Author MapAuthor(OLAuthorResource resource, List<OLWorkResource> works, string foreignAuthorId)
+        internal static Author MapAuthor(OLAuthorResource resource, List<OLWorkResource> works, string foreignAuthorId)
         {
+            foreignAuthorId = NormalizeOpenLibraryResourceId(foreignAuthorId);
             var metadata = MapAuthorMetadata(resource, foreignAuthorId);
 
             var books = works
@@ -787,7 +845,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
             books.ForEach(b => b.AuthorMetadata = metadata);
 
-            var series = ExtractSeriesFromWorks(works);
+            var series = ExtractSeriesFromWorks(works, foreignAuthorId);
             MapSeriesLinks(series, books, works);
 
             return new Author
@@ -799,15 +857,16 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             };
         }
 
-        private static Book MapBook(OLWorkResource resource, List<OLEditionResource> editionResources, Ratings ratings)
+        internal static Book MapBook(OLWorkResource resource, List<OLEditionResource> editionResources, Ratings ratings)
         {
             var workOlid = StripKeyPrefix(resource.Key);
+            var foreignBookId = CreateWorkMetadataId(workOlid);
 
             var book = new Book
             {
-                ForeignBookId = workOlid,
+                ForeignBookId = foreignBookId,
                 Title = resource.Title ?? string.Empty,
-                TitleSlug = workOlid,
+                TitleSlug = foreignBookId,
                 CleanTitle = Parser.Parser.CleanAuthorName(resource.Title ?? string.Empty),
                 Genres = resource.Subjects?.Take(10).ToList() ?? new List<string>(),
                 RelatedBooks = new List<int>(),
@@ -832,6 +891,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                     .OrderByDescending(e => (e.PageCount > 0 ? 1 : 0) + (e.Images.Any() ? 1 : 0) + (e.Publisher != null ? 1 : 0) + (e.Isbn13.IsNotNullOrWhiteSpace() ? 2 : 0))
                     .First();
                 best.Monitored = true;
+                book.ForeignEditionId = best.ForeignEditionId;
 
                 if (book.Title.IsNullOrWhiteSpace())
                 {
@@ -865,13 +925,11 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             return book;
         }
 
-        private static Edition MapEdition(OLEditionResource resource, OLWorkResource work)
+        internal static Edition MapEdition(OLEditionResource resource, OLWorkResource work)
         {
             var editionOlid = StripKeyPrefix(resource.Key);
             var isbn13 = resource.Isbn13?.FirstOrDefault();
-
-            // ISBN-13 is our primary ForeignEditionId; fall back to OL edition OLID for editions without ISBN
-            var foreignEditionId = isbn13.IsNotNullOrWhiteSpace() ? isbn13 : editionOlid;
+            var foreignEditionId = CreateEditionMetadataId(editionOlid);
 
             var lang = resource.Languages?.FirstOrDefault()?.Key?.Split('/').LastOrDefault();
             var publisher = resource.Publishers?.FirstOrDefault();
@@ -943,7 +1001,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
         private static readonly Regex _seriesPosRegex = new Regex(@"^(.+?)\s*[#,]\s*(\d+(?:\.\d+)?)$", RegexOptions.Compiled);
 
-        private static List<Series> ExtractSeriesFromWorks(List<OLWorkResource> works)
+        internal static List<Series> ExtractSeriesFromWorks(List<OLWorkResource> works, string authorScope)
         {
             var seriesMap = new Dictionary<string, Series>(StringComparer.OrdinalIgnoreCase);
 
@@ -953,13 +1011,13 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 {
                     var m = _seriesPosRegex.Match(seriesEntry.Trim());
                     var seriesTitle = m.Success ? m.Groups[1].Value.Trim() : seriesEntry.Trim();
-                    var key = seriesTitle.ToLowerInvariant();
+                    var key = NormalizeSeriesTitle(seriesTitle);
 
                     if (!seriesMap.ContainsKey(key))
                     {
                         seriesMap[key] = new Series
                         {
-                            ForeignSeriesId = $"ol-series-{Math.Abs(key.GetHashCode()):x8}",
+                            ForeignSeriesId = CreateSeriesMetadataId(authorScope, seriesTitle),
                             Title = seriesTitle,
                             Description = null
                         };
@@ -974,9 +1032,9 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
         {
             var booksByWorkKey = books
                 .Where(b => b.ForeignBookId != null)
-                .ToDictionary(b => b.ForeignBookId, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(b => NormalizeOpenLibraryResourceId(b.ForeignBookId), StringComparer.OrdinalIgnoreCase);
 
-            var seriesByTitle = series.ToDictionary(s => s.Title, StringComparer.OrdinalIgnoreCase);
+            var seriesByTitle = series.ToDictionary(s => NormalizeSeriesTitle(s.Title), StringComparer.OrdinalIgnoreCase);
 
             foreach (var book in books)
             {
@@ -997,7 +1055,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                     var seriesTitle = m.Success ? m.Groups[1].Value.Trim() : seriesEntry.Trim();
                     var position = m.Success ? m.Groups[2].Value : null;
 
-                    if (!seriesByTitle.TryGetValue(seriesTitle, out var s))
+                    if (!seriesByTitle.TryGetValue(NormalizeSeriesTitle(seriesTitle), out var s))
                     {
                         continue;
                     }
@@ -1014,6 +1072,60 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                     book.SeriesLinks.Value.Add(link);
                 }
             }
+        }
+
+        internal static string CreateAuthorMetadataId(string rawAuthorId)
+        {
+            return MetadataIdentifier.Create(OpenLibraryProvider, MetadataEntityType.Author, NormalizeOpenLibraryResourceId(rawAuthorId)).ToString();
+        }
+
+        internal static string CreateWorkMetadataId(string rawWorkId)
+        {
+            return MetadataIdentifier.Create(OpenLibraryProvider, MetadataEntityType.Work, NormalizeOpenLibraryResourceId(rawWorkId)).ToString();
+        }
+
+        internal static string CreateEditionMetadataId(string rawEditionId)
+        {
+            return MetadataIdentifier.Create(OpenLibraryProvider, MetadataEntityType.Edition, NormalizeOpenLibraryResourceId(rawEditionId)).ToString();
+        }
+
+        internal static string CreateSeriesMetadataId(string authorScope, string seriesTitle)
+        {
+            var normalizedAuthorScope = NormalizeOpenLibraryResourceId(authorScope) ?? string.Empty;
+            var normalizedSeriesTitle = NormalizeSeriesTitle(seriesTitle);
+
+            return DerivedMetadataIdGenerator.Create(OpenLibraryProvider, MetadataEntityType.Series, normalizedAuthorScope + ":" + normalizedSeriesTitle).ToString();
+        }
+
+        internal static string NormalizeOpenLibraryResourceId(string value)
+        {
+            var unwrapped = TryUnwrapMetadataIdentifierValue(value);
+            return StripKeyPrefix(unwrapped ?? value);
+        }
+
+        internal static string NormalizeSeriesTitle(string value)
+        {
+            if (value.IsNullOrWhiteSpace())
+            {
+                return string.Empty;
+            }
+
+            return Regex.Replace(value.Trim(), @"\s+", " ").ToLowerInvariant();
+        }
+
+        private static string TryUnwrapMetadataIdentifierValue(string value)
+        {
+            if (value.IsNullOrWhiteSpace())
+            {
+                return value;
+            }
+
+            if (!MetadataIdentifier.TryParse(value, out var identifier))
+            {
+                return value;
+            }
+
+            return identifier.Value;
         }
     }
 }

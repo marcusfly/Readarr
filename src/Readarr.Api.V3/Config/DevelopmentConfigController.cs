@@ -24,6 +24,8 @@ namespace Prowlarr.Api.V1.Config
             _configService = configService;
 
             SharedValidator.RuleFor(c => c.MetadataSource).IsValidUrl().When(c => !c.MetadataSource.IsNullOrWhiteSpace());
+            SharedValidator.RuleFor(c => c.MetadataOpenLibrarySource).IsValidUrl().When(c => !c.MetadataOpenLibrarySource.IsNullOrWhiteSpace());
+            SharedValidator.RuleFor(c => c.MetadataRreadingGlassesSource).IsValidUrl().When(c => !c.MetadataRreadingGlassesSource.IsNullOrWhiteSpace());
         }
 
         protected override DevelopmentConfigResource GetResourceById(int id)

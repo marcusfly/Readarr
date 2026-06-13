@@ -5,6 +5,8 @@ namespace NzbDrone.Core.Http
 {
     public class CachedHttpResponse : ModelBase
     {
+        public const int StaleRetentionDays = 30;
+
         public string Url { get; set; }
         public DateTime LastRefresh { get; set; }
         public DateTime Expiry { get; set; }

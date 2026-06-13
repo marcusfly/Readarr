@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
@@ -7,6 +8,7 @@ namespace NzbDrone.Core.Http
     public interface ICachedHttpResponseRepository : IBasicRepository<CachedHttpResponse>
     {
         CachedHttpResponse FindByUrl(string url);
+        void DeleteOlderThan(DateTime cutoff);
     }
 
     public class CachedHttpResponseRepository : BasicRepository<CachedHttpResponse>, ICachedHttpResponseRepository
@@ -22,6 +24,11 @@ namespace NzbDrone.Core.Http
             var edition = Query(x => x.Url == url).SingleOrDefault();
 
             return edition;
+        }
+
+        public void DeleteOlderThan(DateTime cutoff)
+        {
+            Delete(x => x.LastRefresh < cutoff);
         }
     }
 }

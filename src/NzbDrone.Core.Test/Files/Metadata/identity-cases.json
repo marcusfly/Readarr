@@ -1,0 +1,58 @@
+{
+  "direct": [
+    {
+      "provider": "openlibrary",
+      "entity": "Author",
+      "input": "/authors/OL100A",
+      "normalized_value": "OL100A",
+      "expected": "openlibrary:author:OL100A"
+    },
+    {
+      "provider": "openlibrary",
+      "entity": "Work",
+      "input": "/works/OL200W",
+      "normalized_value": "OL200W",
+      "expected": "openlibrary:work:OL200W"
+    },
+    {
+      "provider": "openlibrary",
+      "entity": "Edition",
+      "input": "/books/OL300M",
+      "normalized_value": "OL300M",
+      "expected": "openlibrary:edition:OL300M"
+    },
+    {
+      "provider": "openlibrary",
+      "entity": "Isbn",
+      "input": "978-0-547-77374-2",
+      "normalized_value": "978-0-547-77374-2",
+      "expected": "openlibrary:isbn:9780547773742"
+    },
+    {
+      "provider": "openlibrary",
+      "entity": "Isbn",
+      "input": "0-547-77374-9",
+      "normalized_value": "0-547-77374-9",
+      "expected": "openlibrary:isbn:0547773749"
+    },
+    {
+      "provider": "amazon",
+      "entity": "Asin",
+      "input": "b000fc1hby",
+      "normalized_value": "b000fc1hby",
+      "expected": "amazon:asin:B000FC1HBY"
+    }
+  ],
+  "series": [
+    {
+      "provider": "openlibrary",
+      "author_scope": "OL100A",
+      "title": "Earthsea"
+    },
+    {
+      "provider": "openlibrary",
+      "author_scope": "OL101A",
+      "title": "Earthsea"
+    }
+  ]
+}

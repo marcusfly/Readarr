@@ -48,8 +48,14 @@ namespace NzbDrone.Core.Books
 
         public class RemoteData
         {
+            public RemoteData()
+            {
+                ChildrenComplete = true;
+            }
+
             public TEntity Entity { get; set; }
             public List<AuthorMetadata> Metadata { get; set; }
+            public bool ChildrenComplete { get; set; }
         }
 
         protected virtual void LogProgress(TEntity local)
@@ -112,6 +118,10 @@ namespace NzbDrone.Core.Books
         {
         }
 
+        protected virtual void MarkRefreshCompleted(TEntity entity)
+        {
+        }
+
         public bool RefreshEntityInfo(TEntity local, List<TEntity> remoteItems, Author remoteData, bool forceChildRefresh, bool forceUpdateFileTags, DateTime? lastUpdate)
         {
             var updated = false;
@@ -123,17 +133,8 @@ namespace NzbDrone.Core.Books
 
             if (remote == null)
             {
-                if (ShouldDelete(local))
-                {
-                    _logger.Warn($"{typeof(TEntity).Name} {local} not found in metadata and is being deleted");
-                    DeleteEntity(local, false);
-                    return false;
-                }
-                else
-                {
-                    _logger.Error($"{typeof(TEntity).Name} {local} was not found, it may have been removed from Metadata sources.");
-                    return false;
-                }
+                _logger.Error($"{typeof(TEntity).Name} {local} was not returned with complete metadata. Keeping the existing library record.");
+                return false;
             }
 
             if (data.Metadata != null)
@@ -181,9 +182,10 @@ namespace NzbDrone.Core.Books
             _logger.Trace($"updated: {updated} forceUpdateFileTags: {forceUpdateFileTags}");
 
             var remoteChildren = GetRemoteChildren(local, remote);
-            updated |= SortChildren(local, remoteChildren, remoteData, forceChildRefresh, forceUpdateFileTags, lastUpdate);
+            updated |= SortChildren(local, remoteChildren, remoteData, forceChildRefresh, forceUpdateFileTags, lastUpdate, data.ChildrenComplete);
 
             // Do this last so entity only marked as refreshed if refresh of children completed successfully
+            MarkRefreshCompleted(local);
             _logger.Trace($"Saving {typeof(TEntity).Name} {local}");
             SaveEntity(local);
 
@@ -217,13 +219,23 @@ namespace NzbDrone.Core.Books
             return updated ? UpdateResult.UpdateTags : UpdateResult.None;
         }
 
-        protected bool SortChildren(TEntity entity, List<TChild> remoteChildren, Author remoteData, bool forceChildRefresh, bool forceUpdateFileTags, DateTime? lastUpdate)
+        protected bool SortChildren(TEntity entity, List<TChild> remoteChildren, Author remoteData, bool forceChildRefresh, bool forceUpdateFileTags, DateTime? lastUpdate, bool childrenComplete)
         {
+            remoteChildren ??= new List<TChild>();
+
             // Get existing children (and children to be) from the database
             var localChildren = GetLocalChildren(entity, remoteChildren);
+            var missingChildrenAreAuthoritative = childrenComplete && remoteChildren.Count >= localChildren.Count;
 
             var sortedChildren = new SortedChildren();
-            sortedChildren.Deleted.AddRange(localChildren);
+            if (missingChildrenAreAuthoritative)
+            {
+                sortedChildren.Deleted.AddRange(localChildren);
+            }
+            else
+            {
+                _logger.Warn($"Metadata for {typeof(TEntity).Name} {entity} did not include a trustworthy {typeof(TChild).Name} collection. Missing children will be preserved.");
+            }
 
             // Cycle through children
             foreach (var remoteChild in remoteChildren)

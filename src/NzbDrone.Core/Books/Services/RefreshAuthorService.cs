@@ -98,14 +98,45 @@ namespace NzbDrone.Core.Books
             return null;
         }
 
+        private static bool HasCompleteMetadata(Author data)
+        {
+            if (data?.Metadata?.IsLoaded != true ||
+                data.Metadata.Value == null ||
+                data.Metadata.Value.ForeignAuthorId.IsNullOrWhiteSpace() ||
+                data.Books?.IsLoaded != true ||
+                data.Books.Value == null ||
+                data.Series?.IsLoaded != true ||
+                data.Series.Value == null)
+            {
+                return false;
+            }
+
+            return data.Books.Value.All(book =>
+                       book != null &&
+                       book.ForeignBookId.IsNotNullOrWhiteSpace() &&
+                       book.AuthorMetadata?.IsLoaded == true &&
+                       book.AuthorMetadata.Value != null &&
+                       book.Editions?.IsLoaded == true &&
+                       book.Editions.Value != null) &&
+                   data.Series.Value.All(series =>
+                       series != null &&
+                       series.ForeignSeriesId.IsNotNullOrWhiteSpace() &&
+                       series.LinkItems?.IsLoaded == true &&
+                       series.LinkItems.Value != null);
+        }
+
         protected override RemoteData GetRemoteData(Author local, List<Author> remote, Author data)
         {
             var result = new RemoteData();
 
-            if (data != null)
+            if (HasCompleteMetadata(data))
             {
                 result.Entity = data;
                 result.Metadata = new List<AuthorMetadata> { data.Metadata.Value };
+            }
+            else
+            {
+                result.ChildrenComplete = false;
             }
 
             return result;
@@ -139,7 +170,6 @@ namespace NzbDrone.Core.Books
             local.UseMetadataFrom(remote);
             local.Metadata = remote.Metadata;
             local.Series = remote.Series.Value;
-            local.LastInfoSync = DateTime.UtcNow;
 
             try
             {
@@ -152,6 +182,11 @@ namespace NzbDrone.Core.Books
             }
 
             return result;
+        }
+
+        protected override void MarkRefreshCompleted(Author entity)
+        {
+            entity.LastInfoSync = DateTime.UtcNow;
         }
 
         protected override UpdateResult MoveEntity(Author local, Author remote)
@@ -341,6 +376,7 @@ namespace NzbDrone.Core.Books
         private void RefreshSelectedAuthors(List<int> authorIds, bool isNew, CommandTrigger trigger)
         {
             var updated = false;
+            var failures = 0;
             var authors = _authorService.GetAuthors(authorIds);
 
             foreach (var author in authors)
@@ -348,15 +384,28 @@ namespace NzbDrone.Core.Books
                 try
                 {
                     var data = GetSkyhookData(author.ForeignAuthorId);
+
+                    if (!HasCompleteMetadata(data))
+                    {
+                        failures++;
+                        continue;
+                    }
+
                     updated |= RefreshEntityInfo(author, null, data, true, false, null);
                 }
                 catch (Exception e)
                 {
+                    failures++;
                     _logger.Error(e, "Couldn't refresh info for {0}", author);
                 }
             }
 
             Rescan(authorIds, isNew, trigger, updated);
+
+            if (failures > 0)
+            {
+                throw new CommandFailedException($"Metadata refresh failed for {failures} author(s). Existing library records were preserved.");
+            }
         }
 
         public void Execute(BulkRefreshAuthorCommand message)
@@ -381,10 +430,19 @@ namespace NzbDrone.Core.Books
 
                 var updatedGoodreadsAuthors = new HashSet<string>();
 
-                if (message.LastExecutionTime.HasValue && message.LastExecutionTime.Value.AddDays(14) > DateTime.UtcNow)
+                if (message.LastExecutionTime.HasValue &&
+                    message.LastStartTime.HasValue &&
+                    message.LastExecutionTime.Value.AddDays(14) > DateTime.UtcNow)
                 {
                     updatedGoodreadsAuthors = _authorInfo.GetChangedAuthors(message.LastStartTime.Value);
+
+                    if (updatedGoodreadsAuthors == null)
+                    {
+                        _logger.Warn("Metadata change feed was unavailable. Falling back to a full author refresh.");
+                    }
                 }
+
+                var failures = 0;
 
                 foreach (var author in authors)
                 {
@@ -398,10 +456,18 @@ namespace NzbDrone.Core.Books
                         {
                             LogProgress(author);
                             var data = GetSkyhookData(author.ForeignAuthorId);
+
+                            if (!HasCompleteMetadata(data))
+                            {
+                                failures++;
+                                continue;
+                            }
+
                             updated |= RefreshEntityInfo(author, null, data, manualTrigger, false, message.LastStartTime);
                         }
                         catch (Exception e)
                         {
+                            failures++;
                             _logger.Error(e, "Couldn't refresh info for {0}", author);
                         }
                     }
@@ -412,6 +478,11 @@ namespace NzbDrone.Core.Books
                 }
 
                 Rescan(authorIds, isNew, trigger, updated);
+
+                if (failures > 0)
+                {
+                    throw new CommandFailedException($"Metadata refresh failed for {failures} author(s). Existing library records were preserved.");
+                }
             }
         }
     }

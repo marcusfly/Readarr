@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NLog;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
@@ -104,17 +105,32 @@ namespace NzbDrone.Core.Books
         {
             var result = new RemoteData();
 
-            var book = remote.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
+            var book = remote?.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
 
             if (book == null && ShouldDelete(local))
             {
+                result.ChildrenComplete = false;
                 return result;
             }
 
             if (book == null)
             {
                 data = GetSkyhookData(local);
-                book = data.Books.Value.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
+                book = data?.Books?.IsLoaded == true
+                    ? data.Books.Value?.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId)
+                    : null;
+            }
+
+            if (book == null ||
+                book.ForeignBookId.IsNullOrWhiteSpace() ||
+                book.AuthorMetadata?.IsLoaded != true ||
+                book.AuthorMetadata.Value == null ||
+                book.AuthorMetadata.Value.ForeignAuthorId.IsNullOrWhiteSpace() ||
+                book.Editions?.IsLoaded != true ||
+                book.Editions.Value == null)
+            {
+                result.ChildrenComplete = false;
+                return result;
             }
 
             result.Entity = book;
@@ -201,9 +217,13 @@ namespace NzbDrone.Core.Books
             local.UseMetadataFrom(remote);
 
             local.AuthorMetadataId = remote.AuthorMetadata.Value.Id;
-            local.LastInfoSync = DateTime.UtcNow;
 
             return result;
+        }
+
+        protected override void MarkRefreshCompleted(Book entity)
+        {
+            entity.LastInfoSync = DateTime.UtcNow;
         }
 
         protected override UpdateResult MergeEntity(Book local, Book target, Book remote)
@@ -244,7 +264,9 @@ namespace NzbDrone.Core.Books
 
         protected override List<Edition> GetRemoteChildren(Book local, Book remote)
         {
-            return remote.Editions.Value.DistinctBy(m => m.ForeignEditionId).ToList();
+            return remote.Editions?.IsLoaded == true && remote.Editions.Value != null
+                ? remote.Editions.Value.DistinctBy(m => m.ForeignEditionId).ToList()
+                : new List<Edition>();
         }
 
         protected override List<Edition> GetLocalChildren(Book entity, List<Edition> remoteChildren)
@@ -358,7 +380,7 @@ namespace NzbDrone.Core.Books
         {
             var data = GetSkyhookData(book);
 
-            return RefreshBookInfo(book, data.Books, data, false);
+            return RefreshBookInfo(book, data?.Books?.IsLoaded == true ? data.Books.Value : null, data, false);
         }
 
         public void Execute(BulkRefreshBookCommand message)

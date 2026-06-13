@@ -1,0 +1,48 @@
+{
+  "entries": [
+    {
+      "key": "/works/OL200W",
+      "title": "A Wizard of Earthsea",
+      "description": "The first Earthsea novel.",
+      "covers": [
+        200001
+      ],
+      "subjects": [
+        "Fantasy",
+        "Wizards"
+      ],
+      "authors": [
+        {
+          "author": {
+            "key": "/authors/OL100A"
+          }
+        },
+        {
+          "author": {
+            "key": "/authors/OL102A"
+          }
+        }
+      ],
+      "first_publish_date": "1968",
+      "series": [
+        "Earthsea #1"
+      ]
+    },
+    {
+      "key": "/works/OL201W",
+      "title": "The Tombs of Atuan",
+      "authors": [
+        {
+          "author": {
+            "key": "/authors/OL100A"
+          }
+        }
+      ],
+      "series": [
+        "  earthsea   #2 "
+      ]
+    }
+  ],
+  "links": {},
+  "size": 2
+}
