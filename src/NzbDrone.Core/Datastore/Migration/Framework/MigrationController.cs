@@ -69,6 +69,7 @@ namespace NzbDrone.Core.Datastore.Migration.Framework
             {
                 var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
 
+                migrationContext.IsPostgres = databaseType == DatabaseType.PostgreSQL;
                 MigrationContext.Current = migrationContext;
 
                 if (migrationContext.DesiredVersion.HasValue)

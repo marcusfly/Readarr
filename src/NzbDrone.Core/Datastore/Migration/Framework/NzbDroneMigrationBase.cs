@@ -26,6 +26,8 @@ namespace NzbDrone.Core.Datastore.Migration.Framework
         {
         }
 
+        protected bool IsPostgres => MigrationContext.Current?.IsPostgres ?? false;
+
         public int Version
         {
             get

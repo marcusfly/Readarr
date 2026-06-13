@@ -11,4 +11,10 @@
   <ItemGroup>
     <ProjectReference Include="..\NzbDrone.Host\Readarr.Host.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <ProjectReference Include="..\NzbDrone.Windows\Readarr.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Windows'))">
+    <ProjectReference Include="..\NzbDrone.Mono\Readarr.Mono.csproj" />
+  </ItemGroup>
 </Project>
