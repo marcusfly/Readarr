@@ -44,3 +44,27 @@ Changes:
 Checks: No .NET SDK available in this environment; backend build and test run not possible. Frontend not affected.
 State: Uncommitted.
 Next: Commit all changes; note that ImportAttempt table must be wired into the Fluent Migrator migration pipeline (add a new migration) before the backend will start — this is a follow-on task.
+
+## 2026-06-13T09:45:00-05:00 | Claude | DONE
+Task: Fix all build errors and StyleCop violations in agent-generated code; push clean branch.
+Scope: All files modified in this session.
+Changes:
+  Build fixes:
+    - QBittorrentV2.cs: Added missing IProvider members (ConfigContract, Message, DefaultDefinitions, Test(), RequestAction()); fixed SeedTime type (int→TimeSpan); fixed SA1512 violations.
+    - MigrationIntegrityCheck.cs: Removed non-existent DownloadHistory.BookId and UpdateHistory.* from RequiredColumns (caused MigrationSchemaFixture failure).
+    - DatabaseBackupVerifier.cs: Removed unused System.Linq; fixed XML cref to use qualified name.
+    - RefreshAuthorService.cs, RefreshBookService.cs: Fixed SA1210 (alphabetical using order for NzbDrone.Core.Jobs.Durable).
+    - DurableJobScheduler.cs: Fixed SA1512 (blank lines after // block comments).
+    - ImportAttemptService.cs, ImportApprovedBooks.cs: Fixed SA1107 (multi-statement lambdas) and SA1117 (mixed parameter layout).
+  Test fixes:
+    - All new test fixtures: removed unused usings (IDE0005), fixed SA1512/SA1515/SA1107/SA1117/SA1210 violations.
+    - DownloadedTracksImportServiceFixture.cs: Added It.IsAny<bool>() for new dryRun optional param in IImportApprovedBooks.Import() Moq setups.
+    - QBittorrentContractFixture.cs: Added It.IsAny<bool>() for GetProxy optional bool param; fixed CS0664 (0.5→0.5f); removed duplicate Setup.
+    - CriticalWorkflowFixture.cs: Removed unused NzbDrone.Integration.Test.Client using.
+Results:
+  - Build: clean (0 errors, 0 warnings).
+  - Tests: 2625 passed, 76 skipped, 3 pre-existing failures (update server disabled + Goodreads removed).
+  - Committed: 7ad56ab32.
+  - Pushed: develop-mfly → origin/develop-mfly.
+State: Branch is clean and pushed.
+Next: Frontend ESLint + webpack build verification (not yet run this session).
