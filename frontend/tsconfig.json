@@ -3,12 +3,15 @@
       "target": "esnext",
       "allowJs": true,
       "checkJs": false,
+      "skipLibCheck": true,
       "baseUrl": "src",
       "jsx": "react",
       "module": "esnext",
       "moduleResolution": "node",
       "noEmit": true,
       "esModuleInterop": true,
+      "strict": true,
+      "noUncheckedIndexedAccess": false,
       "typeRoots": ["node_modules/@types", "typings"],
       "paths": {
           "*": [
