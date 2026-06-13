@@ -10,7 +10,7 @@ using NzbDrone.Core.MetadataSource.BookInfo;
 using NzbDrone.Core.Profiles.Metadata;
 using NzbDrone.Core.Test.Framework;
 
-namespace NzbDrone.Core.Test.MetadataSource.Goodreads
+namespace NzbDrone.Core.Test.MetadataSource.BookInfo
 {
     [TestFixture]
     [Ignore("Waiting for metadata to be back again", Until = "2026-01-15 00:00:00Z")]

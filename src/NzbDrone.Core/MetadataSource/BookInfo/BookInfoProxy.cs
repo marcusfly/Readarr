@@ -279,13 +279,6 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
             return new List<Book>();
         }
 
-        // Retained for interface compatibility — OL cannot resolve Goodreads integer IDs
-        public List<Book> SearchByGoodreadsBookId(int goodreadsId, bool getAllEditions)
-        {
-            _logger.Debug("SearchByGoodreadsBookId({0}) not supported with Open Library backend", goodreadsId);
-            return new List<Book>();
-        }
-
         private List<Book> SearchByOlAuthorId(string authorOlid)
         {
             try

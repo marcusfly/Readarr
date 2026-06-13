@@ -7,12 +7,11 @@ using NzbDrone.Common.Http;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MetadataSource.BookInfo;
-using NzbDrone.Core.MetadataSource.Goodreads;
 using NzbDrone.Core.Profiles.Metadata;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Test.Common;
 
-namespace NzbDrone.Core.Test.MetadataSource.Goodreads
+namespace NzbDrone.Core.Test.MetadataSource.BookInfo
 {
     [TestFixture]
     [Ignore("Waiting for metadata to be back again", Until = "2026-01-15 00:00:00Z")]
@@ -23,12 +22,6 @@ namespace NzbDrone.Core.Test.MetadataSource.Goodreads
         {
             UseRealHttp();
 
-            Mocker.SetConstant<IGoodreadsSearchProxy>(Mocker.Resolve<GoodreadsSearchProxy>());
-
-            var httpClient = Mocker.Resolve<IHttpClient>();
-            Mocker.GetMock<ICachedHttpResponseService>()
-                .Setup(x => x.Get<List<SearchJsonResource>>(It.IsAny<HttpRequest>(), It.IsAny<bool>(), It.IsAny<TimeSpan>()))
-                .Returns((HttpRequest request, bool useCache, TimeSpan ttl) => httpClient.Get<List<SearchJsonResource>>(request));
 
             var metadataProfile = new MetadataProfile();
 
