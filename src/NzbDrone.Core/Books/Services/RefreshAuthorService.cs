@@ -13,6 +13,7 @@ using NzbDrone.Core.History;
 using NzbDrone.Core.ImportLists.Exclusions;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Commands;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.MetadataSource;
@@ -45,6 +46,7 @@ namespace NzbDrone.Core.Books
         private readonly IMonitorNewBookService _monitorNewBookService;
         private readonly IConfigService _configService;
         private readonly IImportListExclusionService _importListExclusionService;
+        private readonly IJobProgressReporter _jobProgressReporter;
         private readonly Logger _logger;
 
         public RefreshAuthorService(IProvideAuthorInfo authorInfo,
@@ -63,6 +65,7 @@ namespace NzbDrone.Core.Books
                                     IMonitorNewBookService monitorNewBookService,
                                     IConfigService configService,
                                     IImportListExclusionService importListExclusionService,
+                                    IJobProgressReporter jobProgressReporter,
                                     Logger logger)
         : base(logger, authorMetadataService)
         {
@@ -81,6 +84,7 @@ namespace NzbDrone.Core.Books
             _monitorNewBookService = monitorNewBookService;
             _configService = configService;
             _importListExclusionService = importListExclusionService;
+            _jobProgressReporter = jobProgressReporter;
             _logger = logger;
         }
 
@@ -424,6 +428,8 @@ namespace NzbDrone.Core.Books
                 var updated = false;
                 var authors = _authorService.GetAllAuthors().OrderBy(c => c.Name).ToList();
                 var authorIds = authors.Select(x => x.Id).ToList();
+                var total = authors.Count;
+                var processed = 0;
 
                 var updatedGoodreadsAuthors = new HashSet<string>();
 
@@ -471,6 +477,12 @@ namespace NzbDrone.Core.Books
                     else
                     {
                         _logger.Info("Skipping refresh of author: {0}", author.Name);
+                    }
+
+                    processed++;
+                    if (total > 0)
+                    {
+                        _jobProgressReporter.ReportProgress((processed * 100) / total);
                     }
                 }
 
