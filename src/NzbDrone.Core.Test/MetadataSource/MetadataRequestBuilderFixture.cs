@@ -18,22 +18,55 @@ namespace NzbDrone.Core.Test.MetadataSource
                 .Setup(s => s.MetadataSource)
                 .Returns("");
 
+            Mocker.GetMock<IConfigService>()
+                .Setup(s => s.MetadataProvider)
+                .Returns("openlibrary");
+
+            Mocker.GetMock<IConfigService>()
+                .Setup(s => s.MetadataOpenLibrarySource)
+                .Returns("");
+
+            Mocker.GetMock<IConfigService>()
+                .Setup(s => s.MetadataRreadingGlassesSource)
+                .Returns("");
+
             Mocker.GetMock<IReadarrCloudRequestBuilder>()
                 .Setup(s => s.Metadata)
                 .Returns(new HttpRequestBuilder("https://api.bookinfo.club/v1/{route}").CreateFactory());
+
+            Mocker.GetMock<IReadarrCloudRequestBuilder>()
+                .Setup(s => s.MetadataOpenLibrary)
+                .Returns(new HttpRequestBuilder("https://openlibrary.org").CreateFactory());
+
+            Mocker.GetMock<IReadarrCloudRequestBuilder>()
+                .Setup(s => s.MetadataRreadingGlasses)
+                .Returns(new HttpRequestBuilder("https://api.bookinfo.club/v1/{route}").CreateFactory());
         }
 
-        private void WithCustomProvider()
+        private void WithCustomProvider(string provider, string url)
         {
             Mocker.GetMock<IConfigService>()
-                .Setup(s => s.MetadataSource)
-                .Returns("http://api.readarr.com/api/testing/");
+                .Setup(s => s.MetadataProvider)
+                .Returns(provider);
+
+            if (provider == MetadataRequestBuilder.RreadingGlassesProvider)
+            {
+                Mocker.GetMock<IConfigService>()
+                    .Setup(s => s.MetadataRreadingGlassesSource)
+                    .Returns(url);
+            }
+            else
+            {
+                Mocker.GetMock<IConfigService>()
+                    .Setup(s => s.MetadataOpenLibrarySource)
+                    .Returns(url);
+            }
         }
 
         [TestCase]
-        public void should_use_user_definied_if_not_blank()
+        public void should_use_user_defined_openlibrary_if_not_blank()
         {
-            WithCustomProvider();
+            WithCustomProvider(MetadataRequestBuilder.OpenLibraryProvider, "http://api.readarr.com/api/testing/");
 
             var details = Subject.GetRequestBuilder().Create();
 
@@ -44,6 +77,26 @@ namespace NzbDrone.Core.Test.MetadataSource
         public void should_use_default_if_config_blank()
         {
             var details = Subject.GetRequestBuilder().Create();
+
+            details.BaseUrl.ToString().Should().Contain("openlibrary.org");
+        }
+
+        [TestCase]
+        public void should_use_rreading_glasses_default_when_selected()
+        {
+            Mocker.GetMock<IConfigService>()
+                .Setup(s => s.MetadataProvider)
+                .Returns(MetadataRequestBuilder.RreadingGlassesProvider);
+
+            var details = Subject.GetRequestBuilder().Create();
+
+            details.BaseUrl.ToString().Should().Contain("bookinfo.club/v1");
+        }
+
+        [TestCase]
+        public void should_use_provider_specific_builder()
+        {
+            var details = Subject.GetRequestBuilder(MetadataRequestBuilder.RreadingGlassesProvider).Create();
 
             details.BaseUrl.ToString().Should().Contain("bookinfo.club/v1");
         }

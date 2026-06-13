@@ -8,6 +8,11 @@ namespace NzbDrone.Core.Datastore.Migration
     {
         protected override void MainDbUpgrade()
         {
+            if (!IsPostgres)
+            {
+                return;
+            }
+
             Delete.FromTable("Commands").AllRows();
 
             Alter.Table("Authors").AlterColumn("LastInfoSync").AsDateTimeOffset().Nullable();
@@ -47,12 +52,22 @@ namespace NzbDrone.Core.Datastore.Migration
 
         protected override void LogDbUpgrade()
         {
+            if (!IsPostgres)
+            {
+                return;
+            }
+
             Alter.Table("Logs").AlterColumn("Time").AsDateTimeOffset().NotNullable();
             Alter.Table("VersionInfo").AlterColumn("AppliedOn").AsDateTimeOffset().Nullable();
         }
 
         protected override void CacheDbUpgrade()
         {
+            if (!IsPostgres)
+            {
+                return;
+            }
+
             Alter.Table("HttpResponse").AlterColumn("LastRefresh").AsDateTimeOffset().Nullable();
             Alter.Table("HttpResponse").AlterColumn("Expiry").AsDateTimeOffset().Nullable();
         }

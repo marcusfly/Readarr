@@ -3,7 +3,7 @@ using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Qualities;
-using Readarr.Api.V1.RootFolders;
+using Readarr.Api.V3.RootFolders;
 
 namespace NzbDrone.Integration.Test.ApiTests.WantedTests
 {

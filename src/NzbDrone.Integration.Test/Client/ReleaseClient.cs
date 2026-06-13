@@ -1,11 +1,11 @@
-using Readarr.Api.V1.Indexers;
+using Readarr.Api.V3.Indexers;
 using RestSharp;
 
 namespace NzbDrone.Integration.Test.Client
 {
     public class ReleaseClient : ClientBase<ReleaseResource>
     {
-        public ReleaseClient(IRestClient restClient, string apiKey)
+        public ReleaseClient(RestClient restClient, string apiKey)
             : base(restClient, apiKey)
         {
         }

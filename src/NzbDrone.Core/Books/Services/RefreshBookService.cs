@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NLog;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Messaging.Commands;
@@ -41,6 +43,7 @@ namespace NzbDrone.Core.Books
         private readonly IEventAggregator _eventAggregator;
         private readonly ICheckIfBookShouldBeRefreshed _checkIfBookShouldBeRefreshed;
         private readonly IMapCoversToLocal _mediaCoverService;
+        private readonly IJobProgressReporter _jobProgressReporter;
         private readonly Logger _logger;
 
         public RefreshBookService(IBookService bookService,
@@ -57,6 +60,7 @@ namespace NzbDrone.Core.Books
                                   IEventAggregator eventAggregator,
                                   ICheckIfBookShouldBeRefreshed checkIfBookShouldBeRefreshed,
                                   IMapCoversToLocal mediaCoverService,
+                                  IJobProgressReporter jobProgressReporter,
                                   Logger logger)
         : base(logger, authorMetadataService)
         {
@@ -73,6 +77,7 @@ namespace NzbDrone.Core.Books
             _eventAggregator = eventAggregator;
             _checkIfBookShouldBeRefreshed = checkIfBookShouldBeRefreshed;
             _mediaCoverService = mediaCoverService;
+            _jobProgressReporter = jobProgressReporter;
             _logger = logger;
         }
 
@@ -104,17 +109,32 @@ namespace NzbDrone.Core.Books
         {
             var result = new RemoteData();
 
-            var book = remote.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
+            var book = remote?.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
 
             if (book == null && ShouldDelete(local))
             {
+                result.ChildrenComplete = false;
                 return result;
             }
 
             if (book == null)
             {
                 data = GetSkyhookData(local);
-                book = data.Books.Value.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId);
+                book = data?.Books?.IsLoaded == true
+                    ? data.Books.Value?.SingleOrDefault(x => x.ForeignBookId == local.ForeignBookId)
+                    : null;
+            }
+
+            if (book == null ||
+                book.ForeignBookId.IsNullOrWhiteSpace() ||
+                book.AuthorMetadata?.IsLoaded != true ||
+                book.AuthorMetadata.Value == null ||
+                book.AuthorMetadata.Value.ForeignAuthorId.IsNullOrWhiteSpace() ||
+                book.Editions?.IsLoaded != true ||
+                book.Editions.Value == null)
+            {
+                result.ChildrenComplete = false;
+                return result;
             }
 
             result.Entity = book;
@@ -201,9 +221,13 @@ namespace NzbDrone.Core.Books
             local.UseMetadataFrom(remote);
 
             local.AuthorMetadataId = remote.AuthorMetadata.Value.Id;
-            local.LastInfoSync = DateTime.UtcNow;
 
             return result;
+        }
+
+        protected override void MarkRefreshCompleted(Book entity)
+        {
+            entity.LastInfoSync = DateTime.UtcNow;
         }
 
         protected override UpdateResult MergeEntity(Book local, Book target, Book remote)
@@ -244,7 +268,9 @@ namespace NzbDrone.Core.Books
 
         protected override List<Edition> GetRemoteChildren(Book local, Book remote)
         {
-            return remote.Editions.Value.DistinctBy(m => m.ForeignEditionId).ToList();
+            return remote.Editions?.IsLoaded == true && remote.Editions.Value != null
+                ? remote.Editions.Value.DistinctBy(m => m.ForeignEditionId).ToList()
+                : new List<Edition>();
         }
 
         protected override List<Edition> GetLocalChildren(Book entity, List<Edition> remoteChildren)
@@ -298,8 +324,8 @@ namespace NzbDrone.Core.Books
                 return;
             }
 
-            var toMonitor = monitored.OrderByDescending(x => x.Id > 0 ? _mediaFileService.GetFilesByEdition(x.Id).Count : 0)
-                .ThenByDescending(x => x.Ratings.Popularity).First();
+            var toMonitor = monitored.OrderByDescending(x => x?.Id > 0 ? (_mediaFileService.GetFilesByEdition(x.Id)?.Count ?? 0) : 0)
+                .ThenByDescending(x => x?.Ratings?.Popularity ?? 0).First();
 
             monitored.ForEach(x => x.Monitored = false);
             toMonitor.Monitored = true;
@@ -358,16 +384,23 @@ namespace NzbDrone.Core.Books
         {
             var data = GetSkyhookData(book);
 
-            return RefreshBookInfo(book, data.Books, data, false);
+            return RefreshBookInfo(book, data?.Books?.IsLoaded == true ? data.Books.Value : null, data, false);
         }
 
         public void Execute(BulkRefreshBookCommand message)
         {
             var books = _bookService.GetBooks(message.BookIds);
+            var total = books.Count;
+            var processed = 0;
 
             foreach (var book in books)
             {
                 RefreshBookInfo(book);
+                processed++;
+                if (total > 0)
+                {
+                    _jobProgressReporter.ReportProgress((processed * 100) / total);
+                }
             }
         }
 

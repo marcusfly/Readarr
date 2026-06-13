@@ -16,17 +16,16 @@ using NzbDrone.Integration.Test.Client;
 using NzbDrone.SignalR;
 using NzbDrone.Test.Common;
 using NzbDrone.Test.Common.Categories;
-using Readarr.Api.V1.Author;
-using Readarr.Api.V1.Blocklist;
-using Readarr.Api.V1.Config;
-using Readarr.Api.V1.DownloadClient;
-using Readarr.Api.V1.History;
-using Readarr.Api.V1.Profiles.Quality;
-using Readarr.Api.V1.RootFolders;
-using Readarr.Api.V1.System.Tasks;
-using Readarr.Api.V1.Tags;
+using Readarr.Api.V3.Author;
+using Readarr.Api.V3.Blocklist;
+using Readarr.Api.V3.Config;
+using Readarr.Api.V3.DownloadClient;
+using Readarr.Api.V3.History;
+using Readarr.Api.V3.Profiles.Quality;
+using Readarr.Api.V3.RootFolders;
+using Readarr.Api.V3.System.Tasks;
+using Readarr.Api.V3.Tags;
 using RestSharp;
-using RestSharp.Serializers.SystemTextJson;
 
 namespace NzbDrone.Integration.Test
 {
@@ -95,10 +94,12 @@ namespace NzbDrone.Integration.Test
 
         protected virtual void InitRestClients()
         {
-            RestClient = new RestClient(RootUrl + "api/v1/");
+            RestClient = new RestClient(new RestClientOptions(RootUrl + "api/v3/")
+            {
+                Timeout = TimeSpan.FromMilliseconds(30000),
+            });
             RestClient.AddDefaultHeader("Authentication", ApiKey);
             RestClient.AddDefaultHeader("X-Api-Key", ApiKey);
-            RestClient.UseSystemTextJson();
 
             Blocklist = new ClientBase<BlocklistResource>(RestClient, ApiKey);
             Commands = new CommandClient(RestClient, ApiKey);

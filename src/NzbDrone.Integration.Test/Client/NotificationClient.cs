@@ -1,12 +1,12 @@
 using System.Collections.Generic;
-using Readarr.Api.V1.Notifications;
+using Readarr.Api.V3.Notifications;
 using RestSharp;
 
 namespace NzbDrone.Integration.Test.Client
 {
     public class NotificationClient : ClientBase<NotificationResource>
     {
-        public NotificationClient(IRestClient restClient, string apiKey)
+        public NotificationClient(RestClient restClient, string apiKey)
             : base(restClient, apiKey)
         {
         }

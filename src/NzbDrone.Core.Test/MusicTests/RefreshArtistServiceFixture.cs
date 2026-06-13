@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FizzWare.NBuilder;
 using Moq;
@@ -6,10 +7,13 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.History;
 using NzbDrone.Core.ImportLists.Exclusions;
 using NzbDrone.Core.MediaFiles;
+using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.Profiles.Metadata;
 using NzbDrone.Core.RootFolders;
@@ -40,11 +44,19 @@ namespace NzbDrone.Core.Test.MusicTests
 
             _books = new List<Book> { _book1, _book2 };
 
+            var metadata = Builder<AuthorMetadata>.CreateNew().Build();
+            var series = Builder<Series>.CreateListOfSize(1).BuildList();
+            series.ForEach(x => x.LinkItems = new List<SeriesBookLink>());
+
+            _books.ForEach(x =>
+            {
+                x.AuthorMetadata = metadata;
+                x.Editions = new List<Edition>();
+            });
+
             _remoteBooks = _books.JsonClone();
             _remoteBooks.ForEach(x => x.Id = 0);
 
-            var metadata = Builder<AuthorMetadata>.CreateNew().Build();
-            var series = Builder<Series>.CreateListOfSize(1).BuildList();
             var profile = Builder<MetadataProfile>.CreateNew().Build();
 
             _author = Builder<Author>.CreateNew()
@@ -181,28 +193,7 @@ namespace NzbDrone.Core.Test.MusicTests
         [Test]
         public void should_log_error_and_delete_if_musicbrainz_id_not_found_and_author_has_no_files()
         {
-            Mocker.GetMock<IAuthorService>()
-                .Setup(x => x.DeleteAuthor(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()));
-
-            Subject.Execute(new RefreshAuthorCommand(_author.Id));
-
-            Mocker.GetMock<IAuthorService>()
-                .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Never());
-
-            Mocker.GetMock<IAuthorService>()
-                .Verify(v => v.DeleteAuthor(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Once());
-
-            ExceptionVerification.ExpectedErrors(1);
-            ExceptionVerification.ExpectedWarns(1);
-        }
-
-        [Test]
-        public void should_log_error_but_not_delete_if_musicbrainz_id_not_found_and_author_has_files()
-        {
-            GivenAuthorFiles();
-            GivenBooksForRefresh(new List<Book>());
-
-            Subject.Execute(new RefreshAuthorCommand(_author.Id));
+            Assert.Throws<CommandFailedException>(() => Subject.Execute(new RefreshAuthorCommand(_author.Id)));
 
             Mocker.GetMock<IAuthorService>()
                 .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Never());
@@ -210,7 +201,111 @@ namespace NzbDrone.Core.Test.MusicTests
             Mocker.GetMock<IAuthorService>()
                 .Verify(v => v.DeleteAuthor(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Never());
 
-            ExceptionVerification.ExpectedErrors(2);
+            ExceptionVerification.ExpectedErrors(1);
+        }
+
+        [Test]
+        public void should_log_error_but_not_delete_if_musicbrainz_id_not_found_and_author_has_files()
+        {
+            GivenAuthorFiles();
+
+            Assert.Throws<CommandFailedException>(() => Subject.Execute(new RefreshAuthorCommand(_author.Id)));
+
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Never());
+
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.DeleteAuthor(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Never());
+
+            ExceptionVerification.ExpectedErrors(1);
+        }
+
+        [Test]
+        public void should_preserve_author_when_metadata_response_is_incomplete()
+        {
+            var lastInfoSync = DateTime.UtcNow.AddDays(-7);
+            _author.LastInfoSync = lastInfoSync;
+
+            var incomplete = _author.JsonClone();
+            incomplete.Metadata = _author.Metadata.Value.JsonClone();
+            incomplete.Books = new LazyLoaded<List<Book>>();
+
+            GivenNewAuthorInfo(incomplete);
+
+            Assert.Throws<CommandFailedException>(() => Subject.Execute(new RefreshAuthorCommand(_author.Id)));
+
+            Assert.That(_author.LastInfoSync, Is.EqualTo(lastInfoSync));
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Never());
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.DeleteAuthor(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>()), Times.Never());
+        }
+
+        [Test]
+        public void should_not_advance_last_info_sync_when_child_refresh_fails()
+        {
+            var lastInfoSync = DateTime.UtcNow.AddDays(-7);
+            _author.LastInfoSync = lastInfoSync;
+
+            var newAuthorInfo = _author.JsonClone();
+            newAuthorInfo.Metadata = _author.Metadata.Value.JsonClone();
+            newAuthorInfo.Books = _remoteBooks;
+
+            GivenNewAuthorInfo(newAuthorInfo);
+            GivenBooksForRefresh(_books);
+
+            Mocker.GetMock<IRefreshBookService>()
+                .Setup(x => x.RefreshBookInfo(It.IsAny<List<Book>>(),
+                                              It.IsAny<List<Book>>(),
+                                              It.IsAny<Author>(),
+                                              It.IsAny<bool>(),
+                                              It.IsAny<bool>(),
+                                              It.IsAny<DateTime?>()))
+                .Throws(new InvalidOperationException("provider response failed during child refresh"));
+
+            Assert.Throws<CommandFailedException>(() => Subject.Execute(new RefreshAuthorCommand(_author.Id)));
+
+            Assert.That(_author.LastInfoSync, Is.EqualTo(lastInfoSync));
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Never());
+
+            ExceptionVerification.ExpectedErrors(1);
+        }
+
+        [Test]
+        public void should_preserve_missing_books_when_remote_collection_is_smaller()
+        {
+            var newAuthorInfo = _author.JsonClone();
+            newAuthorInfo.Metadata = _author.Metadata.Value.JsonClone();
+            newAuthorInfo.Books = new List<Book> { _remoteBooks[0] };
+
+            GivenNewAuthorInfo(newAuthorInfo);
+            GivenBooksForRefresh(_books);
+            AllowAuthorUpdate();
+
+            Subject.Execute(new RefreshAuthorCommand(_author.Id));
+
+            Mocker.GetMock<IEventAggregator>()
+                .Verify(x => x.PublishEvent(It.Is<BookInfoRefreshedEvent>(e => e.Removed.Count == 0)), Times.Once());
+        }
+
+        [Test]
+        public void should_advance_last_info_sync_after_complete_refresh()
+        {
+            var lastInfoSync = DateTime.UtcNow.AddDays(-7);
+            _author.LastInfoSync = lastInfoSync;
+
+            var newAuthorInfo = _author.JsonClone();
+            newAuthorInfo.Metadata = _author.Metadata.Value.JsonClone();
+            newAuthorInfo.Books = _remoteBooks;
+
+            GivenNewAuthorInfo(newAuthorInfo);
+            GivenBooksForRefresh(_books);
+            AllowAuthorUpdate();
+
+            Subject.Execute(new RefreshAuthorCommand(_author.Id));
+
+            Assert.That(_author.LastInfoSync, Is.GreaterThan(lastInfoSync));
         }
 
         [Test]

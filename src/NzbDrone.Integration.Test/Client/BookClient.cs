@@ -1,12 +1,12 @@
 using System.Collections.Generic;
-using Readarr.Api.V1.Books;
+using Readarr.Api.V3.Books;
 using RestSharp;
 
 namespace NzbDrone.Integration.Test.Client
 {
     public class BookClient : ClientBase<BookResource>
     {
-        public BookClient(IRestClient restClient, string apiKey)
+        public BookClient(RestClient restClient, string apiKey)
             : base(restClient, apiKey, "book")
         {
         }

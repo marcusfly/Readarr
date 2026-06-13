@@ -386,7 +386,8 @@ namespace NzbDrone.Core.Parser
                 {
                     AuthorName = foundAuthor,
                     AuthorTitleInfo = GetAuthorTitleInfo(foundAuthor),
-                    BookTitle = foundBook
+                    BookTitle = foundBook,
+                    Confidence = ComputeParseConfidence(foundAuthor, foundBook, 0)
                 };
 
                 try
@@ -806,6 +807,9 @@ namespace NzbDrone.Core.Parser
             result.ReleaseDate = releaseYear.ToString();
             result.ReleaseVersion = releaseVersion;
 
+            // Compute confidence: penalise for missing author, book, or year fields.
+            result.Confidence = ComputeParseConfidence(authorName, bookTitle, releaseYear);
+
             if (matchCollection[0].Groups["discography"].Success)
             {
                 int.TryParse(matchCollection[0].Groups["startyear"].Value, out var discStart);
@@ -828,6 +832,33 @@ namespace NzbDrone.Core.Parser
             Logger.Debug("Book Parsed. {0}", result);
 
             return result;
+        }
+
+        /// <summary>
+        /// Computes a confidence score (0-1) for a parsed result based on how many
+        /// key fields were successfully extracted.
+        /// </summary>
+        private static float ComputeParseConfidence(string authorName, string bookTitle, int releaseYear)
+        {
+            var score = 0f;
+            var total = 3f;
+
+            if (!string.IsNullOrWhiteSpace(authorName))
+            {
+                score += 1f;
+            }
+
+            if (!string.IsNullOrWhiteSpace(bookTitle))
+            {
+                score += 1f;
+            }
+
+            if (releaseYear > 0)
+            {
+                score += 1f;
+            }
+
+            return score / total;
         }
 
         private static bool ValidateBeforeParsing(string title)

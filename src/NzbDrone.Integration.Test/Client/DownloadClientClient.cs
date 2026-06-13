@@ -1,12 +1,12 @@
 using System.Collections.Generic;
-using Readarr.Api.V1.DownloadClient;
+using Readarr.Api.V3.DownloadClient;
 using RestSharp;
 
 namespace NzbDrone.Integration.Test.Client
 {
     public class DownloadClientClient : ClientBase<DownloadClientResource>
     {
-        public DownloadClientClient(IRestClient restClient, string apiKey)
+        public DownloadClientClient(RestClient restClient, string apiKey)
             : base(restClient, apiKey)
         {
         }

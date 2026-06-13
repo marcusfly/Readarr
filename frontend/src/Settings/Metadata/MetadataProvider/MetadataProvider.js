@@ -10,6 +10,17 @@ import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import { inputTypes, kinds } from 'Helpers/Props';
 import translate from 'Utilities/String/translate';
 
+const metadataProviderOptions = [
+  {
+    key: 'openlibrary',
+    value: 'Open Library'
+  },
+  {
+    key: 'rreading-glasses',
+    value: 'rreading-glasses'
+  }
+];
+
 const writeAudioTagOptions = [
   {
     key: 'no',
@@ -86,6 +97,51 @@ function MetadataProvider(props) {
         hasSettings && !isFetching && !error &&
           <Form>
             <FieldSet legend={translate('CalibreMetadata')}>
+              <FormGroup>
+                <FormLabel>
+                  {translate('MetadataProvider')}
+                </FormLabel>
+
+                <FormInputGroup
+                  type={inputTypes.SELECT}
+                  name="metadataProvider"
+                  values={metadataProviderOptions}
+                  helpText={translate('MetadataProviderHelpText')}
+                  onChange={onInputChange}
+                  {...settings.metadataProvider}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <FormLabel>
+                  {translate('MetadataOpenLibrarySource')}
+                </FormLabel>
+
+                <FormInputGroup
+                  type={inputTypes.TEXT}
+                  name="metadataOpenLibrarySource"
+                  helpText={translate('MetadataOpenLibrarySourceHelpText')}
+                  helpLink="https://openlibrary.org/developers/api"
+                  onChange={onInputChange}
+                  {...settings.metadataOpenLibrarySource}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <FormLabel>
+                  {translate('MetadataRreadingGlassesSource')}
+                </FormLabel>
+
+                <FormInputGroup
+                  type={inputTypes.TEXT}
+                  name="metadataRreadingGlassesSource"
+                  helpText={translate('MetadataRreadingGlassesSourceHelpText')}
+                  helpLink="https://wiki.servarr.com/readarr/settings#metadata"
+                  onChange={onInputChange}
+                  {...settings.metadataRreadingGlassesSource}
+                />
+              </FormGroup>
+
               <FormGroup>
                 <FormLabel>
                   {translate('SendMetadataToCalibre')}

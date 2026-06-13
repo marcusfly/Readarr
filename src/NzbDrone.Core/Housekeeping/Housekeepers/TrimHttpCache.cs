@@ -1,24 +1,23 @@
-using Dapper;
+using System;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Http;
 
 namespace NzbDrone.Core.Housekeeping.Housekeepers
 {
     public class TrimHttpCache : IHousekeepingTask
     {
         private readonly ICacheDatabase _database;
+        private readonly ICachedHttpResponseRepository _repository;
 
-        public TrimHttpCache(ICacheDatabase database)
+        public TrimHttpCache(ICacheDatabase database, ICachedHttpResponseRepository repository)
         {
             _database = database;
+            _repository = repository;
         }
 
         public void Clean()
         {
-            using (var mapper = _database.OpenConnection())
-            {
-                mapper.Execute(@"DELETE FROM ""HttpResponse"" WHERE ""Expiry"" < date('now')");
-            }
-
+            _repository.DeleteOlderThan(DateTime.UtcNow.AddDays(-CachedHttpResponse.StaleRetentionDays));
             _database.Vacuum();
         }
     }

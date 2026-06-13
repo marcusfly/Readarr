@@ -24,7 +24,7 @@ using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Host.AccessControl;
 using NzbDrone.Http.Authentication;
 using NzbDrone.SignalR;
-using Readarr.Api.V1.System;
+using Readarr.Api.V3.System;
 using Readarr.Http;
 using Readarr.Http.Authentication;
 using Readarr.Http.ClientSchema;
@@ -97,7 +97,7 @@ namespace NzbDrone.Host
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo
+                c.SwaggerDoc("v3", new OpenApiInfo
                 {
                     Version = "1.0.0",
                     Title = "Readarr",
@@ -263,7 +263,7 @@ namespace NzbDrone.Host
             app.UseMiddleware<StartingUpMiddleware>();
             app.UseMiddleware<CacheHeaderMiddleware>();
             app.UseMiddleware<IfModifiedMiddleware>();
-            app.UseMiddleware<BufferingMiddleware>(new List<string> { "/api/v1/command" });
+            app.UseMiddleware<BufferingMiddleware>(new List<string> { "/api/v3/command" });
 
             app.UseWebSockets();
 

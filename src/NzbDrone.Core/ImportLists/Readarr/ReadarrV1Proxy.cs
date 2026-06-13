@@ -32,27 +32,27 @@ namespace NzbDrone.Core.ImportLists.Readarr
 
         public List<ReadarrAuthor> GetAuthors(ReadarrSettings settings)
         {
-            return Execute<ReadarrAuthor>("/api/v1/author", settings);
+            return Execute<ReadarrAuthor>("/api/v3/author", settings);
         }
 
         public List<ReadarrBook> GetBooks(ReadarrSettings settings)
         {
-            return Execute<ReadarrBook>("/api/v1/book", settings);
+            return Execute<ReadarrBook>("/api/v3/book", settings);
         }
 
         public List<ReadarrProfile> GetProfiles(ReadarrSettings settings)
         {
-            return Execute<ReadarrProfile>("/api/v1/qualityprofile", settings);
+            return Execute<ReadarrProfile>("/api/v3/qualityprofile", settings);
         }
 
         public List<ReadarrRootFolder> GetRootFolders(ReadarrSettings settings)
         {
-            return Execute<ReadarrRootFolder>("api/v1/rootfolder", settings);
+            return Execute<ReadarrRootFolder>("api/v3/rootfolder", settings);
         }
 
         public List<ReadarrTag> GetTags(ReadarrSettings settings)
         {
-            return Execute<ReadarrTag>("/api/v1/tag", settings);
+            return Execute<ReadarrTag>("/api/v3/tag", settings);
         }
 
         public ValidationFailure Test(ReadarrSettings settings)

@@ -1,0 +1,65 @@
+{
+  "entries": [
+    {
+      "key": "/books/OL300M",
+      "title": "A Wizard of Earthsea",
+      "subtitle": "The Earthsea Cycle",
+      "publishers": [
+        "Parnassus Press"
+      ],
+      "publish_date": "1968",
+      "number_of_pages": 205,
+      "isbn_13": [
+        "9780547773742"
+      ],
+      "isbn_10": [
+        "0547773749"
+      ],
+      "languages": [
+        {
+          "key": "/languages/eng"
+        }
+      ],
+      "covers": [
+        300001
+      ],
+      "description": {
+        "type": "/type/text",
+        "value": "A young wizard learns the cost of power."
+      },
+      "physical_format": "eBook",
+      "works": [
+        {
+          "key": "/works/OL200W"
+        }
+      ]
+    },
+    {
+      "key": "/books/OL301M",
+      "title": "A Wizard of Earthsea",
+      "publishers": [
+        "Ace"
+      ],
+      "publish_date": "September 2012",
+      "isbn_13": [
+        "9780141354910"
+      ],
+      "physical_format": "Paperback",
+      "works": [
+        {
+          "key": "/works/OL200W"
+        }
+      ]
+    },
+    {
+      "key": "/books/OL302M",
+      "works": [
+        {
+          "key": "/works/OL200W"
+        }
+      ]
+    }
+  ],
+  "links": {},
+  "size": 3
+}

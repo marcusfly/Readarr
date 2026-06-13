@@ -27,7 +27,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
 {
     public interface IImportApprovedBooks
     {
-        List<ImportResult> Import(List<ImportDecision<LocalBook>> decisions, bool replaceExisting, DownloadClientItem downloadClientItem = null, ImportMode importMode = ImportMode.Auto);
+        List<ImportResult> Import(List<ImportDecision<LocalBook>> decisions, bool replaceExisting, DownloadClientItem downloadClientItem = null, ImportMode importMode = ImportMode.Auto, bool dryRun = false);
     }
 
     public class ImportApprovedBooks : IImportApprovedBooks
@@ -48,6 +48,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
         private readonly IHistoryService _historyService;
         private readonly IEventAggregator _eventAggregator;
         private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IImportAttemptService _importAttemptService;
         private readonly Logger _logger;
 
         public ImportApprovedBooks(IUpgradeMediaFiles bookFileUpgrader,
@@ -64,6 +65,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                                    IHistoryService historyService,
                                    IEventAggregator eventAggregator,
                                    IManageCommandQueue commandQueueManager,
+                                   IImportAttemptService importAttemptService,
                                    Logger logger)
         {
             _bookFileUpgrader = bookFileUpgrader;
@@ -80,10 +82,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             _historyService = historyService;
             _eventAggregator = eventAggregator;
             _commandQueueManager = commandQueueManager;
+            _importAttemptService = importAttemptService;
             _logger = logger;
         }
 
-        public List<ImportResult> Import(List<ImportDecision<LocalBook>> decisions, bool replaceExisting, DownloadClientItem downloadClientItem = null, ImportMode importMode = ImportMode.Auto)
+        public List<ImportResult> Import(List<ImportDecision<LocalBook>> decisions, bool replaceExisting, DownloadClientItem downloadClientItem = null, ImportMode importMode = ImportMode.Auto, bool dryRun = false)
         {
             var importResults = new List<ImportResult>();
             var allImportedTrackFiles = new List<BookFile>();
@@ -232,8 +235,37 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                     {
                         bookFile.SceneName = GetSceneReleaseName(downloadClientItem);
 
-                        var moveResult = _bookFileUpgrader.UpgradeBookFile(bookFile, localTrack, copyOnly);
-                        oldFiles = moveResult.OldFiles;
+                        if (dryRun)
+                        {
+                            // Dry-run: log the intended operation without touching the file system.
+                            _logger.Info(
+                                "DryRun: would move/copy '{0}' for book '{1}'",
+                                localTrack.Path,
+                                localTrack.Book);
+
+                            // Record a dry-run attempt so callers can audit the plan.
+                            var dryRunAttempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, isDryRun: true);
+                            _importAttemptService.MarkCompleted(dryRunAttempt);
+
+                            importResults.Add(new ImportResult(importDecision));
+                            continue;
+                        }
+
+                        // Begin a durable import attempt before touching the file system.
+                        var attempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, isDryRun: false);
+                        _importAttemptService.MarkInProgress(attempt);
+
+                        try
+                        {
+                            var moveResult = _bookFileUpgrader.UpgradeBookFile(bookFile, localTrack, copyOnly);
+                            oldFiles = moveResult.OldFiles;
+                            _importAttemptService.MarkCompleted(attempt);
+                        }
+                        catch
+                        {
+                            _importAttemptService.MarkFailed(attempt, "File-system operation failed; see application log for details.");
+                            throw;
+                        }
                     }
                     else
                     {

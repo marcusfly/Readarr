@@ -4,7 +4,8 @@ using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Integration.Test.Client;
-using Readarr.Api.V1.Books;
+using Readarr.Api.V3.Books;
+using RestSharp;
 
 namespace NzbDrone.Integration.Test.ApiTests
 {
@@ -27,8 +28,8 @@ namespace NzbDrone.Integration.Test.ApiTests
             var author = EnsureAuthor("14586394", "43765115", "Andrew Hunter Murray", true);
 
             var request = Calendar.BuildRequest();
-            request.AddParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
-            request.AddParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
+            request.AddQueryParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
+            request.AddQueryParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
             var items = Calendar.Get<List<BookResource>>(request);
 
             items = items.Where(v => v.AuthorId == author.Id).ToList();
@@ -43,9 +44,9 @@ namespace NzbDrone.Integration.Test.ApiTests
             var author = EnsureAuthor("14586394", "43765115", "Andrew Hunter Murray", false);
 
             var request = Calendar.BuildRequest();
-            request.AddParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
-            request.AddParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
-            request.AddParameter("unmonitored", "false");
+            request.AddQueryParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
+            request.AddQueryParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
+            request.AddQueryParameter("unmonitored", "false");
             var items = Calendar.Get<List<BookResource>>(request);
 
             items = items.Where(v => v.AuthorId == author.Id).ToList();
@@ -59,9 +60,9 @@ namespace NzbDrone.Integration.Test.ApiTests
             var author = EnsureAuthor("14586394", "43765115", "Andrew Hunter Murray", false);
 
             var request = Calendar.BuildRequest();
-            request.AddParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
-            request.AddParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
-            request.AddParameter("unmonitored", "true");
+            request.AddQueryParameter("start", new DateTime(2020, 02, 01).ToString("s") + "Z");
+            request.AddQueryParameter("end", new DateTime(2020, 02, 28).ToString("s") + "Z");
+            request.AddQueryParameter("unmonitored", "true");
             var items = Calendar.Get<List<BookResource>>(request);
 
             items = items.Where(v => v.AuthorId == author.Id).ToList();

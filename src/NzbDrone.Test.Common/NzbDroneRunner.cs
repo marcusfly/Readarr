@@ -20,7 +20,7 @@ namespace NzbDrone.Test.Common
     public class NzbDroneRunner
     {
         private readonly IProcessProvider _processProvider;
-        private readonly IRestClient _restClient;
+        private readonly RestClient _restClient;
         private Process _nzbDroneProcess;
         private List<string> _startupLog;
 
@@ -32,7 +32,7 @@ namespace NzbDrone.Test.Common
         public NzbDroneRunner(Logger logger, PostgresOptions postgresOptions, int port = 8787)
         {
             _processProvider = new ProcessProvider(logger);
-            _restClient = new RestClient($"http://localhost:{port}/api/v1");
+            _restClient = new RestClient(new RestClientOptions($"http://localhost:{port}/api/v3"));
 
             PostgresOptions = postgresOptions;
             Port = port;
@@ -58,7 +58,7 @@ namespace NzbDrone.Test.Common
             _startupLog = new List<string>();
             if (BuildInfo.IsDebug)
             {
-                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net6.0", readarrConsoleExe));
+                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net8.0", readarrConsoleExe));
             }
             else
             {

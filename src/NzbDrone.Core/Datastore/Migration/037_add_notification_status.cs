@@ -8,12 +8,14 @@ namespace NzbDrone.Core.Datastore.Migration
     {
         protected override void MainDbUpgrade()
         {
+            var dateType = IsPostgres ? "TIMESTAMPTZ" : "DATETIME";
+
             Create.TableForModel("NotificationStatus")
                   .WithColumn("ProviderId").AsInt32().NotNullable().Unique()
-                  .WithColumn("InitialFailure").AsDateTimeOffset().Nullable()
-                  .WithColumn("MostRecentFailure").AsDateTimeOffset().Nullable()
+                  .WithColumn("InitialFailure").AsCustom(dateType).Nullable()
+                  .WithColumn("MostRecentFailure").AsCustom(dateType).Nullable()
                   .WithColumn("EscalationLevel").AsInt32().NotNullable()
-                  .WithColumn("DisabledTill").AsDateTimeOffset().Nullable();
+                  .WithColumn("DisabledTill").AsCustom(dateType).Nullable();
         }
     }
 }

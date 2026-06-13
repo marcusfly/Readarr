@@ -269,6 +269,27 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("MetadataSource", value); }
         }
 
+        public string MetadataProvider
+        {
+            get { return GetValue("MetadataProvider", "openlibrary"); }
+
+            set { SetValue("MetadataProvider", value); }
+        }
+
+        public string MetadataOpenLibrarySource
+        {
+            get { return GetValue("MetadataOpenLibrarySource", ""); }
+
+            set { SetValue("MetadataOpenLibrarySource", value); }
+        }
+
+        public string MetadataRreadingGlassesSource
+        {
+            get { return GetValue("MetadataRreadingGlassesSource", ""); }
+
+            set { SetValue("MetadataRreadingGlassesSource", value); }
+        }
+
         public WriteAudioTagsType WriteAudioTags
         {
             get { return GetValueEnum("WriteAudioTags", WriteAudioTagsType.No); }

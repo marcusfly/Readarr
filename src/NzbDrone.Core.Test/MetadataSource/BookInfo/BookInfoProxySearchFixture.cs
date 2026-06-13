@@ -3,32 +3,22 @@ using System.Collections.Generic;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
-using NzbDrone.Common.Http;
 using NzbDrone.Core.Books;
-using NzbDrone.Core.Http;
 using NzbDrone.Core.MetadataSource.BookInfo;
-using NzbDrone.Core.MetadataSource.Goodreads;
 using NzbDrone.Core.Profiles.Metadata;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Test.Common;
 
-namespace NzbDrone.Core.Test.MetadataSource.Goodreads
+namespace NzbDrone.Core.Test.MetadataSource.BookInfo
 {
     [TestFixture]
-    [Ignore("Waiting for metadata to be back again", Until = "2026-01-15 00:00:00Z")]
+    [Ignore("Network integration tests — require live openlibrary.org access")]
     public class BookInfoProxySearchFixture : CoreTest<BookInfoProxy>
     {
         [SetUp]
         public void Setup()
         {
             UseRealHttp();
-
-            Mocker.SetConstant<IGoodreadsSearchProxy>(Mocker.Resolve<GoodreadsSearchProxy>());
-
-            var httpClient = Mocker.Resolve<IHttpClient>();
-            Mocker.GetMock<ICachedHttpResponseService>()
-                .Setup(x => x.Get<List<SearchJsonResource>>(It.IsAny<HttpRequest>(), It.IsAny<bool>(), It.IsAny<TimeSpan>()))
-                .Returns((HttpRequest request, bool useCache, TimeSpan ttl) => httpClient.Get<List<SearchJsonResource>>(request));
 
             var metadataProfile = new MetadataProfile();
 
@@ -55,10 +45,9 @@ namespace NzbDrone.Core.Test.MetadataSource.Goodreads
             ExceptionVerification.IgnoreWarns();
         }
 
-        [TestCase("Harry Potter and the sorcerer's stone a summary of the novel", null, "Harry Potter and the Sorcerer's Stone (Book 1): A Summary Of The Novel")]
-        [TestCase("edition:3", null, "Harry Potter and the Sorcerer's Stone")]
-        [TestCase("edition: 3", null, "Harry Potter and the Sorcerer's Stone")]
-        [TestCase("asin:B0192CTMYG", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("Harry Potter and the sorcerer's stone", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("edition:OL7353617M", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("edition: OL7353617M", null, "Harry Potter and the Sorcerer's Stone")]
         [TestCase("isbn:9780439554930", null, "Harry Potter and the Sorcerer's Stone")]
         public void successful_book_search(string title, string author, string expected)
         {

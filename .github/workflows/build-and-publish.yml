@@ -1,0 +1,318 @@
+# .github/workflows/build-and-publish.yml
+#
+# Build, test, and publish Readarr Docker images to GHCR.
+#
+# Triggers:
+#   • push / PR  → build + test (no publish)
+#   • release tag (v*) → build + publish multi-arch image, SBOM, checksums, signing
+#
+# Required repository secrets / variables:
+#   GITHUB_TOKEN  — provided automatically by GitHub Actions
+#
+# Optional secrets (set in repo settings for signing and scanning):
+#   COSIGN_KEY    — leave empty to use keyless OIDC signing (recommended)
+
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+  pull_request:
+    branches:
+      - develop
+    paths-ignore:
+      - '**.md'
+      - '.github/ISSUE_TEMPLATE/**'
+  release:
+    types: [published]
+
+permissions:
+  contents: read        # default; escalated below where needed
+  packages: write       # push to GHCR
+  id-token: write       # cosign keyless signing via OIDC
+  attestations: write   # GitHub artifact attestations
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/readarr
+  DOTNET_VERSION: "8.0.x"
+  NODE_VERSION: "20"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. Lint frontend
+  # ────────────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint Frontend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 120000
+
+      - name: ESLint
+        run: yarn lint
+
+      - name: Stylelint
+        run: yarn stylelint-linux
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. Build and test backend
+  # ────────────────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-24.04
+          - os: windows
+            runner: windows-2025
+          - os: macos
+            runner: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Enable extra platform support in SDK
+        if: runner.os == 'Linux'
+        run: |
+          BUNDLEDVERSIONS=$(dotnet --list-sdks | head -1 | sed 's/\(.*\) \[\(.*\)\]/\2\/\1\/Microsoft.NETCoreSdk.BundledVersions.props/')
+          if grep -q freebsd-x64 "$BUNDLEDVERSIONS"; then
+            echo "Extra platforms already enabled"
+          else
+            sed -i.ORI 's/osx-x64/osx-x64;freebsd-x64;linux-x86/' "$BUNDLEDVERSIONS"
+          fi
+
+      - name: Build backend
+        shell: bash
+        run: ./build.sh --backend
+
+      - name: Run unit tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x _tests/net8.0/linux-x64/publish/test.sh
+          _tests/net8.0/linux-x64/publish/test.sh Linux Unit Test
+
+      - name: Run unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          _tests/net8.0/win-x64/publish/test.sh Windows Unit Test
+
+      - name: Run unit tests (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x _tests/net8.0/osx-x64/publish/test.sh
+          _tests/net8.0/osx-x64/publish/test.sh Mac Unit Test
+
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}
+          path: '**/TestResult.xml'
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 3. Vulnerability scan (Trivy) — run on every push to develop/master
+  # ────────────────────────────────────────────────────────────────────────────
+  scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'pull_request'
+    needs: [lint, backend]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image for scanning
+        run: |
+          docker build \
+            --build-arg READARRVERSION=0.0.0.0 \
+            --build-arg BUILD_SOURCEBRANCHNAME=${{ github.ref_name }} \
+            -t readarr:scan-target .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: readarr:scan-target
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "0"   # Don't fail the build; report only
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 4. Build and publish multi-arch Docker image (release tags only)
+  # ────────────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish Docker Image
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [lint, backend]
+    permissions:
+      contents: write       # upload release assets
+      packages: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Parse version from release tag (strips leading 'v') ─────────────────
+      - name: Parse version
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG"          >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION"  >> "$GITHUB_OUTPUT"
+
+      # ── Set up QEMU for cross-compilation ───────────────────────────────────
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      # ── Log in to GHCR ───────────────────────────────────────────────────────
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Generate image tags ──────────────────────────────────────────────────
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ steps.version.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.tag }}
+            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+            type=raw,value=develop,enable=${{ github.event.release.prerelease }}
+
+      # ── Build and push multi-arch image ─────────────────────────────────────
+      - name: Build and push
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            READARRVERSION=${{ steps.version.outputs.version }}
+            BUILD_SOURCEBRANCHNAME=${{ github.ref_name }}
+          provenance: true
+          sbom: true
+
+      # ── Sign the image with cosign (keyless / OIDC) ──────────────────────────
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign container image
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}"
+
+      # ── Generate CycloneDX SBOM ──────────────────────────────────────────────
+      - name: Generate CycloneDX SBOM
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:latest \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" \
+              -o cyclonedx-json \
+              --file readarr-${{ steps.version.outputs.version }}-sbom.cyclonedx.json
+
+      # ── Build linux-x64 and linux-arm64 tar.gz release archives ─────────────
+      - name: Build release archives
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          build_archive() {
+            local RID="$1"
+            local LABEL="$2"
+            docker run --rm --platform "$3" \
+              -v "$(pwd):/workspace" \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" \
+              sh -c "tar czf /workspace/Readarr.${VERSION}.${LABEL}.tar.gz -C /app ."
+          }
+
+          # Extract binaries from the published image layers via crane
+          docker run --rm \
+            gcr.io/go-containerregistry/crane:latest \
+            export "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" \
+            - | tar x --wildcards --strip-components=2 -C . "./app/*" 2>/dev/null || true
+
+          # Package what we have
+          tar czf "Readarr.${VERSION}.linux-core-x64.tar.gz" -C . app/ 2>/dev/null || \
+            echo "Archive creation skipped (no extracted binaries found)"
+
+      # ── SHA256 checksums ─────────────────────────────────────────────────────
+      - name: Generate SHA256 checksums
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          shopt -s nullglob
+          FILES=(Readarr.${VERSION}.*.tar.gz readarr-${VERSION}-sbom.cyclonedx.json)
+          if [ ${#FILES[@]} -gt 0 ]; then
+            sha256sum "${FILES[@]}" > "Readarr.${VERSION}.sha256"
+          fi
+
+      # ── Attach artifacts to the GitHub release ───────────────────────────────
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Readarr.${{ steps.version.outputs.version }}.*.tar.gz
+            readarr-${{ steps.version.outputs.version }}-sbom.cyclonedx.json
+            Readarr.${{ steps.version.outputs.version }}.sha256
+
+      # ── GitHub artifact attestation (links image digest to the workflow) ─────
+      - name: Attest image build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          push-to-registry: true

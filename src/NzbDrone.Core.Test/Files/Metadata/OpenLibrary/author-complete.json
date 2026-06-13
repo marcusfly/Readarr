@@ -1,0 +1,24 @@
+{
+  "key": "/authors/OL100A",
+  "name": "Ursula K. Le Guin",
+  "personal_name": "Ursula Kroeber Le Guin",
+  "bio": {
+    "type": "/type/text",
+    "value": "American novelist known for speculative fiction."
+  },
+  "birth_date": "21 October 1929",
+  "death_date": "22 January 2018",
+  "alternate_names": [
+    "U. K. Le Guin",
+    "Ursula LeGuin"
+  ],
+  "photos": [
+    123456
+  ],
+  "wikipedia": "https://en.wikipedia.org/wiki/Ursula_K._Le_Guin",
+  "remote_ids": {
+    "goodreads": "874602",
+    "isni": "0000000121440024",
+    "wikidata": "Q125850"
+  }
+}

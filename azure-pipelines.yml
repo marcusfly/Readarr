@@ -15,12 +15,12 @@ variables:
   buildName: '$(Build.SourceBranchName).$(readarrVersion)'
   sentryOrg: 'servarr'
   sentryUrl: 'https://sentry.servarr.com'
-  dotnetVersion: '6.0.427'
+  dotnetVersion: '8.0.421'
   nodeVersion: '20.X'
   innoVersion: '6.2.0'
-  windowsImage: 'windows-2022'
-  linuxImage: 'ubuntu-22.04'
-  macImage: 'macOS-13'
+  windowsImage: 'windows-2025'
+  linuxImage: 'ubuntu-24.04'
+  macImage: 'macOS-15'
 
 trigger:
   branches:

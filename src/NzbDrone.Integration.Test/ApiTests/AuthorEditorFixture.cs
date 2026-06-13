@@ -2,7 +2,7 @@ using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Test.Common;
-using Readarr.Api.V1.Author;
+using Readarr.Api.V3.Author;
 
 namespace NzbDrone.Integration.Test.ApiTests
 {
