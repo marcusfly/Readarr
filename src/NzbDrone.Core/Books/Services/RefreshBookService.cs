@@ -10,6 +10,7 @@ using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.History;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MediaFiles;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.MetadataSource;
@@ -41,6 +42,7 @@ namespace NzbDrone.Core.Books
         private readonly IEventAggregator _eventAggregator;
         private readonly ICheckIfBookShouldBeRefreshed _checkIfBookShouldBeRefreshed;
         private readonly IMapCoversToLocal _mediaCoverService;
+        private readonly IJobProgressReporter _jobProgressReporter;
         private readonly Logger _logger;
 
         public RefreshBookService(IBookService bookService,
@@ -57,6 +59,7 @@ namespace NzbDrone.Core.Books
                                   IEventAggregator eventAggregator,
                                   ICheckIfBookShouldBeRefreshed checkIfBookShouldBeRefreshed,
                                   IMapCoversToLocal mediaCoverService,
+                                  IJobProgressReporter jobProgressReporter,
                                   Logger logger)
         : base(logger, authorMetadataService)
         {
@@ -73,6 +76,7 @@ namespace NzbDrone.Core.Books
             _eventAggregator = eventAggregator;
             _checkIfBookShouldBeRefreshed = checkIfBookShouldBeRefreshed;
             _mediaCoverService = mediaCoverService;
+            _jobProgressReporter = jobProgressReporter;
             _logger = logger;
         }
 
@@ -364,10 +368,17 @@ namespace NzbDrone.Core.Books
         public void Execute(BulkRefreshBookCommand message)
         {
             var books = _bookService.GetBooks(message.BookIds);
+            var total = books.Count;
+            var processed = 0;
 
             foreach (var book in books)
             {
                 RefreshBookInfo(book);
+                processed++;
+                if (total > 0)
+                {
+                    _jobProgressReporter.ReportProgress((processed * 100) / total);
+                }
             }
         }
 

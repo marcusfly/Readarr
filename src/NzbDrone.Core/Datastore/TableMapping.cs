@@ -214,6 +214,8 @@ namespace NzbDrone.Core.Datastore
             Mapper.Entity<DownloadHistory>("DownloadHistory").RegisterModel();
 
             Mapper.Entity<UpdateHistory>("UpdateHistory").RegisterModel();
+
+            Mapper.Entity<Jobs.Durable.JobAttempt>("JobAttempts").RegisterModel();
         }
 
         private static void RegisterMappers()
