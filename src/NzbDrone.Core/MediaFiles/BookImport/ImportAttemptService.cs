@@ -130,14 +130,19 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                     if (!string.IsNullOrWhiteSpace(attempt.DestinationPath) &&
                         _diskProvider.FileExists(attempt.DestinationPath))
                     {
-                        _logger.Info("Recovery: destination file exists for attempt {0} ({1}). Marking Completed.",
-                            attempt.Id, attempt.DestinationPath);
+                        _logger.Info(
+                            "Recovery: destination file exists for attempt {0} ({1}). Marking Completed.",
+                            attempt.Id,
+                            attempt.DestinationPath);
                         MarkCompleted(attempt);
                     }
                     else
                     {
-                        _logger.Warn("Recovery: destination file missing for attempt {0} ({1} → {2}). Marking RolledBack.",
-                            attempt.Id, attempt.SourcePath, attempt.DestinationPath);
+                        _logger.Warn(
+                            "Recovery: destination file missing for attempt {0} ({1} → {2}). Marking RolledBack.",
+                            attempt.Id,
+                            attempt.SourcePath,
+                            attempt.DestinationPath);
                         MarkRolledBack(attempt);
                     }
                 }

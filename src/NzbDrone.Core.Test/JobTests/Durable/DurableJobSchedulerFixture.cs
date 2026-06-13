@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Jobs.Durable;
@@ -113,7 +112,6 @@ namespace NzbDrone.Core.Test.JobTests.Durable
         // ------------------------------------------------------------------ //
         //  Helpers
         // ------------------------------------------------------------------ //
-
         private static CommandModel BuildCommandModel(int id,
                                                       CommandStatus status,
                                                       string exception = null)

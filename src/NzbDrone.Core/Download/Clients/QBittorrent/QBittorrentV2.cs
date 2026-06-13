@@ -29,20 +29,36 @@ namespace NzbDrone.Core.Download.Clients.QBittorrent
             _logger = logger;
         }
 
-        // ── IProvider ─────────────────────────────────────────────────────────────
-
+        // ── IProvider ────────────────────────────────────────────────────────────
         public string Name => "qBittorrent";
 
-        public IEnumerable<ProviderMessage> GetInfoMessages() => Enumerable.Empty<ProviderMessage>();
+        public Type ConfigContract => typeof(QBittorrentSettings);
+
+        public ProviderMessage Message => null;
+
+        public IEnumerable<ProviderDefinition> DefaultDefinitions => new List<ProviderDefinition>
+        {
+            new DownloadClientDefinition { Enable = true, Name = Name, Settings = new QBittorrentSettings() }
+        };
 
         public ProviderDefinition Definition { get; set; }
+
+        public ValidationResult Test()
+        {
+            var failures = new List<ValidationFailure>();
+            TestConnectivity(failures);
+            return new ValidationResult(failures);
+        }
+
+        public object RequestAction(string stage, IDictionary<string, string> query) => null;
+
+        public IEnumerable<ProviderMessage> GetInfoMessages() => Enumerable.Empty<ProviderMessage>();
 
         private QBittorrentSettings Settings => (QBittorrentSettings)Definition.Settings;
 
         private IQBittorrentProxy Proxy => _proxySelector.GetProxy(Settings);
 
-        // ── IDownloadClientV2 ─────────────────────────────────────────────────────
-
+        // ── IDownloadClientV2 ────────────────────────────────────────────────────
         public DownloadProtocol Protocol => DownloadProtocol.Torrent;
 
         public DownloadClientCapabilities Capabilities =>
@@ -157,12 +173,11 @@ namespace NzbDrone.Core.Download.Clients.QBittorrent
 
         public void SetSeedTime(string downloadId, int minutes)
         {
-            var config = new TorrentSeedConfiguration { SeedTime = minutes };
+            var config = new TorrentSeedConfiguration { SeedTime = TimeSpan.FromMinutes(minutes) };
             Proxy.SetTorrentSeedingConfiguration(downloadId.ToLower(), config, Settings);
         }
 
-        // ── State mapping ─────────────────────────────────────────────────────────
-
+        // ── State mapping ────────────────────────────────────────────────────────
         private static DownloadQueueItemState MapState(
             QBittorrentTorrent torrent,
             QBittorrentPreferences config,

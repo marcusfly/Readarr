@@ -114,7 +114,6 @@ namespace NzbDrone.Core.Datastore
                 ("DownloadHistory", "Id"),
                 ("DownloadHistory", "EventType"),
                 ("DownloadHistory", "AuthorId"),
-                ("DownloadHistory", "BookId"),
                 ("DownloadHistory", "DownloadId"),
 
                 // Indexers
@@ -181,11 +180,6 @@ namespace NzbDrone.Core.Datastore
                 // NotificationStatus
                 ("NotificationStatus", "Id"),
                 ("NotificationStatus", "ProviderId"),
-
-                // UpdateHistory
-                ("UpdateHistory", "Id"),
-                ("UpdateHistory", "Date"),
-                ("UpdateHistory", "Version"),
             };
 
         public IReadOnlyList<string> Check(IDatabase db)

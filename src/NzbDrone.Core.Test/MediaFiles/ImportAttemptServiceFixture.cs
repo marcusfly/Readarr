@@ -19,13 +19,16 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // Begin
         // -----------------------------------------------------------------------
-
         [Test]
         public void begin_should_insert_pending_attempt()
         {
             Mocker.GetMock<IImportAttemptRepository>()
                   .Setup(r => r.Insert(It.IsAny<ImportAttempt>()))
-                  .Returns<ImportAttempt>(a => { a.Id = 1; return a; });
+                  .Returns<ImportAttempt>(a =>
+                  {
+                      a.Id = 1;
+                      return a;
+                  });
 
             var result = Subject.Begin(SourcePath, DestPath, isDryRun: false);
 
@@ -45,7 +48,11 @@ namespace NzbDrone.Core.Test.MediaFiles
         {
             Mocker.GetMock<IImportAttemptRepository>()
                   .Setup(r => r.Insert(It.IsAny<ImportAttempt>()))
-                  .Returns<ImportAttempt>(a => { a.Id = 2; return a; });
+                  .Returns<ImportAttempt>(a =>
+                  {
+                      a.Id = 2;
+                      return a;
+                  });
 
             var result = Subject.Begin(SourcePath, DestPath, isDryRun: true);
 
@@ -55,7 +62,6 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // MarkInProgress
         // -----------------------------------------------------------------------
-
         [Test]
         public void mark_in_progress_should_update_status()
         {
@@ -71,7 +77,6 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // MarkCompleted
         // -----------------------------------------------------------------------
-
         [Test]
         public void mark_completed_should_set_status_and_finish_time()
         {
@@ -86,7 +91,6 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // MarkFailed
         // -----------------------------------------------------------------------
-
         [Test]
         public void mark_failed_should_set_status_and_error_message()
         {
@@ -102,7 +106,6 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // MarkRolledBack
         // -----------------------------------------------------------------------
-
         [Test]
         public void mark_rolled_back_should_set_status()
         {
@@ -117,7 +120,6 @@ namespace NzbDrone.Core.Test.MediaFiles
         // -----------------------------------------------------------------------
         // Startup crash recovery — Handle(ApplicationStartedEvent)
         // -----------------------------------------------------------------------
-
         [Test]
         public void handle_startup_should_mark_completed_when_destination_exists()
         {

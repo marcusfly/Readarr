@@ -98,6 +98,7 @@ namespace NzbDrone.Core.Test.Backup
         public void VerifyBackup_should_fail_for_corrupt_file()
         {
             var path = Path.Combine(_tempDir, "corrupt.db");
+
             // Write garbage bytes that are not a valid SQLite file.
             File.WriteAllBytes(path, new byte[] { 0xFF, 0xFE, 0x00, 0x01, 0xAB, 0xCD });
 

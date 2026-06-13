@@ -7,9 +7,6 @@ using NUnit.Framework;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.Clients;
 using NzbDrone.Core.Download.Clients.QBittorrent;
-using NzbDrone.Core.Indexers;
-using NzbDrone.Core.Test.Framework;
-using NzbDrone.Core.ThingiProvider;
 
 namespace NzbDrone.Core.Test.Download.DownloadClientTests.QBittorrentTests
 {
@@ -34,10 +31,6 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests.QBittorrentTests
 
             _proxySelector
                 .Setup(s => s.GetProxy(It.IsAny<QBittorrentSettings>(), It.IsAny<bool>()))
-                .Returns(_proxy.Object);
-
-            _proxySelector
-                .Setup(s => s.GetProxy(It.IsAny<QBittorrentSettings>()))
                 .Returns(_proxy.Object);
 
             _proxySelector
@@ -87,7 +80,6 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests.QBittorrentTests
         }
 
         // ── qBittorrent-specific supplemental tests ────────────────────────────────
-
         [Test]
         public void GetQueue_should_map_downloading_state_correctly()
         {
@@ -136,7 +128,7 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests.QBittorrentTests
                         State = "uploading",
                         Size = 100_000_000,
                         Progress = 1.0f,
-                        Ratio = 0.5,
+                        Ratio = 0.5f,
                         Eta = 8640000,
                         RatioLimit = -1,
                         SeedingTimeLimit = -1,

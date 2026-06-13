@@ -1,7 +1,5 @@
 using System;
-using System.Data;
 using FluentAssertions;
-using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Test.Common;

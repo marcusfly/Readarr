@@ -88,7 +88,6 @@ namespace NzbDrone.Core.Jobs.Durable
         // ------------------------------------------------------------------ //
         //  IJobProgressReporter
         // ------------------------------------------------------------------ //
-
         public void ReportProgress(int percent)
         {
             var attempt = _currentAttempt;
@@ -104,7 +103,6 @@ namespace NzbDrone.Core.Jobs.Durable
         // ------------------------------------------------------------------ //
         //  Event handlers
         // ------------------------------------------------------------------ //
-
         public void Handle(ApplicationStartedEvent message)
         {
             var stuck = _jobAttemptService.GetStuckRunning();

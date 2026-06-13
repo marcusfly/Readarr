@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
@@ -27,7 +26,11 @@ namespace NzbDrone.Core.Test.JobTests.Durable
         {
             Mocker.GetMock<IJobAttemptRepository>()
                   .Setup(r => r.Insert(It.IsAny<JobAttempt>()))
-                  .Returns<JobAttempt>(a => { a.Id = 1; return a; });
+                  .Returns<JobAttempt>(a =>
+                      {
+                          a.Id = 1;
+                          return a;
+                      });
 
             var result = Subject.Submit(JobType, Key);
 
@@ -100,7 +103,11 @@ namespace NzbDrone.Core.Test.JobTests.Durable
 
             Mocker.GetMock<IJobAttemptRepository>()
                   .Setup(r => r.Insert(It.IsAny<JobAttempt>()))
-                  .Returns<JobAttempt>(a => { a.Id = 10; return a; });
+                  .Returns<JobAttempt>(a =>
+                  {
+                      a.Id = 10;
+                      return a;
+                  });
 
             var result = Subject.Submit(JobType, Key);
 

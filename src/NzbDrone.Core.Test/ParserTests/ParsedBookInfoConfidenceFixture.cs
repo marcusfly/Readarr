@@ -1,6 +1,5 @@
 using FluentAssertions;
 using NUnit.Framework;
-using NzbDrone.Core.Parser;
 using NzbDrone.Core.Test.Framework;
 
 namespace NzbDrone.Core.Test.ParserTests
@@ -16,7 +15,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Standard author – book – year releases (confidence should be 1.0)
         // ---------------------------------------------------------------------------
-
         [TestCase("Brandon Sanderson - The Way of Kings (2010) EPUB", "Brandon Sanderson", "The Way of Kings", 1.0f)]
         [TestCase("Frank Herbert - Dune - 1965 EPUB", "Frank Herbert", "Dune", 1.0f)]
         [TestCase("Terry Pratchett - Guards Guards (1989) MP3 128kbps", "Terry Pratchett", "Guards Guards", 1.0f)]
@@ -34,7 +32,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Author + book but no year (confidence 0.67)
         // ---------------------------------------------------------------------------
-
         [TestCase("George Orwell - Nineteen Eighty-Four [EPUB]")]
         [TestCase("Ursula K Le Guin - The Left Hand of Darkness (MOBI)")]
         public void should_assign_reduced_confidence_when_year_is_absent(string title)
@@ -49,7 +46,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Audiobook releases
         // ---------------------------------------------------------------------------
-
         [TestCase("Stephen King - It (Audiobook) (2020) MP3 64kbps", "Stephen King", "It")]
         [TestCase("Patrick Rothfuss - The Name of the Wind (Unabridged) - 2018 - M4B", "Patrick Rothfuss", "The Name of the Wind")]
         public void should_parse_audiobook_releases(string title, string expectedAuthor, string expectedBook)
@@ -64,7 +60,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Ebook-style releases
         // ---------------------------------------------------------------------------
-
         [TestCase("Cormac McCarthy - Blood Meridian (1985) EPUB Retail")]
         [TestCase("Neil Gaiman - American Gods (2001) PDF")]
         public void should_parse_ebook_releases(string title)
@@ -79,7 +74,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Collection / discography releases
         // ---------------------------------------------------------------------------
-
         [TestCase("Isaac Asimov - Discography 1950-1992")]
         [TestCase("Terry Pratchett - Discography 1971-2015")]
         public void should_parse_discography_releases(string title)
@@ -94,7 +88,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Edition variants
         // ---------------------------------------------------------------------------
-
         [TestCase("J.R.R. Tolkien - The Hobbit - Annotated Edition (2002) EPUB")]
         [TestCase("Douglas Adams - The Hitchhikers Guide to the Galaxy (Deluxe Edition) 1979 EPUB")]
         public void should_parse_edition_variants(string title)
@@ -109,7 +102,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Multilingual releases (non-ASCII authors / titles)
         // ---------------------------------------------------------------------------
-
         [TestCase("Umberto Eco - Il Nome della Rosa (1980) EPUB")]
         [TestCase("Marcel Proust - À la recherche du temps perdu (1913) PDF")]
         public void should_parse_multilingual_releases(string title)
@@ -129,7 +121,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Malformed / hashed releases — parser should return null
         // ---------------------------------------------------------------------------
-
         [TestCase("0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d")]   // 32-char MD5 hash
         [TestCase("abc")]                                    // three-letter reject
         [TestCase("password yenc garbage")]                  // password-protected marker
@@ -143,7 +134,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Confidence defaults to 1.0 on a fresh ParsedBookInfo instance
         // ---------------------------------------------------------------------------
-
         [Test]
         public void default_confidence_should_be_one()
         {
@@ -154,7 +144,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // RejectionReason defaults to null
         // ---------------------------------------------------------------------------
-
         [Test]
         public void default_rejection_reason_should_be_null()
         {
@@ -165,7 +154,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // RejectionReason can be set and retrieved
         // ---------------------------------------------------------------------------
-
         [Test]
         public void rejection_reason_can_be_set()
         {
@@ -180,7 +168,6 @@ namespace NzbDrone.Core.Test.ParserTests
         // ---------------------------------------------------------------------------
         // Confidence stays within [0, 1]
         // ---------------------------------------------------------------------------
-
         [Test]
         public void confidence_is_between_zero_and_one_for_typical_releases()
         {
@@ -199,8 +186,11 @@ namespace NzbDrone.Core.Test.ParserTests
                     continue;
                 }
 
-                result.Confidence.Should().BeInRange(0f, 1f,
-                    "confidence must always be between 0 and 1 (title: '{0}')", title);
+                result.Confidence.Should().BeInRange(
+                    0f,
+                    1f,
+                    "confidence must always be between 0 and 1 (title: '{0}')",
+                    title);
             }
         }
     }

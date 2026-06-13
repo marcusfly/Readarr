@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
-using System.Linq;
 using Dapper;
 using NLog;
 using NzbDrone.Common.Instrumentation;
@@ -19,7 +18,7 @@ namespace NzbDrone.Core.Backup
     {
         /// <summary>
         /// Opens the SQLite file at <paramref name="path"/>, confirms it can be
-        /// read, and checks that every table in <see cref="RequiredTables"/> is
+        /// read, and checks that every table in <see cref="DatabaseBackupVerifier.RequiredTables"/> is
         /// present.
         /// </summary>
         /// <param name="path">Absolute path to a .db backup file.</param>

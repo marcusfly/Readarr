@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using FluentAssertions;
 using FluentValidation.Results;
 using NUnit.Framework;
-using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.Clients;
 using NzbDrone.Core.Indexers;
 
@@ -41,7 +40,6 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests
         protected abstract void GivenAuthenticationFailure();
 
         // ── Helpers ────────────────────────────────────────────────────────────────
-
         private IDownloadClientV2 Subject => _subject ??= CreateSubject();
         private IDownloadClientV2 _subject;
 
@@ -52,7 +50,6 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests
         }
 
         // ── Contract tests ─────────────────────────────────────────────────────────
-
         [Test]
         public void GetQueue_should_return_non_null_collection()
         {
@@ -77,6 +74,7 @@ namespace NzbDrone.Core.Test.Download.DownloadClientTests
         public void Capabilities_should_be_a_valid_flags_value()
         {
             var caps = Subject.Capabilities;
+
             // Every bit in caps must correspond to a defined enum member.
             var allDefined = (DownloadClientCapabilities)0;
             foreach (DownloadClientCapabilities flag in Enum.GetValues(typeof(DownloadClientCapabilities)))

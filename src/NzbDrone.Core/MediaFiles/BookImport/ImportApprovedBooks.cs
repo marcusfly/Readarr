@@ -238,8 +238,10 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                         if (dryRun)
                         {
                             // Dry-run: log the intended operation without touching the file system.
-                            _logger.Info("DryRun: would move/copy '{0}' for book '{1}'",
-                                localTrack.Path, localTrack.Book);
+                            _logger.Info(
+                                "DryRun: would move/copy '{0}' for book '{1}'",
+                                localTrack.Path,
+                                localTrack.Book);
 
                             // Record a dry-run attempt so callers can audit the plan.
                             var dryRunAttempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, isDryRun: true);
