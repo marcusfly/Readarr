@@ -19,6 +19,18 @@ namespace NzbDrone.Core.Parser.Model
         public string ReleaseVersion { get; set; }
         public string ReleaseTitle { get; set; }
 
+        /// <summary>
+        /// Confidence of the parse result, from 0 (no confidence) to 1 (certain).
+        /// Set by the parser based on how many fields were successfully extracted.
+        /// </summary>
+        public float Confidence { get; set; } = 1.0f;
+
+        /// <summary>
+        /// When a release is rejected during matching, this contains the human-readable
+        /// reason. Null when the release has not been rejected.
+        /// </summary>
+        public string RejectionReason { get; set; }
+
         [JsonIgnore]
         public Dictionary<string, object> ExtraInfo { get; set; } = new Dictionary<string, object>();
 
