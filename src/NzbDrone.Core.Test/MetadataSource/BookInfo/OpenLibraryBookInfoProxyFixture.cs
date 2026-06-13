@@ -26,7 +26,7 @@ namespace NzbDrone.Core.Test.MetadataSource.BookInfo
         [SetUp]
         public void SetUp()
         {
-            var requestBuilderFactory = new HttpRequestBuilder("https://openlibrary.org{route}").CreateFactory();
+            var requestBuilderFactory = new HttpRequestBuilder("https://openlibrary.org").CreateFactory();
 
             Mocker.GetMock<IMetadataRequestBuilder>()
                 .Setup(x => x.GetRequestBuilder())

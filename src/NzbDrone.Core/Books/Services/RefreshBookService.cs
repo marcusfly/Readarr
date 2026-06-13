@@ -320,8 +320,8 @@ namespace NzbDrone.Core.Books
                 return;
             }
 
-            var toMonitor = monitored.OrderByDescending(x => x.Id > 0 ? _mediaFileService.GetFilesByEdition(x.Id).Count : 0)
-                .ThenByDescending(x => x.Ratings.Popularity).First();
+            var toMonitor = monitored.OrderByDescending(x => x?.Id > 0 ? (_mediaFileService.GetFilesByEdition(x.Id)?.Count ?? 0) : 0)
+                .ThenByDescending(x => x?.Ratings?.Popularity ?? 0).First();
 
             monitored.ForEach(x => x.Monitored = false);
             toMonitor.Monitored = true;

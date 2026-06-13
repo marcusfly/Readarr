@@ -5,6 +5,7 @@ using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Http;
+using NzbDrone.Core.Http;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.Contracts;
 using NzbDrone.Core.MetadataSource.Identity;
@@ -19,7 +20,7 @@ namespace NzbDrone.Core.Test.MetadataSource.RreadingGlasses
         [SetUp]
         public void SetUp()
         {
-            var requestBuilderFactory = new HttpRequestBuilder("https://api.bookinfo.club/v1{route}").CreateFactory();
+            var requestBuilderFactory = new HttpRequestBuilder("https://api.bookinfo.club/v1/").CreateFactory();
 
             Mocker.GetMock<IMetadataRequestBuilder>()
                 .Setup(x => x.GetRequestBuilder(MetadataRequestBuilder.RreadingGlassesProvider))

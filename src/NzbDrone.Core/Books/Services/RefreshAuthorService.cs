@@ -100,29 +100,19 @@ namespace NzbDrone.Core.Books
 
         private static bool HasCompleteMetadata(Author data)
         {
-            if (data?.Metadata?.IsLoaded != true ||
-                data.Metadata.Value == null ||
-                data.Metadata.Value.ForeignAuthorId.IsNullOrWhiteSpace() ||
-                data.Books?.IsLoaded != true ||
-                data.Books.Value == null ||
-                data.Series?.IsLoaded != true ||
-                data.Series.Value == null)
+            if (data == null)
             {
                 return false;
             }
 
-            return data.Books.Value.All(book =>
-                       book != null &&
-                       book.ForeignBookId.IsNotNullOrWhiteSpace() &&
-                       book.AuthorMetadata?.IsLoaded == true &&
-                       book.AuthorMetadata.Value != null &&
-                       book.Editions?.IsLoaded == true &&
-                       book.Editions.Value != null) &&
-                   data.Series.Value.All(series =>
-                       series != null &&
-                       series.ForeignSeriesId.IsNotNullOrWhiteSpace() &&
-                       series.LinkItems?.IsLoaded == true &&
-                       series.LinkItems.Value != null);
+            var metadata = data.Metadata?.Value ?? (AuthorMetadata)data.Metadata;
+            if (metadata == null || metadata.ForeignAuthorId.IsNullOrWhiteSpace())
+            {
+                return false;
+            }
+
+            var books = data.Books?.Value ?? (System.Collections.Generic.List<Book>)data.Books;
+            return books != null && books.All(book => book?.ForeignBookId.IsNotNullOrWhiteSpace() == true);
         }
 
         protected override RemoteData GetRemoteData(Author local, List<Author> remote, Author data)
@@ -385,9 +375,16 @@ namespace NzbDrone.Core.Books
                 {
                     var data = GetSkyhookData(author.ForeignAuthorId);
 
+                    if (data == null)
+                    {
+                        failures++;
+                        continue;
+                    }
+
                     if (!HasCompleteMetadata(data))
                     {
                         failures++;
+                        _logger.Warn("Incomplete metadata returned for {0}; skipping refresh to preserve library records.", author);
                         continue;
                     }
 
@@ -404,7 +401,7 @@ namespace NzbDrone.Core.Books
 
             if (failures > 0)
             {
-                throw new CommandFailedException($"Metadata refresh failed for {failures} author(s). Existing library records were preserved.");
+                throw new CommandFailedException($"Metadata refresh failed for {failures} author(s) due to errors. Existing library records were preserved.");
             }
         }
 

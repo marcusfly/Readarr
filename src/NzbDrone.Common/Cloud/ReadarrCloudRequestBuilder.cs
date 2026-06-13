@@ -21,7 +21,7 @@ namespace NzbDrone.Common.Cloud
             MetadataOpenLibrary = new HttpRequestBuilder("https://openlibrary.org")
                 .CreateFactory();
 
-            MetadataRreadingGlasses = new HttpRequestBuilder("https://api.bookinfo.club/v1/{route}")
+            MetadataRreadingGlasses = new HttpRequestBuilder("https://api.bookinfo.club/v1/")
                 .CreateFactory();
 
             Metadata = MetadataOpenLibrary;

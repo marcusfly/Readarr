@@ -40,7 +40,7 @@ namespace NzbDrone.Core.MetadataSource
 
             if (overrideUrl.IsNotNullOrWhiteSpace())
             {
-                return new HttpRequestBuilder(overrideUrl.TrimEnd('/') + "/{route}").KeepAlive().CreateFactory();
+                return new HttpRequestBuilder(overrideUrl.TrimEnd('/')).KeepAlive().CreateFactory();
             }
 
             return normalizedProvider switch

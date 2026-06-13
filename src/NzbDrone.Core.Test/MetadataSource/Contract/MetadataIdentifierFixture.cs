@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.MetadataSource.Contracts;
@@ -51,7 +52,7 @@ namespace NzbDrone.Core.Test.MetadataSource.Contract
         public void try_parse_should_reject_invalid_formats(string value)
         {
             MetadataIdentifier.TryParse(value, out var identifier).Should().BeFalse();
-            identifier.Should().Be(default);
+            identifier.IsEmpty.Should().BeTrue();
         }
 
         [Test]
