@@ -1,0 +1,91 @@
+# docker-compose.yml — Readarr local development / testing
+# Usage:
+#   docker compose up           # start in foreground
+#   docker compose up -d        # start detached
+#   docker compose down -v      # stop and remove volumes (destructive)
+#
+# Override any value with a .env file or inline environment variables.
+# See SUPPORT.md for upgrade and rollback procedures.
+
+services:
+  readarr:
+    # Use a locally built image during development:
+    #   docker build -t readarr:local .
+    #   Then replace 'image:' below with 'image: readarr:local'
+    #
+    # For a published image use:
+    #   image: ghcr.io/readarr/readarr:develop
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        READARRVERSION: "0.0.0.0"
+        BUILD_SOURCEBRANCHNAME: develop
+    image: readarr:local
+
+    container_name: readarr
+
+    # Port mapping: HOST:CONTAINER
+    ports:
+      - "${READARR_PORT:-8787}:8787"
+
+    environment:
+      # Application data directory inside the container (matches the VOLUME)
+      READARR__APP__DATADIR: /config
+      # Override the listening port if needed
+      READARR__SERVER__PORT: "8787"
+      # Optional: PostgreSQL connection (leave empty to use the default SQLite)
+      READARR__POSTGRES__HOST: ""
+      READARR__POSTGRES__PORT: "5432"
+      READARR__POSTGRES__USER: ""
+      READARR__POSTGRES__PASSWORD: ""
+      # Timezone
+      TZ: "${TZ:-Etc/UTC}"
+
+    volumes:
+      # Persistent config / database
+      - readarr_config:/config
+      # Mount your books library here (read-write so Readarr can rename/move files)
+      - "${BOOKS_DIR:-./books}:/books"
+
+    # Run as UID:GID 1000:1000 (the built-in 'readarr' account).
+    # Change to match your host user if bind-mount permissions require it.
+    # user: "${PUID:-1000}:${PGID:-1000}"
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8787/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Optional: PostgreSQL (comment out if using default SQLite) ──────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: readarr_postgres
+  #   environment:
+  #     POSTGRES_DB: readarr
+  #     POSTGRES_USER: readarr
+  #     POSTGRES_PASSWORD: readarr_secret
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U readarr"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  readarr_config:
+    driver: local
+  # postgres_data:
+  #   driver: local
