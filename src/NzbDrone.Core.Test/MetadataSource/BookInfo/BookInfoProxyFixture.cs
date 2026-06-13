@@ -34,8 +34,8 @@ namespace NzbDrone.Core.Test.MetadataSource.BookInfo
                 .Returns(true);
         }
 
-        [TestCase("1654", "Terry Pratchett")]
-        [TestCase("575", "Robert Harris")]
+        [TestCase("OL9388A", "Terry Pratchett")]
+        [TestCase("OL233539A", "Robert Harris")]
         public void should_be_able_to_get_author_detail(string mbId, string name)
         {
             var details = Subject.GetAuthorInfo(mbId);
@@ -45,8 +45,8 @@ namespace NzbDrone.Core.Test.MetadataSource.BookInfo
             details.Name.Should().Be(name);
         }
 
-        [TestCase("1128601", "Guards! Guards!")]
-        [TestCase("3293141", "Ἰλιάς")]
+        [TestCase("OL123456W", "Guards! Guards!")]
+        [TestCase("OL3823932W", "Ἰλιάς")]
         public void should_be_able_to_get_book_detail(string mbId, string name)
         {
             var details = Subject.GetBookInfo(mbId);
@@ -56,8 +56,8 @@ namespace NzbDrone.Core.Test.MetadataSource.BookInfo
             details.Item2.Title.Should().Be(name);
         }
 
-        [TestCase("14190696", "The Book of Dust", "1")]
-        [TestCase("48427681", "October Daye Chronological Order", "7.1")]
+        [TestCase("OL5735335W", "His Dark Materials", "1")]
+        [TestCase("OL5735336W", "October Daye", "7.1")]
         public void should_parse_series_from_title(string id, string series, string position)
         {
             var result = Subject.GetBookInfo(id);

@@ -45,10 +45,9 @@ namespace NzbDrone.Core.Test.MetadataSource.BookInfo
             ExceptionVerification.IgnoreWarns();
         }
 
-        [TestCase("Harry Potter and the sorcerer's stone a summary of the novel", null, "Harry Potter and the Sorcerer's Stone (Book 1): A Summary Of The Novel")]
-        [TestCase("edition:3", null, "Harry Potter and the Sorcerer's Stone")]
-        [TestCase("edition: 3", null, "Harry Potter and the Sorcerer's Stone")]
-        [TestCase("asin:B0192CTMYG", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("Harry Potter and the sorcerer's stone", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("edition:OL7353617M", null, "Harry Potter and the Sorcerer's Stone")]
+        [TestCase("edition: OL7353617M", null, "Harry Potter and the Sorcerer's Stone")]
         [TestCase("isbn:9780439554930", null, "Harry Potter and the Sorcerer's Stone")]
         public void successful_book_search(string title, string author, string expected)
         {

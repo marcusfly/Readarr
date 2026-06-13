@@ -179,9 +179,7 @@ class AddNewItem extends Component {
                   {translate('CouldntFindAnyResultsForTerm', [term])}
                 </div>
                 <div>
-                  You can also search using the
-                  <Link to="https://goodreads.com"> Goodreads ID </Link>
-                  of a book (e.g. edition:656), work (e.g. work:4912783) or author (e.g. author:128382), the isbn (e.g. isbn:067003469X) or the asin (e.g. asin:B00JCDK5ME)
+                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), or search by ISBN (e.g. isbn:9780439554930)
                 </div>
               </div>
           }
@@ -194,9 +192,7 @@ class AddNewItem extends Component {
                   {translate('ItsEasyToAddANewAuthorOrBookJustStartTypingTheNameOfTheItemYouWantToAdd')}
                 </div>
                 <div>
-                  You can also search using the
-                  <Link to="https://goodreads.com"> Goodreads ID </Link>
-                  of a book (e.g. edition:656), work (e.g. work:4912783) or author (e.g. author:128382), the isbn (e.g. isbn:067003469X) or the asin (e.g. asin:B00JCDK5ME)
+                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), or search by ISBN (e.g. isbn:9780439554930)
                 </div>
               </div>
           }

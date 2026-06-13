@@ -148,7 +148,7 @@ class AddNewAuthorSearchResult extends Component {
 
                 <Link
                   className={styles.mbLink}
-                  to={`https://goodreads.com/author/show/${foreignAuthorId}`}
+                  to={`https://openlibrary.org/authors/${foreignAuthorId}`}
                   onPress={this.onMBLinkPress}
                 >
                   <Icon
