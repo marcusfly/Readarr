@@ -12,7 +12,7 @@ using NzbDrone.Test.Common;
 namespace NzbDrone.Core.Test.MetadataSource.BookInfo
 {
     [TestFixture]
-    [Ignore("Waiting for metadata to be back again", Until = "2026-01-15 00:00:00Z")]
+    [Ignore("Network integration tests — require live openlibrary.org access")]
     public class BookInfoProxySearchFixture : CoreTest<BookInfoProxy>
     {
         [SetUp]
