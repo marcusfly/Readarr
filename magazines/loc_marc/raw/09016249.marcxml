@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>00940cam a2200277u  4500</leader>
+  <controlfield tag="001">7283450</controlfield>
+  <controlfield tag="005">20250608010631.8</controlfield>
+  <controlfield tag="007">cr_|||||||||||</controlfield>
+  <controlfield tag="008">830119m18981903maucf         000 0 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">7283450</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">0</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">premunv</subfield>
+    <subfield code="d">u</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">19</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">   09016249 </subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="9">(DLC)   09016249</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">CarP</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="043">
+    <subfield code="a">n-us-ma</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">F74.W4</subfield>
+    <subfield code="b">O9</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="245">
+    <subfield code="a">Our town.</subfield>
+    <subfield code="b">A monthly magazine devoted to the interests of the town of Wellesley.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">[Wellesley Hills, Mass.,</subfield>
+    <subfield code="b">C. M. Eaton, etc.]</subfield>
+    <subfield code="c">1898-1903.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">6 v. in 3.</subfield>
+    <subfield code="b">plates, ports.</subfield>
+    <subfield code="c">23-26 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="530">
+    <subfield code="a">Also available in digital form.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="651">
+    <subfield code="a">Wellesley, Mass. [from old catalog]</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="700">
+    <subfield code="a">Chandler, Edward Herrick, </subfield>
+    <subfield code="e">ed.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="700">
+    <subfield code="a">Farwell, Parris T., </subfield>
+    <subfield code="e">ed.</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="1" tag="856">
+    <subfield code="u">http://hdl.loc.gov/loc.gdc/scd0001.00140753361</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">massdig</subfield>
+    <subfield code="e">sloan</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="991">
+    <subfield code="b">c-GenColl</subfield>
+    <subfield code="h">F74.W4</subfield>
+    <subfield code="i">O9</subfield>
+    <subfield code="t">Copy 1</subfield>
+    <subfield code="w">PREM</subfield>
+  </datafield>
+</record>

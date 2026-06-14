@@ -5,6 +5,7 @@ using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.MetadataSource;
+using NzbDrone.Core.MetadataSource.Identity;
 using NzbDrone.Core.Parser.Model;
 
 namespace NzbDrone.Core.MediaFiles.BookImport.Identification
@@ -202,14 +203,13 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
 
             var isbns = localEdition.LocalBooks.Select(x => x.FileTrackInfo.Isbn).Distinct().ToList();
             var asins = localEdition.LocalBooks.Select(x => x.FileTrackInfo.Asin).Distinct().ToList();
-            var goodreads = localEdition.LocalBooks.Select(x => x.FileTrackInfo.GoodreadsId).Distinct().ToList();
 
             // grab possibilities for all the IDs present
             if (isbns.Count == 1 && isbns[0].IsNotNullOrWhiteSpace())
             {
                 _logger.Trace($"Searching by isbn {isbns[0]}");
 
-                remoteBooks = _bookSearchService.SearchByIsbn(isbns[0]);
+                remoteBooks = TrySearch(() => _bookSearchService.SearchByIsbn(isbns[0]), $"ISBN {isbns[0]}");
 
                 foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
                 {
@@ -223,21 +223,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
             {
                 _logger.Trace($"Searching by asin {asins[0]}");
 
-                remoteBooks = _bookSearchService.SearchByAsin(asins[0]);
-
-                foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
-                {
-                    yield return candidate;
-                }
-            }
-
-            if (goodreads.Count == 1 &&
-                goodreads[0].IsNotNullOrWhiteSpace())
-            {
-                var isbn = goodreads[0];
-                _logger.Trace($"Searching by isbn {isbn}");
-
-                remoteBooks = _bookSearchService.SearchByIsbn(isbn);
+                remoteBooks = TrySearch(() => _bookSearchService.SearchByAsin(asins[0]), $"ASIN {asins[0]}");
 
                 foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
                 {
@@ -283,7 +269,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
             // Search by author+book
             foreach (var authorTag in authorTags)
             {
-                remoteBooks = _bookSearchService.SearchForNewBook(bookTag, authorTag);
+                remoteBooks = TrySearch(() => _bookSearchService.SearchForNewBook(bookTag, authorTag), $"{bookTag} by {authorTag}");
 
                 foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
                 {
@@ -298,7 +284,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
             }
 
             // Search by just book title
-            remoteBooks = _bookSearchService.SearchForNewBook(bookTag, null);
+            remoteBooks = TrySearch(() => _bookSearchService.SearchForNewBook(bookTag, null), bookTag);
 
             foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
             {
@@ -308,12 +294,25 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
             // Search by just author
             foreach (var a in authorTags)
             {
-                remoteBooks = _bookSearchService.SearchForNewBook(a, null);
+                remoteBooks = TrySearch(() => _bookSearchService.SearchForNewBook(a, null), a);
 
                 foreach (var candidate in ToCandidates(remoteBooks, seenCandidates, idOverrides))
                 {
                     yield return candidate;
                 }
+            }
+        }
+
+        private List<Book> TrySearch(Func<List<Book>> search, string description)
+        {
+            try
+            {
+                return search() ?? new List<Book>();
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Metadata search failed for {0}", description);
+                return new List<Book>();
             }
         }
 
@@ -328,10 +327,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
                 foreach (var edition in book.Editions.Value)
                 {
                     edition.Book = book;
+                    var matchKey = MetadataEditionIdentity.GetMatchKey(edition);
 
-                    if (!seenCandidates.Contains(edition.ForeignEditionId) && SatisfiesOverride(edition, idOverrides))
+                    if (!seenCandidates.Contains(matchKey) && SatisfiesOverride(edition, idOverrides))
                     {
-                        seenCandidates.Add(edition.ForeignEditionId);
+                        seenCandidates.Add(matchKey);
                         candidates.Add(new CandidateEdition
                         {
                             Edition = edition,

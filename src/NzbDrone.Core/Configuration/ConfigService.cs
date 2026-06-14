@@ -271,7 +271,7 @@ namespace NzbDrone.Core.Configuration
 
         public string MetadataProvider
         {
-            get { return GetValue("MetadataProvider", "openlibrary"); }
+            get { return GetValue("MetadataProvider", "rreading-glasses"); }
 
             set { SetValue("MetadataProvider", value); }
         }

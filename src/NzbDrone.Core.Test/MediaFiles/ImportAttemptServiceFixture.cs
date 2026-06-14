@@ -7,6 +7,7 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Test.Framework;
+using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.MediaFiles
 {
@@ -144,6 +145,8 @@ namespace NzbDrone.Core.Test.MediaFiles
             Mocker.GetMock<IImportAttemptRepository>()
                   .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
                       a.Id == 10 && a.Status == ImportAttemptStatus.Completed)), Times.Once());
+
+            ExceptionVerification.ExpectedWarns(1);
         }
 
         [Test]
@@ -170,6 +173,8 @@ namespace NzbDrone.Core.Test.MediaFiles
             Mocker.GetMock<IImportAttemptRepository>()
                   .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
                       a.Id == 11 && a.Status == ImportAttemptStatus.RolledBack)), Times.Once());
+
+            ExceptionVerification.ExpectedWarns(2);
         }
 
         [Test]
@@ -216,6 +221,9 @@ namespace NzbDrone.Core.Test.MediaFiles
             Mocker.GetMock<IImportAttemptRepository>()
                   .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
                       a.Id == 21 && a.Status == ImportAttemptStatus.Completed)), Times.Once());
+
+            ExceptionVerification.ExpectedWarns(1);
+            ExceptionVerification.ExpectedErrors(1);
         }
     }
 }

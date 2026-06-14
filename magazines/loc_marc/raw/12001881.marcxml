@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>01205cam a22003131  4500</leader>
+  <controlfield tag="001">2161833</controlfield>
+  <controlfield tag="005">20250607102345.3</controlfield>
+  <controlfield tag="008">780509s1821    enkc          000 0 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">2161833</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">orignew</subfield>
+    <subfield code="d">u</subfield>
+    <subfield code="e">ocip</subfield>
+    <subfield code="f">19</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-02-04:00: LCAPM-644</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">   12001881 </subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="9">(DLC)   12001881</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">IEN</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">PN5130.G5</subfield>
+    <subfield code="b">N5</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="100">
+    <subfield code="a">Nichols, John,</subfield>
+    <subfield code="d">1745-1826.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="4" tag="245">
+    <subfield code="a">The rise and progress of the Gentleman's magazine,</subfield>
+    <subfield code="b">with anecdotes of the projector and his early associates. Being a prefatory introduction to the general index to that work, from 1787 to 1818.</subfield>
+    <subfield code="c">by John Nichols.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">London,</subfield>
+    <subfield code="b">Printed for J. Nichols and son [etc.]</subfield>
+    <subfield code="c">1821.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">lxxx p.</subfield>
+    <subfield code="b">front. (port.)</subfield>
+    <subfield code="c">23 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="336">
+    <subfield code="a">text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="337">
+    <subfield code="a">unmediated</subfield>
+    <subfield code="b">n</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="338">
+    <subfield code="a">volume</subfield>
+    <subfield code="b">nc</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="530">
+    <subfield code="a">Also available in digital form.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="630">
+    <subfield code="a">Gentleman's magazine (London, England)</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="850">
+    <subfield code="a">IEN</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="1" tag="856">
+    <subfield code="u">http://hdl.loc.gov/loc.gdc/scd0001.00017584443</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">NWU/NWU</subfield>
+    <subfield code="e">COMARC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">massdig</subfield>
+    <subfield code="e">sloan</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="991">
+    <subfield code="b">c-GenColl</subfield>
+    <subfield code="h">PN5130.G5</subfield>
+    <subfield code="i">N5</subfield>
+    <subfield code="t">Copy 1</subfield>
+    <subfield code="w">BOOKS</subfield>
+  </datafield>
+</record>

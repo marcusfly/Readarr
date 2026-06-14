@@ -592,6 +592,24 @@ Command queue / audit log.
 
 ---
 
+### ImportAttempts
+Durable journal for crash-safe file imports.
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| Id | INTEGER | NO | PK |
+| SourcePath | TEXT | NO | Indexed |
+| DestinationPath | TEXT | YES | |
+| Status | INTEGER | NO | Indexed; default pending |
+| StartedAt | DATETIME | NO | |
+| FinishedAt | DATETIME | YES | |
+| IsDryRun | INTEGER | NO | Boolean; default false |
+| ErrorMessage | TEXT | YES | |
+
+Added by migration 042.
+
+---
+
 ### Users
 Local authentication accounts.
 

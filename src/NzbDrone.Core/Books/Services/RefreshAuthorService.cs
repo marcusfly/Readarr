@@ -431,15 +431,15 @@ namespace NzbDrone.Core.Books
                 var total = authors.Count;
                 var processed = 0;
 
-                var updatedGoodreadsAuthors = new HashSet<string>();
+                HashSet<string> changedAuthorIds = null;
 
                 if (message.LastExecutionTime.HasValue &&
                     message.LastStartTime.HasValue &&
                     message.LastExecutionTime.Value.AddDays(14) > DateTime.UtcNow)
                 {
-                    updatedGoodreadsAuthors = _authorInfo.GetChangedAuthors(message.LastStartTime.Value);
+                    changedAuthorIds = _authorInfo.GetChangedAuthors(message.LastStartTime.Value);
 
-                    if (updatedGoodreadsAuthors == null)
+                    if (changedAuthorIds == null)
                     {
                         _logger.Warn("Metadata change feed was unavailable. Falling back to a full author refresh.");
                     }
@@ -451,8 +451,8 @@ namespace NzbDrone.Core.Books
                 {
                     var manualTrigger = message.Trigger == CommandTrigger.Manual;
 
-                    if ((updatedGoodreadsAuthors == null && _checkIfAuthorShouldBeRefreshed.ShouldRefresh(author)) ||
-                        (updatedGoodreadsAuthors != null && updatedGoodreadsAuthors.Contains(author.ForeignAuthorId)) ||
+                    if ((changedAuthorIds == null && _checkIfAuthorShouldBeRefreshed.ShouldRefresh(author)) ||
+                        (changedAuthorIds != null && changedAuthorIds.Contains(author.ForeignAuthorId)) ||
                         manualTrigger)
                     {
                         try

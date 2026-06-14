@@ -28,7 +28,7 @@ namespace NzbDrone.Core.Test.MetadataSource.Acceptance
         [SetUp]
         public void SetUp()
         {
-            var requestBuilderFactory = new HttpRequestBuilder("https://api.bookinfo.club/v1{route}").CreateFactory();
+            var requestBuilderFactory = new HttpRequestBuilder("https://hardcover.bookinfo.pro/{route}").CreateFactory();
 
             Mocker.GetMock<IMetadataRequestBuilder>()
                 .Setup(x => x.GetRequestBuilder(MetadataRequestBuilder.RreadingGlassesProvider))
@@ -139,13 +139,11 @@ namespace NzbDrone.Core.Test.MetadataSource.Acceptance
         }
 
         [Test]
-        public void should_accept_mixed_change_feed_identifier_shapes()
+        public void should_accept_complete_rreading_glasses_change_feed()
         {
-            var payload = ReadMetadataFile("RreadingGlasses/changed-authors-mixed.json");
-
             Mocker.GetMock<IHttpClient>()
                 .Setup(x => x.Get(It.IsAny<HttpRequest>()))
-                .Returns<HttpRequest>(request => JsonResponse(request, payload, HttpStatusCode.OK));
+                .Returns<HttpRequest>(request => JsonResponse(request, @"{""Limited"":false,""Ids"":[100,101,102,103,104]}", HttpStatusCode.OK));
 
             Subject.GetChangedAuthors(new DateTime(2026, 6, 13, 0, 0, 0, DateTimeKind.Utc))
                 .Should()
@@ -160,13 +158,11 @@ namespace NzbDrone.Core.Test.MetadataSource.Acceptance
         }
 
         [Test]
-        public void should_treat_partial_change_feed_as_unavailable()
+        public void should_treat_limited_change_feed_as_unavailable()
         {
-            var payload = ReadMetadataFile("RreadingGlasses/changed-authors-partial.json");
-
             Mocker.GetMock<IHttpClient>()
                 .Setup(x => x.Get(It.IsAny<HttpRequest>()))
-                .Returns<HttpRequest>(request => JsonResponse(request, payload, HttpStatusCode.OK));
+                .Returns<HttpRequest>(request => JsonResponse(request, @"{""Limited"":true,""Ids"":[]}", HttpStatusCode.OK));
 
             Subject.GetChangedAuthors(new DateTime(2026, 6, 13, 0, 0, 0, DateTimeKind.Utc))
                 .Should()
@@ -185,6 +181,68 @@ namespace NzbDrone.Core.Test.MetadataSource.Acceptance
             Subject.GetChangedAuthors(new DateTime(2026, 6, 13, 0, 0, 0, DateTimeKind.Utc))
                 .Should()
                 .BeNull();
+        }
+
+        [Test]
+        public void rreading_glasses_corpus_should_meet_identity_and_completeness_thresholds()
+        {
+            const int authorCount = 50;
+            const int worksPerAuthor = 4;
+            const int editionsPerWork = 2;
+
+            var corpus = Enumerable.Range(1, authorCount)
+                .Select(authorIndex => new RgAuthorResource
+                {
+                    ForeignId = authorIndex,
+                    Name = authorIndex % 10 == 0 ? $"Author {authorIndex} Ω" : $"Author {authorIndex}",
+                    Url = $"https://source.example/author/{authorIndex}",
+                    Works = Enumerable.Range(1, worksPerAuthor)
+                        .Select(workIndex =>
+                        {
+                            var workId = (authorIndex * 100) + workIndex;
+                            return new RgWorkResource
+                            {
+                                ForeignId = workId,
+                                Title = $"Work {workId}",
+                                Url = $"https://source.example/work/{workId}",
+                                Authors = new List<RgAuthorResource>
+                                {
+                                    new RgAuthorResource { ForeignId = authorIndex, Name = $"Author {authorIndex}" }
+                                },
+                                Books = Enumerable.Range(1, editionsPerWork)
+                                    .Select(editionIndex =>
+                                    {
+                                        var editionId = (workId * 10) + editionIndex;
+                                        return new RgBookResource
+                                        {
+                                            ForeignId = editionId,
+                                            Title = $"Edition {editionId}",
+                                            Isbn13 = $"978{editionId:D10}",
+                                            Url = $"https://source.example/book/{editionId}",
+                                            RatingCount = editionIndex,
+                                            AverageRating = 4
+                                        };
+                                    })
+                                    .ToList()
+                            };
+                        })
+                        .ToList()
+                })
+                .Select(RreadingGlassesMetadataProvider.MapAuthor)
+                .ToList();
+
+            var books = corpus.SelectMany(x => x.Books.Value).ToList();
+            var editions = books.SelectMany(x => x.Editions.Value).ToList();
+
+            corpus.Should().HaveCount(authorCount);
+            books.Should().HaveCount(authorCount * worksPerAuthor);
+            editions.Should().HaveCount(authorCount * worksPerAuthor * editionsPerWork);
+            corpus.Select(x => x.ForeignAuthorId).Should().OnlyHaveUniqueItems();
+            books.Select(x => x.ForeignBookId).Should().OnlyHaveUniqueItems();
+            editions.Select(x => x.ForeignEditionId).Should().OnlyHaveUniqueItems();
+            editions.Should().OnlyContain(x => x.Isbn13 != null && x.Isbn13.Length == 13);
+            books.Should().OnlyContain(x => x.Editions.Value.Count(e => e.Monitored) == 1);
+            corpus.Should().OnlyContain(x => x.Metadata.Value.Links.Any(l => l.Name == "rreading-glasses source"));
         }
 
         private T ReadFixture<T>(string relativePath)

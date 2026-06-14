@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>00833cam a2200241u  4500</leader>
+  <controlfield tag="001">7738596</controlfield>
+  <controlfield tag="005">20250608014845.0</controlfield>
+  <controlfield tag="007">cr_|||||||||||</controlfield>
+  <controlfield tag="008">860205s1898    cauac         000 0 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">7738596</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">0</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">premunv</subfield>
+    <subfield code="d">u</subfield>
+    <subfield code="e">ncip</subfield>
+    <subfield code="f">19</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">   06011821 </subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="9">(DLC)   06011821</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">CarP</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">PS572.O3</subfield>
+    <subfield code="b">M3</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="245">
+    <subfield code="a">Mariposa magazine ...</subfield>
+    <subfield code="b">For the benefit of Ladies relief society of Oakland, Cal.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">[Oakland, Cal.,</subfield>
+    <subfield code="b">Ladies' relief society,</subfield>
+    <subfield code="c">1898]</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">1 p.l., 112 p.</subfield>
+    <subfield code="b">illus. (incl. port.)</subfield>
+    <subfield code="c">25 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="530">
+    <subfield code="a">Also available in digital form.</subfield>
+  </datafield>
+  <datafield ind1="2" ind2="0" tag="610">
+    <subfield code="a">Ladies' Relief Society (Oakland, Calif.)</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="1" tag="856">
+    <subfield code="u">http://hdl.loc.gov/loc.gdc/scd0001.00171655213</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="985">
+    <subfield code="a">massdig</subfield>
+    <subfield code="e">sloan</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="991">
+    <subfield code="b">c-GenColl</subfield>
+    <subfield code="h">PS572.O3</subfield>
+    <subfield code="i">M3</subfield>
+    <subfield code="t">Copy 1</subfield>
+    <subfield code="w">PREM</subfield>
+  </datafield>
+</record>

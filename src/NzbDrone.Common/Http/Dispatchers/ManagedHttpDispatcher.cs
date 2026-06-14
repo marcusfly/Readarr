@@ -279,8 +279,8 @@ namespace NzbDrone.Common.Http.Dispatchers
 
         private async ValueTask<Stream> onConnect(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
         {
-            // Until .NET supports an implementation of Happy Eyeballs (https://tools.ietf.org/html/rfc8305#section-2), let's make IPv4 fallback work in a simple way.
-            // This issue is being tracked at https://github.com/dotnet/runtime/issues/26177 and expected to be fixed in .NET 6.
+            // Until .NET fully covers Happy Eyeballs (https://tools.ietf.org/html/rfc8305#section-2), keep the IPv4 fallback logic local here.
+            // The runtime issue is tracked at https://github.com/dotnet/runtime/issues/26177.
             if (useIPv6)
             {
                 try

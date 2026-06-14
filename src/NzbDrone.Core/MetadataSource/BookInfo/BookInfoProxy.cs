@@ -54,8 +54,7 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 MetadataProviderCapability.AuthorSearch |
                 MetadataProviderCapability.BookSearch |
                 MetadataProviderCapability.EntitySearch |
-                MetadataProviderCapability.IsbnSearch |
-                MetadataProviderCapability.AsinSearch);
+                MetadataProviderCapability.IsbnSearch);
 
         public BookInfoProxy(IHttpClient httpClient,
                              ICachedHttpResponseService cachedHttpClient,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Configuration;
@@ -13,13 +14,15 @@ namespace NzbDrone.Core.MetadataSource
     {
         private readonly IConfigService _configService;
         private readonly IReadOnlyList<IMetadataProviderV1> _providers;
+        private readonly Logger _logger;
 
-        public MetadataProviderSelector(IConfigService configService, IEnumerable<IMetadataProviderV1> providers)
+        public MetadataProviderSelector(IConfigService configService, IEnumerable<IMetadataProviderV1> providers, Logger logger)
         {
             _configService = configService;
             _providers = providers
                 .OrderByDescending(x => x.Descriptor.Priority)
                 .ToList();
+            _logger = logger;
         }
 
         public Author GetAuthorInfo(string readarrId, bool useCache = true)
@@ -46,14 +49,18 @@ namespace NzbDrone.Core.MetadataSource
 
         public List<Book> SearchByIsbn(string isbn)
         {
-            var provider = ResolveProvider(MetadataProviderCapability.IsbnSearch);
-            return NormalizeSearchResults(provider, provider.SearchByIsbn(isbn));
+            return SearchWithFallback(
+                MetadataProviderCapability.IsbnSearch,
+                provider => provider.SearchByIsbn(isbn),
+                $"ISBN {isbn}");
         }
 
         public List<Book> SearchByAsin(string asin)
         {
-            var provider = ResolveProvider(MetadataProviderCapability.AsinSearch);
-            return NormalizeSearchResults(provider, provider.SearchByAsin(asin));
+            return SearchWithFallback(
+                MetadataProviderCapability.AsinSearch,
+                provider => provider.SearchByAsin(asin),
+                $"ASIN {asin}");
         }
 
         public List<Author> SearchForNewAuthor(string title)
@@ -96,27 +103,82 @@ namespace NzbDrone.Core.MetadataSource
 
         private IMetadataProviderV1 ResolveProvider(MetadataProviderCapability capability)
         {
-            var activeProviderKey = NormalizeProviderKey(_configService.MetadataProvider);
-
-            if (activeProviderKey.IsNotNullOrWhiteSpace())
-            {
-                var configuredProvider = _providers.FirstOrDefault(x =>
-                    SupportsCapability(x, capability) &&
-                    string.Equals(x.Descriptor.ProviderKey, activeProviderKey, StringComparison.OrdinalIgnoreCase));
-
-                if (configuredProvider != null)
-                {
-                    return configuredProvider;
-                }
-            }
-
-            var provider = _providers.FirstOrDefault(x => SupportsCapability(x, capability));
+            var provider = GetProviders(capability).FirstOrDefault();
             if (provider != null)
             {
                 return provider;
             }
 
             throw new InvalidOperationException($"No metadata provider is registered for capability {capability}.");
+        }
+
+        private IEnumerable<IMetadataProviderV1> GetProviders(MetadataProviderCapability capability)
+        {
+            var activeProviderKey = NormalizeProviderKey(_configService.MetadataProvider);
+
+            return _providers
+                .Where(x => SupportsCapability(x, capability))
+                .OrderByDescending(x => string.Equals(x.Descriptor.ProviderKey, activeProviderKey, StringComparison.OrdinalIgnoreCase))
+                .ThenByDescending(x => x.Descriptor.Priority);
+        }
+
+        private List<Book> SearchWithFallback(MetadataProviderCapability capability,
+                                              Func<IMetadataProviderV1, List<Book>> search,
+                                              string description)
+        {
+            foreach (var provider in GetProviders(capability))
+            {
+                try
+                {
+                    var results = NormalizeSearchResults(provider, search(provider));
+                    if (results.Any())
+                    {
+                        return DeduplicateByEditionIdentity(results);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Metadata provider {0} failed while searching for {1}", provider.Descriptor.ProviderKey, description);
+                }
+            }
+
+            return new List<Book>();
+        }
+
+        private static List<Book> DeduplicateByEditionIdentity(IEnumerable<Book> books)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var result = new List<Book>();
+
+            foreach (var book in books)
+            {
+                var editions = book?.Editions?.Value;
+                if (editions == null || editions.Count == 0)
+                {
+                    continue;
+                }
+
+                var uniqueEditions = editions
+                    .Where(x => seen.Add(MetadataEditionIdentity.GetMatchKey(x)))
+                    .ToList();
+
+                if (uniqueEditions.Count == 0)
+                {
+                    continue;
+                }
+
+                var monitored = uniqueEditions.FirstOrDefault(x => x.Monitored) ?? uniqueEditions[0];
+                foreach (var edition in uniqueEditions)
+                {
+                    edition.Monitored = edition == monitored;
+                }
+
+                book.Editions = uniqueEditions;
+                book.ForeignEditionId = monitored.ForeignEditionId;
+                result.Add(book);
+            }
+
+            return result;
         }
 
         private static bool SupportsCapability(IMetadataProviderV1 provider, MetadataProviderCapability capability)

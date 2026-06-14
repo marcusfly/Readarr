@@ -20,7 +20,7 @@ RUN yarn run build --env production
 # Stage 2 – backend build
 # Supports both linux/amd64 and linux/arm64 via TARGETARCH build arg
 # ──────────────────────────────────────────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-bookworm-slim AS backend-build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-bookworm-slim AS backend-build
 
 ARG TARGETARCH
 ARG READARRVERSION=0.0.0.0
@@ -63,8 +63,8 @@ ARG TARGETARCH
 
 RUN RID=$(cat /tmp/rid) && \
     mkdir -p /app && \
-    cp -r /src/_output/net8.0/"$RID"/publish/. /app/ && \
-    cp -r /src/_output/Readarr.Update/net8.0/"$RID"/publish /app/Readarr.Update && \
+    cp -r /src/_output/net10.0/"$RID"/publish/. /app/ && \
+    cp -r /src/_output/Readarr.Update/net10.0/"$RID"/publish /app/Readarr.Update && \
     # Remove Windows-only helpers
     rm -f /app/ServiceInstall.* /app/ServiceUninstall.* /app/Readarr.Windows.* && \
     # Copy Mono posix helper for Linux
@@ -76,7 +76,7 @@ COPY --from=frontend-build /src/_output/UI /app/UI
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 4 – minimal runtime image
 # ──────────────────────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-bookworm-slim AS runtime
 
 LABEL org.opencontainers.image.title="Readarr" \
       org.opencontainers.image.description="Book manager and automation for Usenet and BitTorrent users" \

@@ -1,6 +1,7 @@
 using System;
 using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Core.Books;
 using NzbDrone.Core.MetadataSource.Contracts;
 using NzbDrone.Core.MetadataSource.Identity;
 
@@ -80,6 +81,25 @@ namespace NzbDrone.Core.Test.MetadataSource.Contract
 
             identifier.Value.Should().Be("OL123W");
             identifier.ToString().Should().Be("openlibrary:work:OL123W");
+        }
+
+        [Test]
+        public void edition_match_key_should_prefer_normalized_isbn_over_provider_id()
+        {
+            var left = new Edition
+            {
+                ForeignEditionId = "rreading-glasses:edition:1",
+                Isbn13 = "978-0-439-55493-0"
+            };
+            var right = new Edition
+            {
+                ForeignEditionId = "openlibrary:edition:OL1M",
+                Isbn13 = "9780439554930"
+            };
+
+            MetadataEditionIdentity.GetMatchKey(left)
+                .Should()
+                .Be(MetadataEditionIdentity.GetMatchKey(right));
         }
     }
 }

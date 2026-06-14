@@ -24,6 +24,7 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Instrumentation;
 using NzbDrone.Core.Jobs;
 using NzbDrone.Core.MediaFiles;
+using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Notifications;
 using NzbDrone.Core.Organizer;
@@ -216,6 +217,7 @@ namespace NzbDrone.Core.Datastore
             Mapper.Entity<UpdateHistory>("UpdateHistory").RegisterModel();
 
             Mapper.Entity<Jobs.Durable.JobAttempt>("JobAttempts").RegisterModel();
+            Mapper.Entity<ImportAttempt>("ImportAttempts").RegisterModel();
         }
 
         private static void RegisterMappers()

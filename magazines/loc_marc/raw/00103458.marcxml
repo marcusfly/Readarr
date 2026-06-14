@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><record xmlns="http://www.loc.gov/MARC21/slim" xmlns:zs="http://docs.oasis-open.org/ns/search-ws/sruResponse">
+  <leader>01765cam a22004094a 4500</leader>
+  <controlfield tag="001">11972399</controlfield>
+  <controlfield tag="005">20250606181716.2</controlfield>
+  <controlfield tag="007">cr_|||||||||||</controlfield>
+  <controlfield tag="008">000412s2000    caua          001 0 eng  </controlfield>
+  <datafield ind1=" " ind2=" " tag="035">
+    <subfield code="a">11972399</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="906">
+    <subfield code="a">7</subfield>
+    <subfield code="b">cbc</subfield>
+    <subfield code="c">orignew</subfield>
+    <subfield code="d">2</subfield>
+    <subfield code="e">epcn</subfield>
+    <subfield code="f">20</subfield>
+    <subfield code="g">y-gencatlg</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="925">
+    <subfield code="a">acquire</subfield>
+    <subfield code="b">2 shelf copies</subfield>
+    <subfield code="x">policy default</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">pc23 04-12-00; to ASCD pb18 03-09-01; jg00 03-21-01; jg12 05-07-01; jg07 05-08-01; to Dewey 05-08-01; aa20 05-14-01;</subfield>
+    <subfield code="a">jg07 2002-11-21 to BCCD; copy 2</subfield>
+    <subfield code="a">aa24 2003-09-05</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="955">
+    <subfield code="a">LCAP batch update 2025-06-01-04:00: LCAPM-150</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="010">
+    <subfield code="a">   00103458 </subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">1929629192</subfield>
+    <subfield code="q">electronic bk.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">157820044X</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="020">
+    <subfield code="a">9781929629190</subfield>
+    <subfield code="q">(electronic bk.)</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="040">
+    <subfield code="a">DLC</subfield>
+    <subfield code="c">DLC</subfield>
+    <subfield code="d">DLC</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="042">
+    <subfield code="a">pcc</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="050">
+    <subfield code="a">TK5105.7</subfield>
+    <subfield code="b">.S78523 2000</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="082">
+    <subfield code="a">004.6</subfield>
+    <subfield code="2">22</subfield>
+  </datafield>
+  <datafield ind1="0" ind2="0" tag="082">
+    <subfield code="a">004.6</subfield>
+    <subfield code="2">21</subfield>
+  </datafield>
+  <datafield ind1="1" ind2=" " tag="100">
+    <subfield code="a">Steinke, Steve.</subfield>
+  </datafield>
+  <datafield ind1="1" ind2="0" tag="245">
+    <subfield code="a">Network tutorial :</subfield>
+    <subfield code="b">a complete introduction to networks /</subfield>
+    <subfield code="c">by Steve Steinke and the editors of Network magazine.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="250">
+    <subfield code="a">[4th ed.].</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="260">
+    <subfield code="a">San Francisco, CA :</subfield>
+    <subfield code="b">CMP Books,</subfield>
+    <subfield code="c">c2000.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="300">
+    <subfield code="a">567 p. :</subfield>
+    <subfield code="b">ill. ;</subfield>
+    <subfield code="c">24 cm.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Based on articles that originally appeared in LAN magazine and Network magazine from Aug. 1988 to Oct. 2000.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Rev. ed. of LAN tutorial with glossary of terms / by the editors of LAN magazine.  1992.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="500">
+    <subfield code="a">Includes index.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2=" " tag="530">
+    <subfield code="a">Also available as an electronic book via the World Wide Web to institutions affiliated with netLibrary, Inc.</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="650">
+    <subfield code="a">Local area networks (Computer networks)</subfield>
+  </datafield>
+  <datafield ind1=" " ind2="0" tag="650">
+    <subfield code="a">Computer networks.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="730">
+    <subfield code="a">Local area network magazine.</subfield>
+  </datafield>
+  <datafield ind1="0" ind2=" " tag="730">
+    <subfield code="a">Local area network magazine.</subfield>
+  </datafield>
+  <datafield ind1="4" ind2="1" tag="856">
+    <subfield code="u">http://www.netLibrary.com/urlapi.asp?action=summary&amp;v=1&amp;bookid=50780</subfield>
+  </datafield>
+</record>
