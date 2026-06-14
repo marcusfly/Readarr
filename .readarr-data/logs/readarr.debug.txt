@@ -5018,3 +5018,4 @@
 2026-06-14 23:05:27.6|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
 2026-06-14 23:05:53.9|Debug|ImportListSyncService|No import lists with automatic add enabled
 2026-06-14 23:05:57.6|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
+2026-06-14 23:06:27.6|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
