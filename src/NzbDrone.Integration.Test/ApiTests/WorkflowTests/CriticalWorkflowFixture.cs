@@ -4,6 +4,7 @@ using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Books.Commands;
+using NzbDrone.Integration.Test.Client;
 
 namespace NzbDrone.Integration.Test.ApiTests.WorkflowTests
 {
@@ -36,6 +37,7 @@ namespace NzbDrone.Integration.Test.ApiTests.WorkflowTests
         // -----------------------------------------------------------------------
         // Per-test state
         // -----------------------------------------------------------------------
+
         private string _authorRootPath;
         private int _addedAuthorId;
 
