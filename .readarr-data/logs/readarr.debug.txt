@@ -5016,3 +5016,5 @@
 2026-06-14 23:05:23.9|Info|ManagedHttpDispatcher|IPv4 is available: True, IPv6 will be disabled
 2026-06-14 23:05:24.2|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
 2026-06-14 23:05:27.6|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
+2026-06-14 23:05:53.9|Debug|ImportListSyncService|No import lists with automatic add enabled
+2026-06-14 23:05:57.6|Debug|Readarr.Http.Authentication.ApiKeyAuthenticationHandler|AuthenticationScheme: API was not authenticated.
