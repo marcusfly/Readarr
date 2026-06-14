@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using FluentAssertions;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Messaging.Commands;
 using Readarr.Http.REST;
 using RestSharp;
@@ -44,8 +46,8 @@ namespace NzbDrone.Integration.Test.Client
             where T : Command, new()
         {
             var request = BuildRequest();
-            request.AddJsonBody(command);
-            var result = Post<SimpleCommandResource>(request);
+            request.Method = Method.Post;
+            var result = ExecuteJson<SimpleCommandResource>(request, command.ToJson(), HttpStatusCode.Created);
             result.Id.Should().NotBe(0);
 
             for (var i = 0; i < 50; i++)

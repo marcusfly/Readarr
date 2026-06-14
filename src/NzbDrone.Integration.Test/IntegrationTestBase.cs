@@ -20,7 +20,6 @@ using Readarr.Api.V3.Author;
 using Readarr.Api.V3.Blocklist;
 using Readarr.Api.V3.Config;
 using Readarr.Api.V3.DownloadClient;
-using Readarr.Api.V3.History;
 using Readarr.Api.V3.Profiles.Quality;
 using Readarr.Api.V3.RootFolders;
 using Readarr.Api.V3.System.Tasks;
@@ -40,8 +39,11 @@ namespace NzbDrone.Integration.Test
         public DownloadClientClient DownloadClients;
         public BookClient Books;
         public BookFileClient BookFiles;
-        public ClientBase<HistoryResource> History;
+        public BookLookupClient BookLookup;
+        public HistoryClient History;
+        public ManualImportClient ManualImport;
         public ClientBase<HostConfigResource> HostConfig;
+        public ClientBase<MetadataProviderConfigResource> MetadataProviderConfig;
         public IndexerClient Indexers;
         public LogsClient Logs;
         public ClientBase<NamingConfigResource> NamingConfig;
@@ -96,21 +98,22 @@ namespace NzbDrone.Integration.Test
 
         protected virtual void InitRestClients()
         {
-            RestClient = new RestClient(new RestClientOptions(RootUrl + "api/v3/")
+            RestClient = new RestClient(new RestClientOptions(RootUrl + "api/v1/")
             {
                 Timeout = TimeSpan.FromMilliseconds(30000),
             });
-            RestClient.AddDefaultHeader("Authentication", ApiKey);
-            RestClient.AddDefaultHeader("X-Api-Key", ApiKey);
 
             Blocklist = new ClientBase<BlocklistResource>(RestClient, ApiKey);
             Commands = new CommandClient(RestClient, ApiKey);
-            Tasks = new ClientBase<TaskResource>(RestClient, ApiKey, "system/task");
+            Tasks = new ClientBase<TaskResource>(RestClient, ApiKey, "system/task", false);
             DownloadClients = new DownloadClientClient(RestClient, ApiKey);
             Books = new BookClient(RestClient, ApiKey);
             BookFiles = new BookFileClient(RestClient, ApiKey);
-            History = new ClientBase<HistoryResource>(RestClient, ApiKey);
+            BookLookup = new BookLookupClient(RestClient, ApiKey);
+            History = new HistoryClient(RestClient, ApiKey);
+            ManualImport = new ManualImportClient(RestClient, ApiKey);
             HostConfig = new ClientBase<HostConfigResource>(RestClient, ApiKey, "config/host");
+            MetadataProviderConfig = new ClientBase<MetadataProviderConfigResource>(RestClient, ApiKey, "config/metadataprovider");
             Indexers = new IndexerClient(RestClient, ApiKey);
             Logs = new LogsClient(RestClient, ApiKey);
             NamingConfig = new ClientBase<NamingConfigResource>(RestClient, ApiKey, "config/naming");

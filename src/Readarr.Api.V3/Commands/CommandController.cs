@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Composition;
 using NzbDrone.Common.Serializer;
@@ -49,21 +49,20 @@ namespace Readarr.Api.V3.Commands
         }
 
         [RestPostById]
-        public ActionResult<CommandResource> StartCommand(CommandResource commandResource)
+        public ActionResult<CommandResource> StartCommand([FromBody] JsonElement body)
         {
+            var bodyJson = body.GetRawText();
+            var commandResource = STJson.Deserialize<CommandResource>(bodyJson);
             var commandType =
                 _knownTypes.GetImplementations(typeof(Command))
                                .Single(c => c.Name.Replace("Command", "")
                                              .Equals(commandResource.Name, StringComparison.InvariantCultureIgnoreCase));
 
-            Request.Body.Seek(0, SeekOrigin.Begin);
-            using var reader = new StreamReader(Request.Body);
-            var body = reader.ReadToEnd();
             var priority = commandType == typeof(ManualImportCommand)
                 ? CommandPriority.High
                 : CommandPriority.Normal;
 
-            dynamic command = STJson.Deserialize(body, commandType);
+            dynamic command = STJson.Deserialize(bodyJson, commandType);
 
             command.Trigger = CommandTrigger.Manual;
             command.SuppressMessages = !command.SendUpdatesToClient;

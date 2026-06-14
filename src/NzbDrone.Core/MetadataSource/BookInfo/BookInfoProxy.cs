@@ -531,7 +531,6 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
                 // Fetch works (paginated, cap at 10 pages / 500 works)
                 var works = FetchAuthorWorks(foreignAuthorId);
-
                 return MapAuthor(authorResource, works, foreignAuthorId);
             }
 

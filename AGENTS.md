@@ -8,6 +8,27 @@ Maintain `AGENT_LOG.md` as the shared, append-only record of active work, decisi
 verification, blockers, and handoffs. The purpose is continuity without requiring
 another contributor to reconstruct prior work.
 
+## Principal Rule: Keep the Backlog Current
+
+Maintain `BACKLOG_STATUS.md` as the canonical backlog register and keep it aligned
+with `BACKLOG.md` and the GitHub project board. Every backlog item must have:
+
+1. A stable `BLI### - ...` title prefix in `BACKLOG.md` and on the project board.
+2. A status entry in `BACKLOG_STATUS.md` with board status, progress, next action,
+   and evidence.
+3. A structured metadata block in the GitHub project draft body with item ID,
+   board status, progress, dependencies, evidence, last reviewed date, objective,
+   work, done-when criteria, and next action.
+
+When backlog work changes:
+
+- Add or update the item in `BACKLOG.md` and `BACKLOG_STATUS.md` first.
+- Update the GitHub project item title, body metadata, and board status to match.
+- Add a concise progress note to `AGENT_LOG.md` describing the change.
+- If the work starts or stops, move the item status and next action immediately.
+- If the board cannot be updated, record the blocker in `AGENT_LOG.md` and do not
+  leave the repo status register stale.
+
 Before starting work:
 
 1. Read the latest entries in `AGENT_LOG.md`.

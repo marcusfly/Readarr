@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Net;
 using FluentAssertions;
 using NUnit.Framework;
+using NzbDrone.Common.Serializer;
 using Readarr.Api.V3.Indexers;
 using RestSharp;
 
@@ -22,8 +23,8 @@ namespace NzbDrone.Integration.Test.ApiTests
             body.Add("publishDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ssZ", CultureInfo.InvariantCulture));
 
             var request = ReleasePush.BuildRequest();
-            request.AddJsonBody(body);
-            var result = ReleasePush.Post<ReleaseResource>(request, HttpStatusCode.OK);
+            request.Method = Method.Post;
+            var result = ReleasePush.ExecuteJson<ReleaseResource>(request, body.ToJson(), HttpStatusCode.OK);
 
             result.Should().NotBeNull();
             result.AgeHours.Should().BeApproximately(0, 0.1);
