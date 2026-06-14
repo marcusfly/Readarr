@@ -86,12 +86,11 @@ namespace NzbDrone.Core.History
 
         public List<EntityHistory> FindDownloadHistory(int idAuthorId, QualityModel quality)
         {
-            return Query(h => h.AuthorId == idAuthorId)
-                .Where(h => h.Quality == quality &&
-                            (h.EventType == EntityHistoryEventType.Grabbed ||
-                             h.EventType == EntityHistoryEventType.DownloadFailed ||
-                             h.EventType == EntityHistoryEventType.BookFileImported))
-                .ToList();
+            var allowed = new[] { EntityHistoryEventType.Grabbed, EntityHistoryEventType.DownloadFailed, EntityHistoryEventType.BookFileImported };
+
+            return Query(h => h.AuthorId == idAuthorId &&
+                         h.Quality == quality &&
+                         allowed.Contains(h.EventType));
         }
 
         public void DeleteForAuthor(int authorId)

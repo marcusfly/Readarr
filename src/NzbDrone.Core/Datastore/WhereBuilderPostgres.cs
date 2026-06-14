@@ -75,6 +75,20 @@ namespace NzbDrone.Core.Datastore
                     ParseEndsWith(expression);
                     break;
 
+                case "op_Implicit":
+                    // .NET 10: Implicit conversions for enum comparisons
+                    // Just visit the converted operand; the conversion is implicit
+                    if (expression.Arguments.Count == 1)
+                    {
+                        Visit(expression.Arguments[0]);
+                    }
+                    else
+                    {
+                        throw new NotSupportedException("Unexpected implicit conversion");
+                    }
+
+                    break;
+
                 default:
                     var msg = string.Format("'{0}' expressions are not yet implemented in the where clause expression tree parser.", method);
                     throw new NotImplementedException(msg);
@@ -151,6 +165,11 @@ namespace NzbDrone.Core.Datastore
         {
             result = null;
 
+            if (expression == null)
+            {
+                return false;
+            }
+
             if (expression.Expression is MemberExpression nested)
             {
                 // Value is passed in as a property on a parent entity
@@ -172,6 +191,11 @@ namespace NzbDrone.Core.Datastore
         private bool TryGetVariableValue(MemberExpression expression, out object result)
         {
             result = null;
+
+            if (expression == null)
+            {
+                return false;
+            }
 
             // Value is passed in as a variable
             if (expression.Expression is ConstantExpression nested)
@@ -296,15 +320,29 @@ namespace NzbDrone.Core.Datastore
             }
             else
             {
-                // Static method
-                // Must be Enumerable.Contains(source, item)
-                if (body.Method.DeclaringType != typeof(Enumerable) || body.Arguments.Count != 2)
+                // Static method - Could be Enumerable.Contains, MemoryExtensions.Contains (.NET 10), or compiler-generated Contains
+                if (body.Method.DeclaringType == typeof(Enumerable) && body.Arguments.Count == 2)
                 {
-                    throw new NotSupportedException("Unexpected form of Enumerable.Contains");
+                    // Enumerable.Contains(source, item)
+                    list = body.Arguments[0];
+                    item = body.Arguments[1];
                 }
-
-                list = body.Arguments[0];
-                item = body.Arguments[1];
+                else if (body.Method.DeclaringType?.Name == "MemoryExtensions" && body.Arguments.Count >= 2)
+                {
+                    // .NET 10: MemoryExtensions.Contains(source, item) or MemoryExtensions.Contains(span, item, comparer)
+                    list = body.Arguments[0];
+                    item = body.Arguments[1];
+                }
+                else if (body.Arguments.Count == 2)
+                {
+                    // Generic static method with 2 args - likely Contains from some collections type
+                    list = body.Arguments[0];
+                    item = body.Arguments[1];
+                }
+                else
+                {
+                    throw new NotSupportedException($"Unexpected form of Enumerable.Contains: Method={body.Method.Name}, DeclaringType={body.Method.DeclaringType?.Name}, ArgCount={body.Arguments.Count}");
+                }
             }
 
             _sb.Append('(');
