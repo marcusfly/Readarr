@@ -716,3 +716,8 @@ Validation:
 - `docker logs --tail 120 readarr`: startup complete, no recent `/api/v1/author` 400 validation spam.
 - Live checks: `GET /ping` and `GET /api/v1/system/status` return 200.
 Next action: open `http://127.0.0.1:8787/add/search`, locate Dave Ramsey, and re-run add flow to confirm UI blocks invalid payloads and succeeds once root folder/profile IDs are valid.
+2026-06-14T18:03:56-05:00 | Codex | START | Task: Push and sync commit to remote mfly branch for live testing continuity. Pending: authenticate remote git access if required.
+
+## 2026-06-14T18:04:53-05:00 | Codex | DONE | Task: Commit all pending local work for laptop handoff.
+Changes: Committing remaining local modifications and artifacts (AGENT_LOG.md, .docker/, .readarr-data/, BACKLOG_ITEM_4_COMPLETE.md, eadarr-server-new.err, eadarr.err, 	est_results.txt) to preserve in-progress state on remote.
+Checks: git status --short --branch before commit, then staged full-tree commit.
