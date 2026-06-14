@@ -12,9 +12,11 @@ function createMapStateToProps() {
   return createSelector(
     (state) => state.search,
     (state) => state.settings.metadataProfiles,
+    (state) => state.settings.qualityProfiles.items,
+    (state) => state.settings.rootFolders.items,
     createDimensionsSelector(),
     createSystemStatusSelector(),
-    (searchState, metadataProfiles, dimensions, systemStatus) => {
+    (searchState, metadataProfiles, qualityProfileItems, rootFolderItems, dimensions, systemStatus) => {
       const {
         isAdding,
         addError,
@@ -27,6 +29,17 @@ function createMapStateToProps() {
         validationWarnings
       } = selectSettings(authorDefaults, {}, addError);
 
+      const fallbackRootFolderPath = rootFolderItems[0] ? rootFolderItems[0].path : '';
+      const fallbackQualityProfileId = qualityProfileItems[0] ? qualityProfileItems[0].id : 0;
+      const selectedQualityProfileId = parseInt(settings.qualityProfileId.value, 10);
+      const fallbackMetadataProfileId = metadataProfiles.items[0] ? metadataProfiles.items[0].id : 0;
+      const selectedMetadataProfileId = parseInt(settings.metadataProfileId.value, 10);
+
+      const selectedRootFolderPath = settings.rootFolderPath.value || '';
+      const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
+      const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
+      const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
+
       return {
         isAdding,
         addError,
@@ -35,6 +48,10 @@ function createMapStateToProps() {
         validationErrors,
         validationWarnings,
         isWindows: systemStatus.isWindows,
+        isAddDisabled: !normalizedRootFolderPath || !normalizedQualityProfileId || !normalizedMetadataProfileId,
+        fallbackRootFolderPath,
+        fallbackQualityProfileId,
+        fallbackMetadataProfileId,
         ...settings
       };
     }
@@ -63,16 +80,31 @@ class AddNewAuthorModalContentConnector extends Component {
       monitorNewItems,
       qualityProfileId,
       metadataProfileId,
-      tags
+      tags,
+      fallbackRootFolderPath,
+      fallbackQualityProfileId,
+      fallbackMetadataProfileId
     } = this.props;
+
+    const selectedRootFolderPath = rootFolderPath ? rootFolderPath.value : '';
+    const selectedQualityProfileId = parseInt(qualityProfileId.value, 10);
+    const selectedMetadataProfileId = parseInt(metadataProfileId.value, 10);
+
+    const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
+    const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
+    const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
+
+    if (!normalizedRootFolderPath || !normalizedQualityProfileId || !normalizedMetadataProfileId) {
+      return;
+    }
 
     this.props.addAuthor({
       foreignAuthorId,
-      rootFolderPath: rootFolderPath.value,
+      rootFolderPath: normalizedRootFolderPath,
       monitor: monitor.value,
       monitorNewItems: monitorNewItems.value,
-      qualityProfileId: qualityProfileId.value,
-      metadataProfileId: metadataProfileId.value,
+      qualityProfileId: normalizedQualityProfileId,
+      metadataProfileId: normalizedMetadataProfileId,
       tags: tags.value,
       searchForMissingBooks
     });
@@ -99,6 +131,10 @@ AddNewAuthorModalContentConnector.propTypes = {
   monitorNewItems: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,
   metadataProfileId: PropTypes.object,
+  isAddDisabled: PropTypes.bool.isRequired,
+  fallbackRootFolderPath: PropTypes.string,
+  fallbackQualityProfileId: PropTypes.number,
+  fallbackMetadataProfileId: PropTypes.number,
   tags: PropTypes.object.isRequired,
   onModalClose: PropTypes.func.isRequired,
   setAuthorAddDefault: PropTypes.func.isRequired,

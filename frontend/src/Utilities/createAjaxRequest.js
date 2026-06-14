@@ -7,6 +7,12 @@ function isRelative(ajaxOptions) {
   return !absUrlRegex.test(ajaxOptions.url);
 }
 
+function alreadyUsesApiRoot(ajaxOptions) {
+  const normalizedRoot = apiRoot.endsWith('/') ? apiRoot : `${apiRoot}/`;
+
+  return ajaxOptions.url === apiRoot || ajaxOptions.url.startsWith(normalizedRoot);
+}
+
 function addRootUrl(ajaxOptions) {
   ajaxOptions.url = apiRoot + ajaxOptions.url;
 }
@@ -40,7 +46,10 @@ export default function createAjaxRequest(originalAjaxOptions) {
   const ajaxOptions = { ...originalAjaxOptions };
 
   if (isRelative(ajaxOptions)) {
-    addRootUrl(ajaxOptions);
+    if (!alreadyUsesApiRoot(ajaxOptions)) {
+      addRootUrl(ajaxOptions);
+    }
+
     addApiKey(ajaxOptions);
     addContentType(ajaxOptions);
   }

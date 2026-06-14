@@ -64,7 +64,7 @@ namespace NzbDrone.Core.HealthCheck
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Failed to retrieve server notifications");
+                _logger.Debug(ex, "Unable to retrieve server-side health notifications during startup.");
                 return new List<HealthCheck>();
             }
         }

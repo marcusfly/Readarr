@@ -2,11 +2,12 @@ import { createAction } from 'redux-actions';
 import { filterTypes, sortDirections } from 'Helpers/Props';
 import { setAppValue } from 'Store/Actions/appActions';
 import { createThunk, handleThunks } from 'Store/thunks';
+import { batchActions } from 'redux-batched-actions';
 import createAjaxRequest from 'Utilities/createAjaxRequest';
 import serverSideCollectionHandlers from 'Utilities/serverSideCollectionHandlers';
 import translate from 'Utilities/String/translate';
 import { pingServer } from './appActions';
-import { set } from './baseActions';
+import { set, update } from './baseActions';
 import createFetchHandler from './Creators/createFetchHandler';
 import createHandleActions from './Creators/createHandleActions';
 import createRemoveItemHandler from './Creators/createRemoveItemHandler';
@@ -182,6 +183,11 @@ export const persistState = [
   'system.logs.selectedFilterKey'
 ];
 
+const systemStatusRetryInterval = 2000;
+const systemStatusRetryLimit = 6;
+let systemStatusRetryCount = 0;
+let systemStatusRetryTimer = null;
+
 //
 // Actions Types
 
@@ -254,7 +260,77 @@ export const shutdown = createThunk(SHUTDOWN);
 // Action Handlers
 
 export const actionHandlers = handleThunks({
-  [FETCH_STATUS]: createFetchHandler('system.status', '/system/status'),
+  [FETCH_STATUS]: function(getState, payload, dispatch) {
+    const {
+      id,
+      ...otherPayload
+    } = payload || {};
+
+    dispatch(set({ section: 'system.status', isFetching: true }));
+
+    if (systemStatusRetryTimer) {
+      clearTimeout(systemStatusRetryTimer);
+      systemStatusRetryTimer = null;
+    }
+
+    const { request, abortRequest } = createAjaxRequest({
+      url: id == null ? '/system/status' : `/system/status/${id}`,
+      data: otherPayload,
+      traditional: true
+    });
+
+    request.done((data) => {
+      systemStatusRetryCount = 0;
+      if (systemStatusRetryTimer) {
+        clearTimeout(systemStatusRetryTimer);
+        systemStatusRetryTimer = null;
+      }
+
+      dispatch(batchActions([
+        id == null ? update({ section: 'system.status', data }) : updateItem({ section: 'system.status', ...data }),
+
+        set({
+          section: 'system.status',
+          isFetching: false,
+          isPopulated: true,
+          error: null
+        })
+      ]));
+    });
+
+    request.fail((xhr) => {
+      if (xhr.aborted) {
+        return;
+      }
+
+      if (xhr.status === 401 && systemStatusRetryCount < systemStatusRetryLimit) {
+        systemStatusRetryCount += 1;
+
+        dispatch(set({
+          section: 'system.status',
+          isFetching: false,
+          isPopulated: false,
+          error: null
+        }));
+
+        systemStatusRetryTimer = setTimeout(() => {
+          systemStatusRetryTimer = null;
+          dispatch(fetchStatus());
+        }, systemStatusRetryInterval * systemStatusRetryCount);
+
+        return;
+      }
+
+      dispatch(set({
+        section: 'system.status',
+        isFetching: false,
+        isPopulated: false,
+        error: xhr
+      }));
+    });
+
+    return abortRequest;
+  },
   [FETCH_HEALTH]: createFetchHandler('system.health', '/health'),
   [FETCH_DISK_SPACE]: createFetchHandler('system.diskSpace', '/diskspace'),
   [FETCH_TASK]: createFetchHandler('system.tasks', '/system/task'),

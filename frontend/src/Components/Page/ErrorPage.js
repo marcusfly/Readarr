@@ -36,7 +36,7 @@ function ErrorPage(props) {
   } else if (uiSettingsError) {
     errorMessage = getErrorMessage(uiSettingsError, 'Failed to load UI settings from API');
   } else if (systemStatusError) {
-    errorMessage = getErrorMessage(uiSettingsError, 'Failed to load system status from API');
+    errorMessage = getErrorMessage(systemStatusError, 'Failed to load system status from API');
   }
 
   return (

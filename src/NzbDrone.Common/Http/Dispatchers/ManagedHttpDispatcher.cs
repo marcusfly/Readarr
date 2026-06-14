@@ -163,9 +163,9 @@ namespace NzbDrone.Common.Http.Dispatchers
                 UseCookies = false, // sic - we don't want to use a shared cookie container
                 AllowAutoRedirect = false,
                 Credentials = GetCredentialCache(),
-                PreAuthenticate = true,
                 MaxConnectionsPerServer = 12,
                 ConnectCallback = onConnect,
+                PreAuthenticate = false,
                 SslOptions = new SslClientAuthenticationOptions
                 {
                     RemoteCertificateValidationCallback = _certificateValidationService.ShouldByPassValidationError

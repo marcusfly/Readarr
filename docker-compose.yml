@@ -41,10 +41,12 @@ services:
       READARR__POSTGRES__PASSWORD: ""
       # Timezone
       TZ: "${TZ:-Etc/UTC}"
+      ASPNETCORE_URLS: "http://*:8787"
+      ASPNETCORE_HTTP_PORTS: ""
 
     volumes:
       # Persistent config / database
-      - readarr_config:/config
+      - ./.readarr-data:/config
       # Mount your books library here (read-write so Readarr can rename/move files)
       - "${BOOKS_DIR:-./books}:/books"
 
