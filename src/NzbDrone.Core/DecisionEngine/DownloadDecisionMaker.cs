@@ -90,6 +90,16 @@ namespace NzbDrone.Core.DecisionEngine
                         }
                     }
 
+                    if (parsedBookInfo != null)
+                    {
+                        _logger.Debug("Parsed release '{0}' with confidence {1:F2}", report.Title, parsedBookInfo.Confidence);
+
+                        if (string.IsNullOrWhiteSpace(parsedBookInfo.RejectionReason) && parsedBookInfo.Confidence < 0.5)
+                        {
+                            parsedBookInfo.RejectionReason = $"Low parse confidence ({parsedBookInfo.Confidence:F2}) — ambiguous or incomplete title";
+                        }
+                    }
+
                     if (parsedBookInfo != null && !parsedBookInfo.AuthorName.IsNullOrWhiteSpace())
                     {
                         var remoteBook = _parsingService.Map(parsedBookInfo, searchCriteria);
@@ -162,6 +172,7 @@ namespace NzbDrone.Core.DecisionEngine
 
                         if (parsedBookInfo.AuthorName.IsNullOrWhiteSpace())
                         {
+                            parsedBookInfo.RejectionReason = "Unable to parse release from title";
                             var remoteBook = new RemoteBook
                             {
                                 Release = report,
@@ -184,6 +195,7 @@ namespace NzbDrone.Core.DecisionEngine
 
                         if (parsedBookInfo.AuthorName.IsNullOrWhiteSpace())
                         {
+                            parsedBookInfo.RejectionReason = "Unable to parse release from title";
                             var remoteBook = new RemoteBook
                             {
                                 Release = report,
@@ -198,7 +210,12 @@ namespace NzbDrone.Core.DecisionEngine
                 {
                     _logger.Error(e, "Couldn't process release.");
 
-                    var remoteBook = new RemoteBook { Release = report };
+                    var parsed = new ParsedBookInfo
+                    {
+                        Quality = QualityParser.ParseQuality(report.Title, null, report.Categories),
+                        RejectionReason = "Unexpected error during parsing/mapping"
+                    };
+                    var remoteBook = new RemoteBook { Release = report, ParsedBookInfo = parsed };
                     decision = new DownloadDecision(remoteBook, new Rejection("Unexpected error processing release"));
                 }
 
