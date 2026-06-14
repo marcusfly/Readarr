@@ -4,7 +4,6 @@ using System.Text.Json;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Common.Http;
-using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.BookInfo;
 using NzbDrone.Core.MetadataSource.Contracts;
