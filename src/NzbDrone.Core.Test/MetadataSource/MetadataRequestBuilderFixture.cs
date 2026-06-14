@@ -32,7 +32,7 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             Mocker.GetMock<IReadarrCloudRequestBuilder>()
                 .Setup(s => s.Metadata)
-                .Returns(new HttpRequestBuilder("https://api.bookinfo.club/v1/{route}").CreateFactory());
+                .Returns(new HttpRequestBuilder("https://hardcover.bookinfo.pro/{route}").CreateFactory());
 
             Mocker.GetMock<IReadarrCloudRequestBuilder>()
                 .Setup(s => s.MetadataOpenLibrary)
@@ -40,7 +40,7 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             Mocker.GetMock<IReadarrCloudRequestBuilder>()
                 .Setup(s => s.MetadataRreadingGlasses)
-                .Returns(new HttpRequestBuilder("https://api.bookinfo.club/v1/{route}").CreateFactory());
+                .Returns(new HttpRequestBuilder("https://hardcover.bookinfo.pro/{route}").CreateFactory());
         }
 
         private void WithCustomProvider(string provider, string url)
@@ -90,7 +90,19 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             var details = Subject.GetRequestBuilder().Create();
 
-            details.BaseUrl.ToString().Should().Contain("bookinfo.club/v1");
+            details.BaseUrl.ToString().Should().Contain("hardcover.bookinfo.pro");
+        }
+
+        [TestCase]
+        public void should_default_to_rreading_glasses_when_provider_is_blank()
+        {
+            Mocker.GetMock<IConfigService>()
+                .Setup(s => s.MetadataProvider)
+                .Returns(string.Empty);
+
+            var details = Subject.GetRequestBuilder().Create();
+
+            details.BaseUrl.ToString().Should().Contain("hardcover.bookinfo.pro");
         }
 
         [TestCase]
@@ -98,7 +110,7 @@ namespace NzbDrone.Core.Test.MetadataSource
         {
             var details = Subject.GetRequestBuilder(MetadataRequestBuilder.RreadingGlassesProvider).Create();
 
-            details.BaseUrl.ToString().Should().Contain("bookinfo.club/v1");
+            details.BaseUrl.ToString().Should().Contain("hardcover.bookinfo.pro");
         }
     }
 }

@@ -261,8 +261,7 @@ namespace NzbDrone.Core.Books.Calibre
                     Identifiers = new Dictionary<string, string>
                     {
                         { "isbn", edition.Isbn13 },
-                        { "asin", edition.Asin },
-                        { "goodreads", edition.ForeignEditionId }
+                        { "asin", edition.Asin }
                     },
                     Series = series?.Title,
                     SeriesIndex = seriesIndex

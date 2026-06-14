@@ -30,12 +30,12 @@ namespace NzbDrone.Core.MetadataSource
             var configuredProvider = NormalizeProviderKey(_configService.MetadataProvider);
             var fallbackProvider = configuredProvider ?? InferProviderFromLegacyOverride();
 
-            return GetRequestBuilder(fallbackProvider ?? OpenLibraryProvider);
+            return GetRequestBuilder(fallbackProvider ?? RreadingGlassesProvider);
         }
 
         public IHttpRequestBuilderFactory GetRequestBuilder(string provider)
         {
-            var normalizedProvider = NormalizeProviderKey(provider) ?? OpenLibraryProvider;
+            var normalizedProvider = NormalizeProviderKey(provider) ?? RreadingGlassesProvider;
             var overrideUrl = GetProviderOverride(normalizedProvider);
 
             if (overrideUrl.IsNotNullOrWhiteSpace())

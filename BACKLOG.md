@@ -6,6 +6,8 @@ a priority until the product-critical risks and behavioral contracts are control
 
 ## 1. Rebuild Metadata and Identity
 
+**Status:** Complete for the fresh-install contract as of 2026-06-13.
+
 **Goal:** Make author, work, edition, series, ISBN, ASIN, and provider identities
 stable and independent of Goodreads.
 
@@ -17,11 +19,12 @@ stable and independent of Goodreads.
 - Support rreading-glasses first and evaluate at least one independent provider.
 - Add local caching, outage handling, provenance, and refresh cursors.
 - Build a representative metadata acceptance corpus.
-- Map existing Goodreads-derived identifiers without changing library ownership.
+- Treat the redesign as fresh-install-only; reconcile editions across providers by
+  normalized ISBN rather than migrating Goodreads-derived ownership.
 
 **Done when:** Search and refresh pass agreed coverage and correctness thresholds,
-existing records retain stable identity, and loss of one provider does not corrupt a
-library.
+new records retain stable namespaced identity, and loss of one provider does not
+corrupt a library.
 
 ## 2. Upgrade the Backend to a Supported .NET LTS
 

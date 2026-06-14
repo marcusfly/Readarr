@@ -112,11 +112,11 @@ namespace NzbDrone.Core.Books
             }
             catch (BookNotFoundException)
             {
-                _logger.Error("Book with Foreign Id {0} was not found, it may have been removed from Goodreads.", newBook.ForeignBookId);
+                _logger.Error("Book with metadata id {0} was not found by its provider.", newBook.ForeignBookId);
 
                 throw new ValidationException(new List<ValidationFailure>
                                               {
-                                                  new ValidationFailure("GoodreadsId", "A book with this ID was not found", newBook.ForeignBookId)
+                                                  new ValidationFailure("ForeignBookId", "A book with this metadata ID was not found", newBook.ForeignBookId)
                                               });
             }
 

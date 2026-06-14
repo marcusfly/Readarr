@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
@@ -21,22 +21,23 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
     public class RreadingGlassesMetadataProvider : IMetadataProviderV1
     {
         private const string ProviderKey = "rreading-glasses";
-        private const int MaxRetryAttempts = 3;
+        private const int MaxResults = 10;
 
         private static readonly JsonSerializerOptions SerializerSettings = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = false,
-            Converters = { new STJUtcConverter(), new OLTextValueConverter() }
+            Converters = { new STJUtcConverter() }
         };
-
-        private static readonly Regex SeriesPositionRegex = new Regex(@"^(.+?)\s*[#,]\s*(\d+(?:\.\d+)?)$", RegexOptions.Compiled);
 
         private readonly IHttpClient _httpClient;
         private readonly ICachedHttpResponseService _cachedHttpClient;
         private readonly IMetadataRequestBuilder _requestBuilder;
         private readonly Logger _logger;
 
-        public RreadingGlassesMetadataProvider(IHttpClient httpClient, ICachedHttpResponseService cachedHttpClient, IMetadataRequestBuilder requestBuilder, Logger logger)
+        public RreadingGlassesMetadataProvider(IHttpClient httpClient,
+                                               ICachedHttpResponseService cachedHttpClient,
+                                               IMetadataRequestBuilder requestBuilder,
+                                               Logger logger)
         {
             _httpClient = httpClient;
             _cachedHttpClient = cachedHttpClient;
@@ -65,224 +66,133 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
 
         public Author GetAuthorInfo(string readarrId, bool useCache = true)
         {
-            var authorId = NormalizeProviderResourceId(readarrId);
-            var authorReq = ProviderFactory.Create()
-                .Resource($"/authors/{authorId}.json")
-                .Build();
+            var authorId = NormalizeResourceId(readarrId, MetadataEntityType.Author);
+            var request = CreateRequest($"author/{authorId}");
+            var response = _cachedHttpClient.Get(request, useCache, TimeSpan.FromMinutes(30));
 
-            authorReq.SuppressHttpError = true;
-
-            OLAuthorResource authorResource = null;
-
-            for (var attempt = 0; attempt < MaxRetryAttempts; attempt++)
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                var response = _cachedHttpClient.Get(authorReq, useCache && attempt == 0, TimeSpan.FromMinutes(30));
-
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                {
-                    continue;
-                }
-
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new AuthorNotFoundException(readarrId);
-                }
-
-                if (response.HasHttpError)
-                {
-                    throw new BookInfoException("Unexpected error fetching rreading-glasses author data");
-                }
-
-                authorResource = JsonSerializer.Deserialize<OLAuthorResource>(response.Content, SerializerSettings);
-                break;
+                throw new AuthorNotFoundException(readarrId);
             }
 
-            if (authorResource == null)
+            if (response.HasHttpError)
             {
-                throw new BookInfoException("Failed to fetch rreading-glasses author data");
+                throw new BookInfoException("Unexpected error fetching rreading-glasses author data");
             }
 
-            var works = FetchAuthorWorks(authorId);
-            return MapAuthor(authorResource, works, authorId);
+            var resource = Deserialize<RgAuthorResource>(response);
+            if (resource == null || resource.ForeignId <= 0)
+            {
+                throw new BookInfoException($"Invalid rreading-glasses author response for '{readarrId}'");
+            }
+
+            return MapAuthor(resource);
         }
 
         public Tuple<string, Book, List<AuthorMetadata>> GetBookInfo(string id)
         {
-            var workId = NormalizeProviderResourceId(id);
-            var workReq = ProviderFactory.Create()
-                .Resource($"/works/{workId}.json")
-                .Build();
+            var workId = NormalizeResourceId(id, MetadataEntityType.Work);
+            var request = CreateRequest($"work/{workId}");
+            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromMinutes(30));
 
-            workReq.SuppressHttpError = true;
-
-            OLWorkResource workResource = null;
-
-            for (var attempt = 0; attempt < MaxRetryAttempts; attempt++)
+            if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                var response = _cachedHttpClient.Get(workReq, attempt == 0, TimeSpan.FromMinutes(30));
-
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                {
-                    continue;
-                }
-
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    throw new BookNotFoundException(id);
-                }
-
-                if (response.HasHttpError)
-                {
-                    throw new BookInfoException("Unexpected error fetching rreading-glasses work data");
-                }
-
-                workResource = JsonSerializer.Deserialize<OLWorkResource>(response.Content, SerializerSettings);
-                break;
+                throw new BookNotFoundException(id);
             }
 
-            if (workResource == null)
+            if (response.HasHttpError)
             {
-                throw new BookInfoException("Failed to fetch rreading-glasses work data");
+                throw new BookInfoException("Unexpected error fetching rreading-glasses work data");
             }
 
-            var editions = FetchEditions(workId);
-            var ratings = FetchRatings(workId);
-
-            var metadata = new List<AuthorMetadata>();
-            string primaryAuthorId = null;
-
-            foreach (var authorRef in workResource.Authors ?? new List<OLWorkAuthorRef>())
+            var resource = Deserialize<RgWorkResource>(response);
+            if (resource == null || resource.ForeignId <= 0 || resource.Authors?.Count > 0 != true)
             {
-                var authorId = NormalizeProviderResourceId(authorRef.Author?.Key);
-                if (authorId == null)
-                {
-                    continue;
-                }
-
-                var author = GetAuthorInfo(authorId);
-                metadata.Add(author.Metadata.Value);
-                primaryAuthorId ??= author.Metadata.Value.ForeignAuthorId;
+                throw new BookInfoException($"Invalid rreading-glasses work response for '{id}'");
             }
 
-            if (primaryAuthorId == null)
-            {
-                throw new BookInfoException("Failed to determine rreading-glasses author");
-            }
+            var book = MapBook(resource);
+            var authors = (resource.Authors ?? new List<RgAuthorResource>())
+                .Where(x => x.ForeignId > 0)
+                .GroupBy(x => x.ForeignId)
+                .Select(x => MapAuthorMetadata(x.First()))
+                .ToList();
+            var primaryAuthorId = CreateId(MetadataEntityType.Author, GetAuthorId(resource));
 
-            var book = MapBook(workResource, editions, ratings);
-            return Tuple.Create(primaryAuthorId, book, metadata);
+            MapSeriesLinks(resource.Series ?? new List<RgSeriesResource>(), new List<Book> { book }, null);
+            return Tuple.Create(primaryAuthorId, book, authors);
         }
 
         public List<Author> SearchForNewAuthor(string title)
         {
-            var request = ProviderFactory.Create()
-                .Resource("/search/authors.json")
-                .AddQueryParam("q", title.Trim())
-                .AddQueryParam("limit", "10")
-                .Build();
-
-            request.SuppressHttpError = true;
-
-            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
-            if (response.HasHttpError)
-            {
-                return new List<Author>();
-            }
-
-            var resource = JsonSerializer.Deserialize<OLAuthorSearchResponse>(response.Content, SerializerSettings);
-            if (resource?.Docs == null)
-            {
-                return new List<Author>();
-            }
-
-            return resource.Docs
-                .Take(10)
-                .Select(d => NormalizeProviderResourceId(d.Key))
-                .Where(k => k != null)
-                .Select(id => GetAuthorInfo(id))
+            return Search(title)
+                .Select(x => x.Author?.Id ?? 0)
+                .Where(x => x > 0)
+                .Distinct()
+                .Take(MaxResults)
+                .Select(x => TryGetAuthor(x.ToString()))
+                .Where(x => x != null)
                 .ToList();
         }
 
         public List<Book> SearchForNewBook(string title, string author, bool getAllEditions = true)
         {
-            var lowerTitle = title.ToLowerInvariant().Trim();
-            var separatorIndex = lowerTitle.IndexOf(':');
-
-            if (separatorIndex > 0)
+            var parsed = ParsePrefixedSearch(title);
+            if (parsed != null)
             {
-                var prefix = lowerTitle[..separatorIndex];
-                var slug = title[(separatorIndex + 1) ..].Trim();
-
-                if (prefix == "author")
+                switch (parsed.Value.Prefix)
                 {
-                    var resolvedAuthorId = NormalizeProviderResourceId(slug);
-                    return GetAuthorInfo(resolvedAuthorId).Books.Value;
-                }
-
-                if (prefix == "work")
-                {
-                    return new List<Book> { GetBookInfo(slug).Item2 };
-                }
-
-                if (prefix == "edition")
-                {
-                    return SearchByEditionId(slug, getAllEditions);
-                }
-
-                if (prefix == "isbn")
-                {
-                    return SearchByIsbn(slug);
-                }
-
-                if (prefix == "asin")
-                {
-                    return SearchByAsin(slug);
+                    case "author":
+                        var foundAuthor = TryGetAuthor(parsed.Value.Value);
+                        return foundAuthor?.Books?.Value ?? new List<Book>();
+                    case "work":
+                        return TryGetWork(parsed.Value.Value);
+                    case "edition":
+                        return SearchByEditionId(parsed.Value.Value, getAllEditions);
+                    case "isbn":
+                        return SearchByIsbn(parsed.Value.Value);
+                    case "asin":
+                        return SearchByAsin(parsed.Value.Value);
                 }
             }
 
             var query = title.Trim();
-            if (!string.IsNullOrWhiteSpace(author))
+            if (author.IsNotNullOrWhiteSpace())
             {
                 query += " " + author.Trim();
             }
 
-            var request = ProviderFactory.Create()
-                .Resource("/search.json")
-                .AddQueryParam("q", query)
-                .AddQueryParam("fields", "key,title,author_name,author_key,first_publish_year,isbn,asin,cover_i,subject,ratings_average,ratings_count")
-                .AddQueryParam("limit", "20")
-                .Build();
-
-            request.SuppressHttpError = true;
-
-            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
-            if (response.HasHttpError)
+            var results = Search(query);
+            if (getAllEditions)
             {
-                return new List<Book>();
+                return results
+                    .Select(x => x.WorkId)
+                    .Where(x => x > 0)
+                    .Distinct()
+                    .Take(MaxResults)
+                    .SelectMany(x => TryGetWork(x.ToString()))
+                    .ToList();
             }
 
-            var resource = JsonSerializer.Deserialize<OLSearchResponse>(response.Content, SerializerSettings);
-            if (resource?.Docs == null)
-            {
-                return new List<Book>();
-            }
-
-            return resource.Docs
-                .Take(10)
-                .Select(d => NormalizeProviderResourceId(d.Key))
-                .Where(k => k != null)
-                .Select(id => GetBookInfo(id).Item2)
+            return results
+                .Select(x => x.BookId)
+                .Where(x => x > 0)
+                .Distinct()
+                .Take(MaxResults)
+                .SelectMany(x => SearchByEditionId(x.ToString(), false))
                 .ToList();
         }
 
         public List<Book> SearchByIsbn(string isbn)
         {
-            return SearchByDocumentEndpoint($"/isbn/{MetadataIdentifier.NormalizeValue(MetadataEntityType.Isbn, isbn)}.json");
+            var normalized = MetadataIdentifier.NormalizeValue(MetadataEntityType.Isbn, isbn);
+            return SearchByLookup($"book/isbn/{normalized}", null);
         }
 
         public List<Book> SearchByAsin(string asin)
         {
-            return SearchByDocumentEndpoint($"/asin/{MetadataIdentifier.NormalizeValue(MetadataEntityType.Asin, asin)}.json");
+            var normalized = MetadataIdentifier.NormalizeValue(MetadataEntityType.Asin, asin);
+            return SearchByLookup($"book/asin/{normalized}", null);
         }
 
         public List<object> SearchForNewEntity(string title)
@@ -292,9 +202,10 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
 
             foreach (var book in books)
             {
-                if (!result.Contains(book.Author.Value))
+                var author = book.Author?.Value;
+                if (author != null && !result.Contains(author))
                 {
-                    result.Add(book.Author.Value);
+                    result.Add(author);
                 }
 
                 result.Add(book);
@@ -305,180 +216,50 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
 
         public HashSet<string> GetChangedAuthors(DateTime startTime)
         {
-            var request = ProviderFactory.Create()
-                .Resource("/authors/changed.json")
-                .AddQueryParam("since", startTime.ToString("o"))
-                .Build();
-
+            var request = CreateRequest("author/changed");
+            request.Url = request.Url.AddQueryParam("since", startTime.ToUniversalTime().ToString("o"));
             request.SuppressHttpError = true;
 
             var response = _httpClient.Get(request);
-            if (response.HasHttpError || string.IsNullOrWhiteSpace(response.Content))
+            if (response.HasHttpError || response.Content.IsNullOrWhiteSpace())
             {
                 return null;
             }
 
-            using var document = JsonDocument.Parse(response.Content);
-            var ids = new HashSet<string>(StringComparer.Ordinal);
-
-            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            var resource = Deserialize<RgRecentUpdatesResource>(response);
+            if (resource == null || resource.Limited)
             {
-                AddChangedAuthorIds(document.RootElement, ids);
-            }
-            else if (document.RootElement.ValueKind == JsonValueKind.Object &&
-                     document.RootElement.TryGetProperty("authors", out var authors))
-            {
-                AddChangedAuthorIds(authors, ids);
+                return null;
             }
 
-            return ids.Count == 0 ? null : ids;
+            return resource.Ids
+                .Where(x => x > 0)
+                .Select(x => CreateId(MetadataEntityType.Author, x))
+                .ToHashSet();
         }
 
-        private IHttpRequestBuilderFactory ProviderFactory => _requestBuilder.GetRequestBuilder(ProviderKey);
-
-        private List<Book> SearchByEditionId(string editionId, bool getAllEditions)
+        internal static Author MapAuthor(RgAuthorResource resource)
         {
-            var request = ProviderFactory.Create()
-                .Resource($"/books/{NormalizeProviderResourceId(editionId)}.json")
-                .Build();
-
-            request.SuppressHttpError = true;
-            var response = _httpClient.Get(request);
-
-            if (response.HasHttpError)
-            {
-                return new List<Book>();
-            }
-
-            var edition = JsonSerializer.Deserialize<OLEditionResource>(response.Content, SerializerSettings);
-            var workKey = edition?.Works?.FirstOrDefault()?.Key;
-            if (workKey == null)
-            {
-                return new List<Book>();
-            }
-
-            var books = new List<Book> { GetBookInfo(workKey).Item2 };
-
-            if (!getAllEditions)
-            {
-                var namespacedEditionId = CreateEditionId(NormalizeProviderResourceId(editionId));
-                foreach (var candidate in books)
-                {
-                    foreach (var existing in candidate.Editions.Value)
-                    {
-                        existing.Monitored = existing.ForeignEditionId == namespacedEditionId;
-                    }
-                }
-            }
-
-            return books;
-        }
-
-        private List<Book> SearchByDocumentEndpoint(string resourcePath)
-        {
-            var request = ProviderFactory.Create()
-                .Resource(resourcePath)
-                .Build();
-
-            request.SuppressHttpError = true;
-            var response = _httpClient.Get(request);
-
-            if (response.HasHttpError)
-            {
-                return new List<Book>();
-            }
-
-            var edition = JsonSerializer.Deserialize<OLEditionResource>(response.Content, SerializerSettings);
-            var workKey = edition?.Works?.FirstOrDefault()?.Key;
-            if (workKey == null)
-            {
-                return new List<Book>();
-            }
-
-            return new List<Book> { GetBookInfo(workKey).Item2 };
-        }
-
-        private List<OLWorkResource> FetchAuthorWorks(string authorId)
-        {
-            var works = new List<OLWorkResource>();
-            var nextPath = $"/authors/{authorId}/works.json?limit=50";
-
-            for (var page = 0; page < 10 && nextPath != null; page++)
-            {
-                var request = ProviderFactory.Create().Resource(nextPath).Build();
-                request.SuppressHttpError = true;
-
-                var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
-                if (response.HasHttpError)
-                {
-                    break;
-                }
-
-                var resource = JsonSerializer.Deserialize<OLAuthorWorksResource>(response.Content, SerializerSettings);
-                works.AddRange(resource?.Entries ?? new List<OLWorkResource>());
-                nextPath = resource?.PaginationLinks?.Next;
-            }
-
-            return works;
-        }
-
-        private List<OLEditionResource> FetchEditions(string workId)
-        {
-            var editions = new List<OLEditionResource>();
-            var nextPath = $"/works/{workId}/editions.json?limit=50";
-
-            for (var page = 0; page < 3 && nextPath != null; page++)
-            {
-                var request = ProviderFactory.Create().Resource(nextPath).Build();
-                request.SuppressHttpError = true;
-
-                var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
-                if (response.HasHttpError)
-                {
-                    break;
-                }
-
-                var resource = JsonSerializer.Deserialize<OLEditionsResponse>(response.Content, SerializerSettings);
-                editions.AddRange(resource?.Entries ?? new List<OLEditionResource>());
-                nextPath = resource?.Links?.Next;
-            }
-
-            return editions;
-        }
-
-        private Ratings FetchRatings(string workId)
-        {
-            var request = ProviderFactory.Create()
-                .Resource($"/works/{workId}/ratings.json")
-                .Build();
-
-            request.SuppressHttpError = true;
-            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(6));
-            if (response.HasHttpError)
-            {
-                return new Ratings();
-            }
-
-            var resource = JsonSerializer.Deserialize<OLRatingsResponse>(response.Content, SerializerSettings);
-
-            return new Ratings
-            {
-                Value = (decimal)(resource?.Summary?.Average ?? 0),
-                Votes = resource?.Summary?.Count ?? 0
-            };
-        }
-
-        private static Author MapAuthor(OLAuthorResource resource, List<OLWorkResource> works, string authorId)
-        {
-            var metadata = MapAuthorMetadata(resource, authorId);
-            var books = works
-                .Where(w => w.Key != null)
-                .Select(w => MapBook(w, new List<OLEditionResource>(), new Ratings()))
+            var metadata = MapAuthorMetadata(resource);
+            var books = (resource.Works ?? new List<RgWorkResource>())
+                .Where(x => x.ForeignId > 0 && GetAuthorId(x) == resource.ForeignId)
+                .GroupBy(x => x.ForeignId)
+                .Select(x => MapBook(x.First()))
                 .ToList();
 
-            books.ForEach(b => b.AuthorMetadata = metadata);
-            var series = ExtractSeriesFromWorks(works, authorId);
-            MapSeriesLinks(series, books, works);
+            foreach (var book in books)
+            {
+                book.AuthorMetadata = metadata;
+            }
+
+            var seriesResources = resource.Series ?? new List<RgSeriesResource>();
+            var series = seriesResources
+                .Where(x => x.ForeignId > 0)
+                .GroupBy(x => x.ForeignId)
+                .Select(x => MapSeries(x.First()))
+                .ToList();
+
+            MapSeriesLinks(seriesResources, books, series);
 
             return new Author
             {
@@ -489,282 +270,425 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
             };
         }
 
-        private static AuthorMetadata MapAuthorMetadata(OLAuthorResource resource, string authorId)
+        internal static AuthorMetadata MapAuthorMetadata(RgAuthorResource resource)
         {
-            var metadataId = CreateAuthorId(authorId);
+            var id = CreateId(MetadataEntityType.Author, resource.ForeignId);
             var metadata = new AuthorMetadata
             {
-                ForeignAuthorId = metadataId,
-                TitleSlug = metadataId,
-                Name = (resource.PersonalName ?? resource.Name ?? string.Empty).CleanSpaces(),
-                Overview = resource.Bio?.Value,
-                Aliases = resource.AlternateNames ?? new List<string>(),
-                Status = AuthorStatusType.Continuing,
-                Ratings = new Ratings()
+                ForeignAuthorId = id,
+                TitleSlug = id,
+                Name = (resource.Name ?? string.Empty).CleanSpaces(),
+                Overview = resource.Description,
+                Ratings = new Ratings { Votes = resource.RatingCount, Value = (decimal)resource.AverageRating },
+                Status = AuthorStatusType.Continuing
             };
 
             metadata.SortName = metadata.Name.ToLowerInvariant();
             metadata.NameLastFirst = metadata.Name.ToLastFirst();
             metadata.SortNameLastFirst = metadata.NameLastFirst.ToLowerInvariant();
 
-            if (resource.Photos?.Any() == true)
+            if (resource.ImageUrl.IsNotNullOrWhiteSpace())
             {
                 metadata.Images.Add(new MediaCover.MediaCover
                 {
-                    Url = $"https://covers.openlibrary.org/a/id/{resource.Photos.First()}-L.jpg",
+                    Url = resource.ImageUrl,
                     CoverType = MediaCoverTypes.Poster
                 });
             }
 
-            metadata.Links.Add(new Links
-            {
-                Url = $"{ProviderKey}:authors/{NormalizeProviderResourceId(authorId)}",
-                Name = "rreading-glasses"
-            });
-
-            metadata.Born = TryParseDate(resource.BirthDate);
-            metadata.Died = TryParseDate(resource.DeathDate);
-
-            if (metadata.Died.HasValue)
-            {
-                metadata.Status = AuthorStatusType.Ended;
-            }
-
+            AddSourceLink(metadata.Links, resource.Url);
             return metadata;
         }
 
-        private static Book MapBook(OLWorkResource resource, List<OLEditionResource> editions, Ratings ratings)
+        internal static Book MapBook(RgWorkResource resource)
         {
-            var workId = NormalizeProviderResourceId(resource.Key);
-            var foreignBookId = CreateWorkId(workId);
-
+            var id = CreateId(MetadataEntityType.Work, resource.ForeignId);
             var book = new Book
             {
-                ForeignBookId = foreignBookId,
-                TitleSlug = foreignBookId,
-                Title = resource.Title ?? string.Empty,
-                CleanTitle = Parser.Parser.CleanAuthorName(resource.Title ?? string.Empty),
-                Genres = resource.Subjects?.Take(10).ToList() ?? new List<string>(),
-                RelatedBooks = new List<int>(),
-                Ratings = ratings ?? new Ratings(),
+                ForeignBookId = id,
+                TitleSlug = id,
+                Title = FirstNonEmpty(resource.FullTitle, resource.Title, resource.ShortTitle),
+                ReleaseDate = resource.ReleaseDate ?? TryParseDate(resource.ReleaseDateRaw),
+                Genres = resource.Genres ?? new List<string>(),
+                RelatedBooks = resource.RelatedWorks ?? new List<int>(),
                 AnyEditionOk = true
             };
 
-            book.ReleaseDate = TryParseDate(resource.FirstPublishDate);
-            book.Links.Add(new Links
-            {
-                Url = $"{ProviderKey}:works/{workId}",
-                Name = "rreading-glasses"
-            });
+            book.CleanTitle = Parser.Parser.CleanAuthorName(book.Title ?? string.Empty);
+            AddSourceLink(book.Links, resource.Url);
 
-            book.Editions = editions.Select(e => MapEdition(e, resource)).ToList();
-            if (book.Editions.Value.Any())
+            book.Editions = (resource.Books ?? new List<RgBookResource>())
+                .Where(x => x.ForeignId > 0)
+                .GroupBy(x => x.ForeignId)
+                .Select(x => MapEdition(x.First()))
+                .ToList();
+
+            var best = book.Editions.Value
+                .OrderByDescending(x => x.Ratings.Popularity)
+                .ThenByDescending(x => x.Isbn13.IsNotNullOrWhiteSpace())
+                .ThenBy(x => x.ForeignEditionId, StringComparer.Ordinal)
+                .FirstOrDefault();
+
+            if (best != null)
             {
-                var best = book.Editions.Value.First();
                 best.Monitored = true;
                 book.ForeignEditionId = best.ForeignEditionId;
+                book.Title = FirstNonEmpty(book.Title, best.Title);
             }
 
+            if (!book.ReleaseDate.HasValue)
+            {
+                book.ReleaseDate = book.Editions.Value
+                    .Where(x => x.ReleaseDate.HasValue)
+                    .Select(x => x.ReleaseDate)
+                    .Min();
+            }
+
+            if (resource.RatingCount > 0)
+            {
+                book.Ratings = new Ratings
+                {
+                    Votes = resource.RatingCount,
+                    Value = (decimal)resource.AverageRating
+                };
+            }
+            else
+            {
+                var votes = book.Editions.Value.Sum(x => x.Ratings.Votes);
+                book.Ratings = new Ratings
+                {
+                    Votes = votes,
+                    Value = votes == 0 ? 0 : book.Editions.Value.Sum(x => x.Ratings.Votes * x.Ratings.Value) / votes
+                };
+            }
+
+            Debug.Assert(book.Editions.Value.Count(x => x.Monitored) <= 1, "at most one edition monitored");
             return book;
         }
 
-        private static Edition MapEdition(OLEditionResource resource, OLWorkResource work)
+        internal static Edition MapEdition(RgBookResource resource)
         {
-            var editionId = NormalizeProviderResourceId(resource.Key);
-            var foreignEditionId = CreateEditionId(editionId);
-
-            return new Edition
+            var id = CreateId(MetadataEntityType.Edition, resource.ForeignId);
+            var edition = new Edition
             {
-                ForeignEditionId = foreignEditionId,
-                TitleSlug = foreignEditionId,
-                Title = (resource.Title ?? work?.Title ?? string.Empty).CleanSpaces(),
-                Language = resource.Languages?.FirstOrDefault()?.Key?.Split('/').LastOrDefault(),
-                Overview = resource.Description?.Value,
-                Publisher = resource.Publishers?.FirstOrDefault(),
-                Isbn13 = resource.Isbn13?.FirstOrDefault(),
-                PageCount = resource.NumberOfPages ?? 0,
-                Format = resource.PhysicalFormat,
-                IsEbook = (resource.PhysicalFormat ?? string.Empty).ToLowerInvariant().Contains("ebook"),
-                Disambiguation = resource.Subtitle,
-                ReleaseDate = TryParseDate(resource.PublishDate),
-                Ratings = new Ratings()
+                ForeignEditionId = id,
+                TitleSlug = id,
+                Isbn13 = NormalizeIsbn(resource.Isbn13),
+                Asin = NormalizeAsin(resource.Asin),
+                Title = FirstNonEmpty(resource.FullTitle, resource.Title, resource.ShortTitle).CleanSpaces(),
+                Language = resource.Language,
+                Overview = resource.Description ?? string.Empty,
+                Format = resource.Format,
+                IsEbook = resource.IsEbook,
+                Disambiguation = resource.EditionInformation,
+                Publisher = resource.Publisher,
+                PageCount = resource.NumPages ?? 0,
+                ReleaseDate = resource.ReleaseDate ?? TryParseDate(resource.ReleaseDateRaw),
+                Ratings = new Ratings { Votes = resource.RatingCount, Value = (decimal)resource.AverageRating }
             };
+
+            if (resource.ImageUrl.IsNotNullOrWhiteSpace())
+            {
+                edition.Images.Add(new MediaCover.MediaCover
+                {
+                    Url = resource.ImageUrl,
+                    CoverType = MediaCoverTypes.Cover
+                });
+            }
+
+            AddSourceLink(edition.Links, resource.Url);
+            return edition;
         }
 
-        private static List<Series> ExtractSeriesFromWorks(List<OLWorkResource> works, string authorScope)
+        private List<RgSearchResource> Search(string query)
         {
-            var series = new Dictionary<string, Series>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var work in works.Where(w => w.SeriesList != null))
+            if (query.IsNullOrWhiteSpace())
             {
-                foreach (var entry in work.SeriesList)
-                {
-                    var match = SeriesPositionRegex.Match(entry.Trim());
-                    var title = match.Success ? match.Groups[1].Value.Trim() : entry.Trim();
-                    var normalized = NormalizeSeriesTitle(title);
+                return new List<RgSearchResource>();
+            }
 
-                    if (!series.ContainsKey(normalized))
+            var request = CreateRequest("search");
+            request.Url = request.Url.AddQueryParam("q", query.Trim());
+            request.SuppressHttpError = true;
+
+            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
+            if (response.HasHttpError)
+            {
+                return new List<RgSearchResource>();
+            }
+
+            return Deserialize<List<RgSearchResource>>(response) ?? new List<RgSearchResource>();
+        }
+
+        private List<Book> SearchByEditionId(string editionId, bool getAllEditions)
+        {
+            var normalized = NormalizeResourceId(editionId, MetadataEntityType.Edition);
+            return SearchByLookup($"book/{normalized}", getAllEditions ? null : CreateId(MetadataEntityType.Edition, normalized));
+        }
+
+        private List<Book> SearchByLookup(string resource, string selectedEditionId)
+        {
+            var request = CreateRequest(resource);
+            request.AllowAutoRedirect = true;
+            request.SuppressHttpError = true;
+
+            var response = _cachedHttpClient.Get(request, true, TimeSpan.FromHours(1));
+            if (response.StatusCode == HttpStatusCode.NotFound || response.HasHttpError)
+            {
+                return new List<Book>();
+            }
+
+            var author = Deserialize<RgAuthorResource>(response);
+            if (author == null)
+            {
+                return new List<Book>();
+            }
+
+            var mapped = MapAuthor(author);
+            var books = mapped.Books?.Value ?? new List<Book>();
+
+            foreach (var book in books)
+            {
+                book.Author = mapped;
+                book.AuthorMetadata = mapped.Metadata.Value;
+
+                if (selectedEditionId.IsNotNullOrWhiteSpace())
+                {
+                    foreach (var edition in book.Editions.Value)
                     {
-                        series[normalized] = new Series
-                        {
-                            ForeignSeriesId = CreateSeriesId(authorScope, title),
-                            Title = title
-                        };
+                        edition.Monitored = edition.ForeignEditionId == selectedEditionId;
                     }
+
+                    book.ForeignEditionId = selectedEditionId;
                 }
             }
 
-            return series.Values.ToList();
+            return selectedEditionId.IsNullOrWhiteSpace()
+                ? books
+                : books.Where(x => x.Editions.Value.Any(e => e.ForeignEditionId == selectedEditionId)).ToList();
         }
 
-        private static void MapSeriesLinks(List<Series> series, List<Book> books, List<OLWorkResource> works)
+        private Author TryGetAuthor(string id)
         {
-            var booksByWork = books.ToDictionary(b => NormalizeProviderResourceId(b.ForeignBookId), StringComparer.OrdinalIgnoreCase);
-            var seriesByTitle = series.ToDictionary(s => s.Title, StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                return GetAuthorInfo(id);
+            }
+            catch (BookInfoException ex)
+            {
+                _logger.Warn(ex, "Unable to hydrate rreading-glasses author {0}", id);
+                return null;
+            }
+        }
+
+        private List<Book> TryGetWork(string id)
+        {
+            try
+            {
+                return new List<Book> { GetBookInfo(id).Item2 };
+            }
+            catch (BookInfoException ex)
+            {
+                _logger.Warn(ex, "Unable to hydrate rreading-glasses work {0}", id);
+                return new List<Book>();
+            }
+        }
+
+        private HttpRequest CreateRequest(string resource)
+        {
+            return _requestBuilder.GetRequestBuilder(ProviderKey)
+                .Create()
+                .Resource(resource)
+                .Build();
+        }
+
+        private static T Deserialize<T>(HttpResponse response)
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<T>(response.Content, SerializerSettings);
+            }
+            catch (JsonException ex)
+            {
+                throw new BookInfoException("Invalid response from rreading-glasses", ex);
+            }
+        }
+
+        private static void MapSeriesLinks(List<RgSeriesResource> resources, List<Book> books, List<Series> mappedSeries)
+        {
+            var bookById = books.ToDictionary(x => x.ForeignBookId, StringComparer.Ordinal);
+            var seriesById = (mappedSeries ??
+                              resources
+                                  .Where(x => x.ForeignId > 0)
+                                  .GroupBy(x => x.ForeignId)
+                                  .Select(x => MapSeries(x.First()))
+                                  .ToList())
+                .ToDictionary(x => x.ForeignSeriesId, StringComparer.Ordinal);
 
             foreach (var book in books)
             {
                 book.SeriesLinks = new List<SeriesBookLink>();
             }
 
-            foreach (var work in works.Where(w => w.SeriesList != null))
+            foreach (var resource in resources)
             {
-                var workId = NormalizeProviderResourceId(work.Key);
-                if (!booksByWork.TryGetValue(workId, out var book))
+                if (!seriesById.TryGetValue(CreateId(MetadataEntityType.Series, resource.ForeignId), out var series))
                 {
                     continue;
                 }
 
-                foreach (var entry in work.SeriesList)
+                series.LinkItems = (resource.LinkItems ?? new List<RgSeriesWorkLinkResource>())
+                    .Where(x => x.ForeignWorkId > 0)
+                    .Select(x => new
+                    {
+                        Resource = x,
+                        BookId = CreateId(MetadataEntityType.Work, x.ForeignWorkId)
+                    })
+                    .Where(x => bookById.ContainsKey(x.BookId))
+                    .Select(x => new SeriesBookLink
+                    {
+                        Book = bookById[x.BookId],
+                        Series = series,
+                        IsPrimary = x.Resource.Primary,
+                        Position = x.Resource.PositionInSeries,
+                        SeriesPosition = x.Resource.SeriesPosition
+                    })
+                    .ToList();
+
+                foreach (var link in series.LinkItems.Value)
                 {
-                    var match = SeriesPositionRegex.Match(entry.Trim());
-                    var title = match.Success ? match.Groups[1].Value.Trim() : entry.Trim();
-                    var position = match.Success ? match.Groups[2].Value : null;
-
-                    if (!seriesByTitle.TryGetValue(title, out var seriesEntry))
-                    {
-                        continue;
-                    }
-
-                    book.SeriesLinks.Value.Add(new SeriesBookLink
-                    {
-                        Book = book,
-                        Series = seriesEntry,
-                        IsPrimary = true,
-                        Position = position,
-                        SeriesPosition = 0
-                    });
+                    link.Book.Value.SeriesLinks.Value.Add(link);
                 }
             }
         }
 
-        private static string CreateAuthorId(string rawId)
+        private static Series MapSeries(RgSeriesResource resource)
         {
-            return MetadataIdentifier.Create(ProviderKey, MetadataEntityType.Author, NormalizeProviderResourceId(rawId)).ToString();
+            var links = resource.LinkItems ?? new List<RgSeriesWorkLinkResource>();
+
+            return new Series
+            {
+                ForeignSeriesId = CreateId(MetadataEntityType.Series, resource.ForeignId),
+                Title = resource.Title,
+                Description = resource.Description,
+                WorkCount = links.Count,
+                PrimaryWorkCount = links.Count(x => x.Primary)
+            };
         }
 
-        private static string CreateWorkId(string rawId)
+        private static long GetAuthorId(RgWorkResource resource)
         {
-            return MetadataIdentifier.Create(ProviderKey, MetadataEntityType.Work, NormalizeProviderResourceId(rawId)).ToString();
+            var authorId = resource.Authors?.FirstOrDefault(x => x.ForeignId > 0)?.ForeignId ?? 0;
+            if (authorId > 0)
+            {
+                return authorId;
+            }
+
+            return resource.Books?
+                .OrderByDescending(x => x.RatingCount * x.AverageRating)
+                .SelectMany(x => x.Contributors ?? new List<RgContributorResource>())
+                .FirstOrDefault(x => x.ForeignId > 0)?
+                .ForeignId ?? 0;
         }
 
-        private static string CreateEditionId(string rawId)
+        private static (string Prefix, string Value)? ParsePrefixedSearch(string title)
         {
-            return MetadataIdentifier.Create(ProviderKey, MetadataEntityType.Edition, NormalizeProviderResourceId(rawId)).ToString();
-        }
-
-        private static string CreateSeriesId(string authorScope, string seriesTitle)
-        {
-            return DerivedMetadataIdGenerator.Create(ProviderKey, MetadataEntityType.Series, NormalizeProviderResourceId(authorScope), NormalizeSeriesTitle(seriesTitle)).ToString();
-        }
-
-        private static string NormalizeProviderResourceId(string value)
-        {
-            if (value.IsNullOrWhiteSpace())
+            if (title.IsNullOrWhiteSpace())
             {
                 return null;
             }
 
+            var separator = title.IndexOf(':');
+            if (separator <= 0 || separator == title.Length - 1)
+            {
+                return null;
+            }
+
+            var prefix = title.Substring(0, separator).Trim().ToLowerInvariant();
+            if (!new[] { "author", "work", "edition", "isbn", "asin" }.Contains(prefix))
+            {
+                return null;
+            }
+
+            var value = title.Substring(separator + 1).Trim();
+            return value.IsNullOrWhiteSpace() ? null : (prefix, value);
+        }
+
+        private static string NormalizeResourceId(string value, MetadataEntityType expectedType)
+        {
             if (MetadataIdentifier.TryParse(value, out var identifier))
             {
-                return identifier.Value;
+                if (identifier.Provider != ProviderKey || identifier.EntityType != expectedType)
+                {
+                    throw new ArgumentException($"Expected a {ProviderKey} {expectedType} identifier.", nameof(value));
+                }
+
+                value = identifier.Value;
             }
 
-            return value.Trim().TrimStart('/').Split('/').Last();
+            if (!long.TryParse(value, out var id) || id <= 0)
+            {
+                throw new ArgumentException($"'{value}' is not a valid rreading-glasses identifier.", nameof(value));
+            }
+
+            return id.ToString();
         }
 
-        private static string NormalizeSeriesTitle(string value)
+        private static string CreateId(MetadataEntityType entityType, long value)
         {
-            return Regex.Replace(value?.Trim() ?? string.Empty, @"\s+", " ").ToLowerInvariant();
+            if (value <= 0)
+            {
+                throw new BookInfoException($"rreading-glasses returned an invalid {entityType} identifier");
+            }
+
+            return MetadataIdentifier.Create(ProviderKey, entityType, value.ToString()).ToString();
         }
 
-        private static DateTime? TryParseDate(string raw)
+        private static string CreateId(MetadataEntityType entityType, string value)
         {
-            if (raw.IsNullOrWhiteSpace())
+            return CreateId(entityType, long.Parse(value));
+        }
+
+        private static string NormalizeIsbn(string value)
+        {
+            try
+            {
+                return value.IsNullOrWhiteSpace() ? null : MetadataIdentifier.NormalizeValue(MetadataEntityType.Isbn, value);
+            }
+            catch (ArgumentException)
             {
                 return null;
             }
-
-            if (DateTime.TryParse(raw, out var parsed))
-            {
-                return parsed;
-            }
-
-            var match = Regex.Match(raw, @"\b(\d{4})\b");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var year))
-            {
-                return new DateTime(year, 1, 1);
-            }
-
-            return null;
         }
 
-        private static void AddChangedAuthorIds(JsonElement container, ISet<string> ids)
+        private static string NormalizeAsin(string value)
         {
-            if (container.ValueKind != JsonValueKind.Array)
+            try
             {
-                return;
+                return value.IsNullOrWhiteSpace() ? null : MetadataIdentifier.NormalizeValue(MetadataEntityType.Asin, value);
             }
-
-            foreach (var item in container.EnumerateArray())
-            {
-                string raw = null;
-
-                if (item.ValueKind == JsonValueKind.Number)
-                {
-                    raw = item.GetInt64().ToString();
-                }
-                else if (item.ValueKind == JsonValueKind.String)
-                {
-                    raw = item.GetString();
-                }
-                else if (item.ValueKind == JsonValueKind.Object)
-                {
-                    raw = TryGetProperty(item, "id") ??
-                          TryGetProperty(item, "author_id") ??
-                          TryGetProperty(item, "key");
-                }
-
-                if (!raw.IsNullOrWhiteSpace())
-                {
-                    ids.Add(CreateAuthorId(raw));
-                }
-            }
-        }
-
-        private static string TryGetProperty(JsonElement element, string name)
-        {
-            if (!element.TryGetProperty(name, out var property))
+            catch (ArgumentException)
             {
                 return null;
             }
+        }
 
-            return property.ValueKind switch
+        private static DateTime? TryParseDate(string value)
+        {
+            return DateTime.TryParse(value, out var parsed) ? parsed : null;
+        }
+
+        private static void AddSourceLink(ICollection<Links> links, string url)
+        {
+            if (url.IsNotNullOrWhiteSpace())
             {
-                JsonValueKind.Number => property.GetInt64().ToString(),
-                JsonValueKind.String => property.GetString(),
-                _ => null
-            };
+                links.Add(new Links { Url = url, Name = "rreading-glasses source" });
+            }
+        }
+
+        private static string FirstNonEmpty(params string[] values)
+        {
+            return values.FirstOrDefault(x => x.IsNotNullOrWhiteSpace()) ?? string.Empty;
         }
     }
 }

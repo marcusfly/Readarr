@@ -234,8 +234,7 @@ namespace NzbDrone.Core.MediaFiles
                     Identifiers = new Dictionary<string, string>
                     {
                         { "isbn", edition.Isbn13 },
-                        { "asin", edition.Asin },
-                        { "goodreads", edition.ForeignEditionId }
+                        { "asin", edition.Asin }
                     },
                     Series = series?.Title,
                     Position = seriesIndex

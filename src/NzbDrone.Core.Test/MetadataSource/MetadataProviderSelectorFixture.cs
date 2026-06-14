@@ -30,8 +30,7 @@ namespace NzbDrone.Core.Test.MetadataSource
                 MetadataProviderCapability.AuthorSearch |
                 MetadataProviderCapability.BookSearch |
                 MetadataProviderCapability.EntitySearch |
-                MetadataProviderCapability.IsbnSearch |
-                MetadataProviderCapability.AsinSearch);
+                MetadataProviderCapability.IsbnSearch);
 
             _rreadingGlassesProvider = CreateProvider(
                 "rreading-glasses",
@@ -134,6 +133,51 @@ namespace NzbDrone.Core.Test.MetadataSource
             result.Should().BeSameAs(changedAuthors);
             _rreadingGlassesProvider.Verify(x => x.GetChangedAuthors(It.IsAny<DateTime>()), Times.Once);
             _openLibraryProvider.Verify(x => x.GetChangedAuthors(It.IsAny<DateTime>()), Times.Never);
+        }
+
+        [Test]
+        public void should_fall_back_to_independent_provider_for_isbn_lookup()
+        {
+            var isbn = "9780439554930";
+            var metadata = new AuthorMetadata
+            {
+                ForeignAuthorId = "openlibrary:author:OL1A",
+                Name = "Example Author"
+            };
+            var fallbackBook = new Book
+            {
+                ForeignBookId = "openlibrary:work:OL1W",
+                AuthorMetadata = metadata,
+                Author = new Author { Metadata = metadata },
+                Editions = new List<Edition>
+                {
+                    new Edition
+                    {
+                        ForeignEditionId = "openlibrary:edition:OL1M",
+                        Isbn13 = isbn,
+                        Monitored = true
+                    }
+                }
+            };
+
+            Mocker.GetMock<IConfigService>()
+                .SetupGet(x => x.MetadataProvider)
+                .Returns("rreading-glasses");
+
+            _rreadingGlassesProvider
+                .Setup(x => x.SearchByIsbn(isbn))
+                .Throws(new Exception("provider unavailable"));
+
+            _openLibraryProvider
+                .Setup(x => x.SearchByIsbn(isbn))
+                .Returns(new List<Book> { fallbackBook });
+
+            var result = Subject.SearchByIsbn(isbn);
+
+            result.Should().ContainSingle();
+            result[0].ForeignBookId.Should().Be("openlibrary:work:OL1W");
+            _rreadingGlassesProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
+            _openLibraryProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
         }
 
         private Mock<IMetadataProviderV1> CreateProvider(string providerKey, int priority, MetadataProviderCapability capabilities)

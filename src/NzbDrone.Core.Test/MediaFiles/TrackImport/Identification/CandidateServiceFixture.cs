@@ -14,7 +14,7 @@ namespace NzbDrone.Core.Test.MediaFiles.BookImport.Identification
     public class CandidateServiceFixture : CoreTest<CandidateService>
     {
         [Test]
-        public void should_not_throw_on_goodreads_exception()
+        public void should_not_throw_on_metadata_provider_exception()
         {
             Mocker.GetMock<ISearchForNewBook>()
                 .Setup(s => s.SearchForNewBook(It.IsAny<string>(), It.IsAny<string>(), true))
