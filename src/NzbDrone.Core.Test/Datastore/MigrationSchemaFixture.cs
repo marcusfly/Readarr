@@ -63,12 +63,36 @@ namespace NzbDrone.Core.Test.Datastore
                 "Users",
                 "NamingConfig",
                 "Blocklist",
+                "ImportAttempts",
             };
 
             foreach (var table in coreExpected)
             {
                 tables.Should().Contain(table, $"table '{table}' must exist after all migrations");
             }
+        }
+
+        [Test]
+        public void full_migration_should_create_ImportAttempts_columns()
+        {
+            using var conn = Mocker.Resolve<IDatabase>().OpenConnection();
+
+            var columns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"ImportAttempts\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            columns.Should().Contain(new[]
+            {
+                "Id",
+                "SourcePath",
+                "DestinationPath",
+                "Status",
+                "StartedAt",
+                "FinishedAt",
+                "IsDryRun",
+                "ErrorMessage",
+            });
         }
 
         [Test]

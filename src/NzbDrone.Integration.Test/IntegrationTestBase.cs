@@ -39,6 +39,7 @@ namespace NzbDrone.Integration.Test
         public ClientBase<TaskResource> Tasks;
         public DownloadClientClient DownloadClients;
         public BookClient Books;
+        public BookFileClient BookFiles;
         public ClientBase<HistoryResource> History;
         public ClientBase<HostConfigResource> HostConfig;
         public IndexerClient Indexers;
@@ -106,6 +107,7 @@ namespace NzbDrone.Integration.Test
             Tasks = new ClientBase<TaskResource>(RestClient, ApiKey, "system/task");
             DownloadClients = new DownloadClientClient(RestClient, ApiKey);
             Books = new BookClient(RestClient, ApiKey);
+            BookFiles = new BookFileClient(RestClient, ApiKey);
             History = new ClientBase<HistoryResource>(RestClient, ApiKey);
             HostConfig = new ClientBase<HostConfigResource>(RestClient, ApiKey, "config/host");
             Indexers = new IndexerClient(RestClient, ApiKey);

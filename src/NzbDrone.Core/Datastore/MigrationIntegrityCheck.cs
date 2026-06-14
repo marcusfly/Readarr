@@ -172,6 +172,16 @@ namespace NzbDrone.Core.Datastore
                 ("ImportListExclusions", "Id"),
                 ("ImportListExclusions", "ForeignId"),
 
+                // ImportAttempts
+                ("ImportAttempts", "Id"),
+                ("ImportAttempts", "SourcePath"),
+                ("ImportAttempts", "DestinationPath"),
+                ("ImportAttempts", "Status"),
+                ("ImportAttempts", "StartedAt"),
+                ("ImportAttempts", "FinishedAt"),
+                ("ImportAttempts", "IsDryRun"),
+                ("ImportAttempts", "ErrorMessage"),
+
                 // Notifications
                 ("Notifications", "Id"),
                 ("Notifications", "Name"),

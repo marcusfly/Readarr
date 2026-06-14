@@ -100,7 +100,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(ReadarrProject)'=='true'">
-    <!-- SourceLink is built-in on .NET 8 — no explicit package needed -->
+    <!-- SourceLink is built-in on .NET 10 — no explicit package needed -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <ContinuousIntegrationBuild Condition="'$(TF_BUILD)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>

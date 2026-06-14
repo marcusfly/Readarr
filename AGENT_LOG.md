@@ -144,3 +144,51 @@ Next: Run a live search and ISBN smoke check when network execution is available
 Task: Finish production validation for backlog item 1.
 Validation: Live smoke checks against `https://hardcover.bookinfo.pro` succeeded for search (`/search?q=terry%20pratchett`), change feed (`/author/changed?since=2026-06-13T00:00:00Z` returned `{"Limited": true, "Ids": []}`), a live author payload containing ISBN-bearing editions (`/author/80626`), and ISBN redirect resolution (`/book/isbn/9788498387902` returned `303` to `/book/68704`). OpenLibrary fallback was also verified directly with `/isbn/9780439554930.json`.
 State: Item 1 is now validated end to end for the fresh-install contract; remaining dirty work in the tree is still unrelated and preserved.
+
+## 2026-06-14T10:40:52-05:00 | Codex | START
+Task: Analyze backlog item 2 and compare Readarr's .NET baseline plan against Radarr and Sonarr.
+Focus: Official Radarr/Sonarr repository baselines, local Readarr target framework, and supported LTS options for the backend upgrade decision.
+
+## 2026-06-14T10:45:40-05:00 | Codex | DECISION
+Task: Set the backend upgrade target for backlog item 2.
+Decision: Match Sonarr's forward baseline and move Readarr to .NET 10, pinned to SDK 10.0.300, instead of stopping at .NET 8 LTS.
+Reason: The user explicitly chose future-proofing over staying on the older LTS. Sonarr's `v5-develop` branch is already on `net10.0`, and Microsoft currently lists .NET 10 as supported on Windows. Aligning the repo to the same baseline avoids a second framework jump later.
+Impact: The solution, build scripts, Docker image tags, and CI SDK pin need to move together. The local machine currently only has .NET 9 installed, so verification will require a .NET 10 SDK install.
+
+## 2026-06-14T11:14:15-05:00 | Codex | HANDOFF
+Task: Finish the Readarr .NET 10 backend upgrade pass for backlog item 2.
+Changes: Updated all project target frameworks to `net10.0`/`net10.0-windows`, pinned the repo to SDK `10.0.300` with a new `global.json`, moved Docker and Azure Pipelines to .NET 10 images/SDK, updated `build.sh` packaging and SDK-discovery logic, removed redundant `System.Text.Encoding.CodePages` and `Microsoft.Win32.Registry` package references/versions, replaced obsolete `ServicePointManager`, `X509Certificate2` constructor, `KnownNetworks`, and `FileStream.Read` usages with .NET 10-safe APIs, and refreshed the backlog wording for the new baseline.
+Checks: `dotnet restore src/Readarr.sln --configfile src/NuGet.config` succeeded against the local .NET 10 SDK. `dotnet build src/Readarr.sln -c Release --no-restore -m:1 -p:BuildInParallel=false` succeeded with 0 warnings and 0 errors. `dotnet test src/NzbDrone.Host.Test/Readarr.Host.Test.csproj --no-build` passed 14/14. `dotnet test src/NzbDrone.Common.Test/Readarr.Common.Test.csproj --no-build` failed 56/672 in this environment because `C:\ProgramData\Readarr` and `python.exe` were not accessible, which is unrelated to the framework upgrade.
+State: Changes are uncommitted. No push or merge was performed. The pre-existing dirty work in `src/NzbDrone.Core.Test/Datastore/MigrationSchemaFixture.cs`, `src/NzbDrone.Core.Test/MediaFiles/ImportAttemptServiceFixture.cs`, `src/NzbDrone.Core/Datastore/MigrationIntegrityCheck.cs`, `src/NzbDrone.Core/Datastore/SCHEMA.md`, `src/NzbDrone.Core/Datastore/TableMapping.cs`, `src/NzbDrone.Core/Datastore/Migration/042_add_import_attempts.cs`, and `magazines/` was preserved.
+Next: Decide whether to treat the environment-specific `Readarr.Common.Test` failures as acceptable local noise or harden those tests for this runtime before marking backlog item 2 complete.
+
+## 2026-06-14T11:20:26-05:00 | Codex | START
+Task: Write the backlog item 3 handoff plan to disk for the next contributor.
+Focus: A single repository-backed plan file, a backlog pointer, and a diary entry that preserves the current dirty worktree.
+
+## 2026-06-14T11:20:26-05:00 | Codex | HANDOFF
+Task: Leave backlog item 3 ready for the next contributor.
+Changes: Added `ITEM3_PLAN.md` with the item-3 objective, scope, execution order, acceptance criteria, and handoff notes. Updated `BACKLOG.md` to point item 3 at that plan. Logged the handoff in this diary.
+Checks: No build or test run was needed for this documentation-only update.
+State: Changes are uncommitted. Item 1 and item 2 work remains preserved and untouched beyond the already-existing modifications in the tree.
+Next: Start item 3 from `ITEM3_PLAN.md` when ready.
+
+## 2026-06-14T11:21:55-05:00 | Codex | START
+Task: Begin backlog item 3 implementation by inspecting the existing integration workflow harness.
+Focus: `src/NzbDrone.Integration.Test/ApiTests/WorkflowTests/CriticalWorkflowFixture.cs`, its base integration infrastructure, and the minimal changes needed to turn the workflow into a CI-ready end-to-end test.
+
+## 2026-06-14T11:27:22-05:00 | Codex | DECISION
+Task: Shape backlog item 3 around the existing integration workflow fixture.
+Decision: Rework CriticalWorkflowFixture as the item-3 seam, but keep the workflow anchored to live author lookup plus local import and rename verification through small typed API clients. Drop the old hard-coded foreign-ID assumptions inside the fixture, and defer any new simulators or browser-level coverage until this API workflow is stable.
+Reason: The repo already has a live Readarr harness, a manual-import command path, and a rename-preview API. That lets item 3 gain production-grade coverage without introducing new external dependencies before the current seam is proven.
+Impact: The next edit pass will add typed integration clients for book-file and rename preview queries, then refactor the workflow fixture to use those helpers and fresh lookup results.
+
+## 2026-06-14T11:30:09-05:00 | Codex | HANDOFF
+Task: Leave backlog item 3 mid-stream with concrete workflow scaffolding in place.
+Changes: Added typed integration clients for `bookfile` and `rename`, wired `BookFiles` into the shared integration base, and rewrote `CriticalWorkflowFixture` to use live author lookup, book refresh, local manual import via the existing helper, book-file verification, and rename-preview assertions. Updated `ITEM3_PLAN.md` so the next contributor sees the current implementation seam.
+Checks: `& "$env:TEMP\codex-dotnet10\dotnet.exe" build src/NzbDrone.Integration.Test/Readarr.Integration.Test.csproj -c Release --no-restore -m:1 -p:BuildInParallel=false` succeeded. The only output was the existing Sentry warning from package build targets.
+State: Changes are uncommitted. The fixture remains `[Ignore]` pending live-provider validation, so CI enablement is not complete yet.
+Next: Decide whether to keep expanding the workflow fixture into API-based manual import coverage or unignore and run a live integration pass once the external metadata path is confirmed stable enough.
+## 2026-06-14T11:31:14-05:00 | Codex | START
+Task: Commit, push, and verify branch sync for the current backlog work.
+Focus: Stage the current item 1, item 2, and item 3 changes already in the worktree, confirm develop is current with origin/develop, and publish the resulting commit if no remote divergence exists.
