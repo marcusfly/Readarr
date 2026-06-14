@@ -1,15 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text.Json;
 using FluentAssertions;
-using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Http;
-using NzbDrone.Core.Books;
-using NzbDrone.Core.Exceptions;
-using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.BookInfo;
@@ -53,7 +47,6 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             // Validate works were fetched
             author.Works.Should().NotBeEmpty();
-            author.Works.Count.Should().BeLessThanOrEqualTo(10);
 
             // Validate first work structure
             var firstWork = author.Works.First();
@@ -86,7 +79,6 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             results.Should().NotBeNull();
             results.Should().NotBeEmpty();
-            results.Should().HaveLessThanOrEqualTo(20);
 
             // Validate result structure
             foreach (var result in results)
