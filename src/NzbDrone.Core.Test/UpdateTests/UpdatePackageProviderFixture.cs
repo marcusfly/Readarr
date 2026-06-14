@@ -26,7 +26,7 @@ namespace NzbDrone.Core.Test.UpdateTests
         }
 
         [Test]
-        [Category("Integration")]
+        [Ignore("Requires live GitHub API access")]
         public void finds_update_when_version_lower()
         {
             UseRealHttp();
@@ -42,7 +42,7 @@ namespace NzbDrone.Core.Test.UpdateTests
         }
 
         [Test]
-        [Category("Integration")]
+        [Ignore("Requires live GitHub API access")]
         public void should_get_recent_updates()
         {
             const string branch = "develop";
