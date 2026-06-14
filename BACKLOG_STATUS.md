@@ -17,7 +17,7 @@ Status meanings:
 | 1 | BLI001 - Rebuild Metadata and Identity | Done | Complete | Keep as reference; no active work. | `BACKLOG_ITEM_1_VALIDATION_STATUS.md` |
 | 2 | BLI002 - Upgrade the Backend to .NET 10 | Done | Complete | Keep as reference; production validated. | `AGENT_LOG.md` (2026-06-14T14:35:00) |
 | 3 | BLI003 - Establish End-to-End Workflow Tests | Done | Complete | Keep as reference; item 3 plan is historical. | `AGENT_LOG.md`, `ITEM3_PLAN.md` |
-| 4 | BLI004 - Harden Release Parsing and Matching | In review | Partial; not production ready | Finish parser/matching integration and corpus-based validation. | `BACKLOG_ITEM_4_VALIDATION.md` |
+| 4 | BLI004 - Harden Release Parsing and Matching | Done | Complete | Keep as reference; production validated. | `BACKLOG_ITEM_4_COMPLETE.md` |
 | 5 | BLI005 - Make File Import Crash-Safe | Backlog | Not started | Design durable import state and recovery model. | `BACKLOG.md` |
 | 6 | BLI006 - Standardize Download Client Integrations | Backlog | Not started | Define the download-client contract and capability model. | `BACKLOG.md` |
 | 7 | BLI007 - Simplify Persistence and Migrations | Backlog | Not started | Document canonical schema and add migration tests. | `BACKLOG.md` |
