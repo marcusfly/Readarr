@@ -54,6 +54,7 @@ namespace NzbDrone.Integration.Test
         public ClientBase<TagResource> Tags;
         public WantedClient WantedMissing;
         public WantedClient WantedCutoffUnmet;
+        public RenameBookClient RenameBooks;
 
         private List<SignalRMessage> _signalRReceived;
 
@@ -122,6 +123,7 @@ namespace NzbDrone.Integration.Test
             Tags = new ClientBase<TagResource>(RestClient, ApiKey);
             WantedMissing = new WantedClient(RestClient, ApiKey, "wanted/missing");
             WantedCutoffUnmet = new WantedClient(RestClient, ApiKey, "wanted/cutoff");
+            RenameBooks = new RenameBookClient(RestClient, ApiKey);
         }
 
         [OneTimeTearDown]

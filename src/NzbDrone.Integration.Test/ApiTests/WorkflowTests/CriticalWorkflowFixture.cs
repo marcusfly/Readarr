@@ -5,7 +5,6 @@ using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Qualities;
-using NzbDrone.Integration.Test.Client;
 using Readarr.Api.V3.Author;
 using Readarr.Api.V3.Books;
 
@@ -20,7 +19,6 @@ namespace NzbDrone.Integration.Test.ApiTests.WorkflowTests
     ///   dotnet test --filter "FullyQualifiedName~CriticalWorkflowFixture"
     /// </summary>
     [TestFixture]
-    [Ignore("Integration workflow tests still need live-provider validation before CI enablement", Until = "2099-01-01 00:00:00Z")]
     public class CriticalWorkflowFixture : IntegrationTest
     {
         private const string ExpectedAuthorName = "J.K. Rowling";
@@ -140,7 +138,7 @@ namespace NzbDrone.Integration.Test.ApiTests.WorkflowTests
             var bookFiles = BookFiles.GetByBook(book.Id);
             bookFiles.Should().ContainSingle("the manual import should have created one imported book file");
 
-            var previews = new RenameBookClient(RestClient, ApiKey).GetPreview(author.Id, book.Id);
+            var previews = RenameBooks.GetPreview(author.Id, book.Id);
             previews.Should().NotBeNullOrEmpty("the imported file should be eligible for rename preview");
             previews.First().ExistingPath.Should().Be(bookFiles.First().Path);
             previews.First().NewPath.Should().NotBe(bookFiles.First().Path);
