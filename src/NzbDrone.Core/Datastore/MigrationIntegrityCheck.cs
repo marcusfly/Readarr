@@ -52,6 +52,7 @@ namespace NzbDrone.Core.Datastore
                 ("Authors", "Id"),
                 ("Authors", "CleanName"),
                 ("Authors", "Path"),
+                ("Authors", "AudiobookPath"),
                 ("Authors", "Monitored"),
                 ("Authors", "AuthorMetadataId"),
 

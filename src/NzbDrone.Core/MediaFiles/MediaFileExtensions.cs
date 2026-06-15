@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NzbDrone.Common.Extensions;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.Qualities;
 
 namespace NzbDrone.Core.MediaFiles
@@ -59,6 +61,26 @@ namespace NzbDrone.Core.MediaFiles
             }
 
             return Quality.Unknown;
+        }
+
+        public static LibraryContentType GetContentTypeForExtension(string extension)
+        {
+            if (extension.IsNullOrWhiteSpace())
+            {
+                return LibraryContentType.None;
+            }
+
+            if (_textExtensions.ContainsKey(extension))
+            {
+                return LibraryContentType.Book;
+            }
+
+            if (_audioExtensions.ContainsKey(extension))
+            {
+                return LibraryContentType.Audiobook;
+            }
+
+            return LibraryContentType.None;
         }
     }
 }

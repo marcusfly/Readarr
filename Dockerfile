@@ -115,6 +115,7 @@ COPY --from=assemble /app /app
 # Data directory — mount a volume here to persist your library and config
 VOLUME /config
 VOLUME /books
+VOLUME /audiobooks
 
 # Default environment variables (can be overridden at runtime)
 ENV READARR__APP__DATADIR=/config \

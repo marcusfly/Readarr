@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Text.Json;
@@ -364,7 +363,6 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
                 };
             }
 
-            Debug.Assert(book.Editions.Value.Count(x => x.Monitored) <= 1, "at most one edition monitored");
             return book;
         }
 

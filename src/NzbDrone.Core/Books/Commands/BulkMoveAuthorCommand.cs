@@ -8,6 +8,7 @@ namespace NzbDrone.Core.Books.Commands
     {
         public List<BulkMoveAuthor> Author { get; set; }
         public string DestinationRootFolder { get; set; }
+        public string DestinationAudiobookRootFolder { get; set; }
 
         public override bool SendUpdatesToClient => true;
         public override bool RequiresDiskAccess => true;
@@ -17,6 +18,7 @@ namespace NzbDrone.Core.Books.Commands
     {
         public int AuthorId { get; set; }
         public string SourcePath { get; set; }
+        public string SourceAudiobookPath { get; set; }
 
         public bool Equals(BulkMoveAuthor other)
         {

@@ -42,8 +42,9 @@ services:
       READARR__SERVER__ENABLESSL: "true"
       READARR__SERVER__SSLCERTPATH: /config/certs/localhost.pfx
       READARR__SERVER__SSLCERTPASSWORD: "readarr"
-      # Optional: default startup root folder (set this to container-side path)
+      # Optional: default startup root folders (set these to container-side paths)
       READARR__ROOTFOLDER__PATH: "/books"
+      READARR__ROOTFOLDER__AUDIOBOOKPATH: "/audiobooks"
       # For local-only testing, start with auth enabled (for remote access hardening).
       READARR__AUTH__METHOD: "Forms"
       READARR__AUTH__REQUIRED: "DisabledForLocalAddresses"
@@ -61,8 +62,10 @@ services:
     volumes:
       # Persistent config / database
       - ./.readarr-data:/config
-      # Mount your books library here (read-write so Readarr can rename/move files)
+      # Mount your ebook library here (read-write so Readarr can rename/move files)
       - "${BOOKS_DIR:-./books}:/books"
+      # Mount your audiobook library separately so ebook managers like Calibre only own /books
+      - "${AUDIOBOOKS_DIR:-./audiobooks}:/audiobooks"
 
     # Run as UID:GID 1000:1000 (the built-in 'readarr' account).
     # Change to match your host user if bind-mount permissions require it.

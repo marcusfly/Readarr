@@ -9,6 +9,7 @@ namespace NzbDrone.Core.Books
     public interface IBuildAuthorPaths
     {
         string BuildPath(Author author, bool useExistingRelativeFolder);
+        string BuildAudiobookPath(Author author, bool useExistingRelativeFolder);
     }
 
     public class AuthorPathBuilder : IBuildAuthorPaths
@@ -38,11 +39,34 @@ namespace NzbDrone.Core.Books
             return Path.Combine(author.RootFolderPath, _fileNameBuilder.GetAuthorFolder(author));
         }
 
+        public string BuildAudiobookPath(Author author, bool useExistingRelativeFolder)
+        {
+            if (author.AudiobookRootFolderPath.IsNullOrWhiteSpace())
+            {
+                throw new ArgumentException("Audiobook root folder was not provided", nameof(author));
+            }
+
+            if (useExistingRelativeFolder && author.AudiobookPath.IsNotNullOrWhiteSpace())
+            {
+                var relativePath = GetExistingAudiobookRelativePath(author);
+                return Path.Combine(author.AudiobookRootFolderPath, relativePath);
+            }
+
+            return Path.Combine(author.AudiobookRootFolderPath, _fileNameBuilder.GetAuthorFolder(author));
+        }
+
         private string GetExistingRelativePath(Author author)
         {
             var rootFolderPath = _rootFolderService.GetBestRootFolderPath(author.Path);
 
             return rootFolderPath.GetRelativePath(author.Path);
+        }
+
+        private string GetExistingAudiobookRelativePath(Author author)
+        {
+            var rootFolderPath = _rootFolderService.GetBestRootFolderPath(author.AudiobookPath);
+
+            return rootFolderPath.GetRelativePath(author.AudiobookPath);
         }
     }
 }

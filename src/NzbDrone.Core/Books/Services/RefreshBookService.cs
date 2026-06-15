@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.History;
 using NzbDrone.Core.Jobs.Durable;
@@ -166,6 +166,9 @@ namespace NzbDrone.Core.Books
                     MetadataProfileId = oldAuthor.MetadataProfileId,
                     QualityProfileId = oldAuthor.QualityProfileId,
                     RootFolderPath = _rootFolderService.GetBestRootFolderPath(oldAuthor.Path),
+                    AudiobookRootFolderPath = oldAuthor.AudiobookPath.IsNotNullOrWhiteSpace()
+                        ? _rootFolderService.GetBestRootFolderPath(oldAuthor.AudiobookPath)
+                        : null,
                     Monitored = oldAuthor.Monitored,
                     Tags = oldAuthor.Tags
                 };
@@ -236,7 +239,7 @@ namespace NzbDrone.Core.Books
 
             // Update book ids for trackfiles
             var files = _mediaFileService.GetFilesByBook(local.Id);
-            files.ForEach(x => x.EditionId = target.Editions.Value.Single(e => e.Monitored).Id);
+            files.ForEach(x => x.EditionId = target.GetBestMonitoredEdition(x)?.Id ?? target.GetBestMonitoredEdition()?.Id ?? x.EditionId);
             _mediaFileService.Update(files);
 
             // Update book ids for history
@@ -303,45 +306,64 @@ namespace NzbDrone.Core.Books
             // hack - add the chilren in refresh children so we can control monitored status
         }
 
-        private void MonitorSingleEdition(SortedChildren children)
+        private void MonitorEditions(SortedChildren children)
         {
+            var originalMonitored = children.Future.ToDictionary(x => x, x => x.Monitored);
             children.Old.ForEach(x => x.Monitored = false);
-            var monitored = children.Future.Where(x => x.Monitored).ToList();
+            var selected = new List<Edition>();
+            var allowedContentTypes = GetAllowedContentTypes(children);
 
-            if (monitored.Count == 1)
+            foreach (var contentType in new[] { LibraryContentType.Book, LibraryContentType.Audiobook }.Where(x => allowedContentTypes.HasContentType(x)))
             {
-                return;
+                var candidates = children.Future.Where(x => x.GetLibraryContentType() == contentType).ToList();
+                if (candidates.Empty())
+                {
+                    continue;
+                }
+
+                var monitored = candidates.Where(x => x.Monitored).ToList();
+                selected.Add(ChooseMonitoredEdition(monitored.Any() ? monitored : candidates));
             }
 
-            if (monitored.Count == 0)
+            if (selected.Empty() && children.Future.Any())
             {
-                monitored = children.Future;
+                var monitored = children.Future.Where(x => x.Monitored).ToList();
+                selected.Add(ChooseMonitoredEdition(monitored.Any() ? monitored : children.Future));
             }
 
-            if (monitored.Count == 0)
-            {
-                // there are no future children so nothing to do
-                return;
-            }
+            children.Future.ForEach(x => x.Monitored = false);
+            selected.DistinctBy(x => x.ForeignEditionId).ToList().ForEach(x => x.Monitored = true);
 
-            var toMonitor = monitored.OrderByDescending(x => x?.Id > 0 ? (_mediaFileService.GetFilesByEdition(x.Id)?.Count ?? 0) : 0)
+            var changedUpToDate = children.UpToDate
+                .Where(x => originalMonitored.TryGetValue(x, out var wasMonitored) && wasMonitored != x.Monitored)
+                .ToList();
+
+            if (changedUpToDate.Any())
+            {
+                children.UpToDate = children.UpToDate.Except(changedUpToDate).ToList();
+                children.Updated.AddRange(changedUpToDate);
+            }
+        }
+
+        private Edition ChooseMonitoredEdition(List<Edition> editions)
+        {
+            return editions.OrderByDescending(x => x?.Id > 0 ? (_mediaFileService.GetFilesByEdition(x.Id)?.Count ?? 0) : 0)
                 .ThenByDescending(x => x?.Ratings?.Popularity ?? 0).First();
+        }
 
-            monitored.ForEach(x => x.Monitored = false);
-            toMonitor.Monitored = true;
+        private LibraryContentType GetAllowedContentTypes(SortedChildren children)
+        {
+            var book = children.Future.Concat(children.Old)
+                .Select(x => x.Book?.Value)
+                .FirstOrDefault(x => x != null);
 
-            // force update of anything we've messed with
-            var extraToUpdate = children.UpToDate.Where(x => monitored.Contains(x));
-            children.UpToDate = children.UpToDate.Except(extraToUpdate).ToList();
-            children.Updated.AddRange(extraToUpdate);
-
-            Debug.Assert(!children.Future.Any() || children.Future.Count(x => x.Monitored) == 1, "one edition monitored");
+            return book?.Author?.Value?.QualityProfile?.Value?.GetAllowedContentTypes() ?? LibraryContentType.Book;
         }
 
         protected override bool RefreshChildren(SortedChildren localChildren, List<Edition> remoteChildren, Author remoteData, bool forceChildRefresh, bool forceUpdateFileTags, DateTime? lastUpdate)
         {
-            // make sure only one of the releases ends up monitored
-            MonitorSingleEdition(localChildren);
+            // Make sure monitored releases line up with the quality profile's media kinds.
+            MonitorEditions(localChildren);
 
             localChildren.All.ForEach(x => _logger.Trace($"release: {x} monitored: {x.Monitored}"));
 

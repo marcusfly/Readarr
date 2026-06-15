@@ -9,6 +9,7 @@ using NzbDrone.Common.Cache;
 using NzbDrone.Common.EnsureThat;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Parser;
@@ -19,8 +20,8 @@ namespace NzbDrone.Core.Organizer
     public interface IBuildFileNames
     {
         string BuildBookFileName(Author author, Edition edition, BookFile bookFile, NamingConfig namingConfig = null, List<CustomFormat> customFormats = null);
-        string BuildBookFilePath(Author author, Edition edition, string fileName, string extension);
-        string BuildBookPath(Author author);
+        string BuildBookFilePath(Author author, Edition edition, string fileName, string extension, BookFile bookFile = null);
+        string BuildBookPath(Author author, LibraryContentType contentType = LibraryContentType.Book);
         BasicNamingConfig GetBasicNamingConfig(NamingConfig nameSpec);
         string GetAuthorFolder(Author author, NamingConfig namingConfig = null);
     }
@@ -119,17 +120,23 @@ namespace NzbDrone.Core.Organizer
             return Path.Combine(components.ToArray());
         }
 
-        public string BuildBookFilePath(Author author, Edition edition, string fileName, string extension)
+        public string BuildBookFilePath(Author author, Edition edition, string fileName, string extension, BookFile bookFile = null)
         {
             Ensure.That(extension, () => extension).IsNotNullOrWhiteSpace();
 
-            var path = BuildBookPath(author);
+            var path = BuildBookPath(author, bookFile.GetLibraryContentType());
 
             return Path.Combine(path, fileName + extension);
         }
 
-        public string BuildBookPath(Author author)
+        public string BuildBookPath(Author author, LibraryContentType contentType = LibraryContentType.Book)
         {
+            if (contentType == LibraryContentType.Audiobook &&
+                author.AudiobookPath.IsNotNullOrWhiteSpace())
+            {
+                return author.AudiobookPath;
+            }
+
             return author.Path;
         }
 
@@ -318,6 +325,7 @@ namespace NzbDrone.Core.Organizer
             tokenHandlers["{Original Title}"] = m => GetOriginalTitle(bookFile);
             tokenHandlers["{Original Filename}"] = m => GetOriginalFileName(bookFile);
             tokenHandlers["{Release Group}"] = m => bookFile.ReleaseGroup ?? m.DefaultValue("Readarr");
+            tokenHandlers["{Media Type}"] = m => GetMediaType(bookFile);
 
             if (bookFile.PartCount > 1)
             {
@@ -370,6 +378,19 @@ namespace NzbDrone.Core.Organizer
             }
 
             tokenHandlers["{Custom Formats}"] = m => string.Join(" ", customFormats.Where(x => x.IncludeCustomFormatWhenRenaming));
+        }
+
+        private string GetMediaType(BookFile bookFile)
+        {
+            switch (bookFile.GetLibraryContentType())
+            {
+                case LibraryContentType.Audiobook:
+                    return "Audiobook";
+                case LibraryContentType.Book:
+                    return "eBook";
+                default:
+                    return "Book";
+            }
         }
 
         private string ReplaceTokens(string pattern, Dictionary<string, Func<TokenMatch, string>> tokenHandlers, NamingConfig namingConfig)

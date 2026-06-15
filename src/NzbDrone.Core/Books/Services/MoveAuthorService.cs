@@ -39,7 +39,7 @@ namespace NzbDrone.Core.Books
             _logger = logger;
         }
 
-        private void MoveSingleAuthor(Author author, string sourcePath, string destinationPath, int? index = null, int? total = null)
+        private void MoveSingleAuthor(Author author, string sourcePath, string destinationPath, int? index = null, int? total = null, bool isAudiobook = false)
         {
             if (!_diskProvider.FolderExists(sourcePath))
             {
@@ -76,7 +76,14 @@ namespace NzbDrone.Core.Books
             {
                 _logger.Error(ex, "Unable to move author from '{0}' to '{1}'. Try moving files manually", sourcePath, destinationPath);
 
-                RevertPath(author.Id, sourcePath);
+                if (isAudiobook)
+                {
+                    RevertAudiobookPath(author.Id, sourcePath);
+                }
+                else
+                {
+                    RevertPath(author.Id, sourcePath);
+                }
             }
         }
 
@@ -88,16 +95,31 @@ namespace NzbDrone.Core.Books
             _authorService.UpdateAuthor(author);
         }
 
+        private void RevertAudiobookPath(int authorId, string path)
+        {
+            var author = _authorService.GetAuthor(authorId);
+
+            author.AudiobookPath = path;
+            _authorService.UpdateAuthor(author);
+        }
+
         public void Execute(MoveAuthorCommand message)
         {
             var author = _authorService.GetAuthor(message.AuthorId);
             MoveSingleAuthor(author, message.SourcePath, message.DestinationPath);
+
+            if (message.SourceAudiobookPath.IsNotNullOrWhiteSpace() &&
+                message.DestinationAudiobookPath.IsNotNullOrWhiteSpace())
+            {
+                MoveSingleAuthor(author, message.SourceAudiobookPath, message.DestinationAudiobookPath, isAudiobook: true);
+            }
         }
 
         public void Execute(BulkMoveAuthorCommand message)
         {
             var authorToMove = message.Author;
             var destinationRootFolder = message.DestinationRootFolder;
+            var destinationAudiobookRootFolder = message.DestinationAudiobookRootFolder;
 
             _logger.ProgressInfo("Moving {0} author to '{1}'", authorToMove.Count, destinationRootFolder);
 
@@ -105,9 +127,21 @@ namespace NzbDrone.Core.Books
             {
                 var s = authorToMove[index];
                 var author = _authorService.GetAuthor(s.AuthorId);
-                var destinationPath = Path.Combine(destinationRootFolder, _filenameBuilder.GetAuthorFolder(author));
+                var authorFolder = _filenameBuilder.GetAuthorFolder(author);
 
-                MoveSingleAuthor(author, s.SourcePath, destinationPath, index, authorToMove.Count);
+                if (destinationRootFolder.IsNotNullOrWhiteSpace() &&
+                    s.SourcePath.IsNotNullOrWhiteSpace())
+                {
+                    var destinationPath = Path.Combine(destinationRootFolder, authorFolder);
+                    MoveSingleAuthor(author, s.SourcePath, destinationPath, index, authorToMove.Count);
+                }
+
+                if (destinationAudiobookRootFolder.IsNotNullOrWhiteSpace() &&
+                    s.SourceAudiobookPath.IsNotNullOrWhiteSpace())
+                {
+                    var destinationAudiobookPath = Path.Combine(destinationAudiobookRootFolder, authorFolder);
+                    MoveSingleAuthor(author, s.SourceAudiobookPath, destinationAudiobookPath, index, authorToMove.Count, true);
+                }
             }
 
             _logger.ProgressInfo("Finished moving {0} author to '{1}'", authorToMove.Count, destinationRootFolder);

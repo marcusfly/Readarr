@@ -6,6 +6,7 @@ using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
@@ -45,16 +46,20 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackFileMovingServiceTests
                   .Returns("File Name");
 
             Mocker.GetMock<IBuildFileNames>()
-                  .Setup(s => s.BuildBookFilePath(It.IsAny<Author>(), It.IsAny<Edition>(), It.IsAny<string>(), It.IsAny<string>()))
+                  .Setup(s => s.BuildBookFilePath(It.IsAny<Author>(), It.IsAny<Edition>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<BookFile>()))
                   .Returns(@"C:\Test\Music\Author\Book\File Name.mp3".AsOsAgnostic());
 
             Mocker.GetMock<IBuildFileNames>()
-                  .Setup(s => s.BuildBookPath(It.IsAny<Author>()))
+                  .Setup(s => s.BuildBookPath(It.IsAny<Author>(), It.IsAny<LibraryContentType>()))
                   .Returns(@"C:\Test\Music\Author\Book".AsOsAgnostic());
 
             var rootFolder = @"C:\Test\Music\".AsOsAgnostic();
             Mocker.GetMock<IDiskProvider>()
                   .Setup(s => s.FolderExists(rootFolder))
+                  .Returns(true);
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(s => s.FolderExists(It.Is<string>(p => p.PathEquals(_author.Path))))
                   .Returns(true);
 
             Mocker.GetMock<IDiskProvider>()
@@ -103,14 +108,14 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackFileMovingServiceTests
 
             Mocker.GetMock<IEventAggregator>()
                   .Verify(s => s.PublishEvent<TrackFolderCreatedEvent>(It.Is<TrackFolderCreatedEvent>(p =>
-                      p.BookFolder.IsNotNullOrWhiteSpace())), Times.Once());
+                      p.AuthorFolder.IsNotNullOrWhiteSpace())), Times.Once());
         }
 
         [Test]
         public void should_not_notify_if_author_folder_already_exists()
         {
             Mocker.GetMock<IDiskProvider>()
-                  .Setup(s => s.FolderExists(_author.Path))
+                  .Setup(s => s.FolderExists(It.Is<string>(p => p.PathEquals(@"C:\Test\Music\Author\Book".AsOsAgnostic()))))
                   .Returns(true);
 
             Subject.MoveBookFile(_trackFile, _localtrack);

@@ -93,7 +93,7 @@ namespace NzbDrone.Core.MediaFiles
 
                 _logger.Trace($"got name {newName}");
 
-                var newPath = _filenameBuilder.BuildBookFilePath(author, book, newName, Path.GetExtension(bookFilePath));
+                var newPath = _filenameBuilder.BuildBookFilePath(author, book, newName, Path.GetExtension(bookFilePath), file);
 
                 _logger.Trace($"got path {newPath}");
 

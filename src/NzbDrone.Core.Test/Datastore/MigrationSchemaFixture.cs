@@ -97,6 +97,20 @@ namespace NzbDrone.Core.Test.Datastore
         }
 
         [Test]
+        public void full_migration_should_add_AudiobookPath_column_to_Authors()
+        {
+            using var conn = Mocker.Resolve<IDatabase>().OpenConnection();
+
+            var columns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"Authors\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            columns.Should().Contain("AudiobookPath",
+                "migration 044 must add AudiobookPath to Authors");
+        }
+
+        [Test]
         public void full_migration_should_add_IndexerFlags_column_to_BookFiles()
         {
             // Regression: migration 040 added IndexerFlags.

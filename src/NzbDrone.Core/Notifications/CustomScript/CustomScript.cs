@@ -9,6 +9,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Processes;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.HealthCheck;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.ThingiProvider;
@@ -50,7 +51,7 @@ namespace NzbDrone.Core.Notifications.CustomScript
             environmentVariables.Add("Readarr_Release_BookReleaseDates", string.Join(",", remoteBook.Books.Select(e => e.ReleaseDate)));
             environmentVariables.Add("Readarr_Release_BookTitles", string.Join("|", remoteBook.Books.Select(e => e.Title)));
             environmentVariables.Add("Readarr_Release_BookIds", string.Join("|", remoteBook.Books.Select(e => e.Id.ToString())));
-            environmentVariables.Add("Readarr_Release_GRIds", remoteBook.Books.Select(x => x.Editions.Value.Single(e => e.Monitored).ForeignEditionId).ConcatToString("|"));
+            environmentVariables.Add("Readarr_Release_GRIds", remoteBook.Books.Select(x => x.GetBestMonitoredEdition(remoteBook.GetLibraryContentType())?.ForeignEditionId).ConcatToString("|"));
             environmentVariables.Add("Readarr_Release_Title", remoteBook.Release.Title);
             environmentVariables.Add("Readarr_Release_Indexer", remoteBook.Release.Indexer ?? string.Empty);
             environmentVariables.Add("Readarr_Release_Size", remoteBook.Release.Size.ToString());
@@ -78,7 +79,7 @@ namespace NzbDrone.Core.Notifications.CustomScript
             environmentVariables.Add("Readarr_Author_GRId", author.Metadata.Value.ForeignAuthorId);
             environmentVariables.Add("Readarr_Book_Id", book.Id.ToString());
             environmentVariables.Add("Readarr_Book_Title", book.Title);
-            environmentVariables.Add("Readarr_Book_GRId", book.Editions.Value.Single(e => e.Monitored).ForeignEditionId.ToString());
+            environmentVariables.Add("Readarr_Book_GRId", book.GetBestMonitoredEdition(message.BookFiles.FirstOrDefault())?.ForeignEditionId ?? string.Empty);
             environmentVariables.Add("Readarr_Book_ReleaseDate", book.ReleaseDate.ToString());
             environmentVariables.Add("Readarr_Download_Client", message.DownloadClientInfo?.Name ?? string.Empty);
             environmentVariables.Add("Readarr_Download_Client_Type", message.DownloadClientInfo?.Type ?? string.Empty);
@@ -205,7 +206,7 @@ namespace NzbDrone.Core.Notifications.CustomScript
             environmentVariables.Add("Readarr_Author_GRId", author.Metadata.Value.ForeignAuthorId);
             environmentVariables.Add("Readarr_Book_Id", book.Id.ToString());
             environmentVariables.Add("Readarr_Book_Title", book.Title);
-            environmentVariables.Add("Readarr_Book_GRId", book.Editions.Value.Single(e => e.Monitored).ForeignEditionId.ToString());
+            environmentVariables.Add("Readarr_Book_GRId", book.GetBestMonitoredEdition(bookFile)?.ForeignEditionId ?? string.Empty);
             environmentVariables.Add("Readarr_Book_ReleaseDate", book.ReleaseDate.ToString());
             environmentVariables.Add("Readarr_BookFile_Id", bookFile.Id.ToString());
             environmentVariables.Add("Readarr_BookFile_Path", bookFile.Path);

@@ -11,6 +11,7 @@ namespace Readarr.Api.V3.Author
         public int? QualityProfileId { get; set; }
         public int? MetadataProfileId { get; set; }
         public string RootFolderPath { get; set; }
+        public string AudiobookRootFolderPath { get; set; }
         public List<int> Tags { get; set; }
         public ApplyTags ApplyTags { get; set; }
         public bool MoveFiles { get; set; }

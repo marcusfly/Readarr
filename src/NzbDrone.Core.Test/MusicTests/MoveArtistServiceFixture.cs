@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FizzWare.NBuilder;
+using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
@@ -31,7 +32,9 @@ namespace NzbDrone.Core.Test.MusicTests
             {
                 AuthorId = 1,
                 SourcePath = @"C:\Test\Music\Author".AsOsAgnostic(),
-                DestinationPath = @"C:\Test\Music2\Author".AsOsAgnostic()
+                DestinationPath = @"C:\Test\Music2\Author".AsOsAgnostic(),
+                SourceAudiobookPath = @"C:\Test\Audiobooks\Author".AsOsAgnostic(),
+                DestinationAudiobookPath = @"C:\Test\Audiobooks2\Author".AsOsAgnostic()
             };
 
             _bulkCommand = new BulkMoveAuthorCommand
@@ -41,10 +44,12 @@ namespace NzbDrone.Core.Test.MusicTests
                     new BulkMoveAuthor
                     {
                         AuthorId = 1,
-                        SourcePath = @"C:\Test\Music\Author".AsOsAgnostic()
+                        SourcePath = @"C:\Test\Music\Author".AsOsAgnostic(),
+                        SourceAudiobookPath = @"C:\Test\Audiobooks\Author".AsOsAgnostic()
                     }
                 },
-                DestinationRootFolder = @"C:\Test\Music2".AsOsAgnostic()
+                DestinationRootFolder = @"C:\Test\Music2".AsOsAgnostic(),
+                DestinationAudiobookRootFolder = @"C:\Test\Audiobooks2".AsOsAgnostic()
             };
 
             Mocker.GetMock<IAuthorService>()
@@ -66,6 +71,8 @@ namespace NzbDrone.Core.Test.MusicTests
         [Test]
         public void should_log_error_when_move_throws_an_exception()
         {
+            _command.SourceAudiobookPath = null;
+            _command.DestinationAudiobookPath = null;
             GivenFailedMove();
 
             Subject.Execute(_command);
@@ -76,6 +83,8 @@ namespace NzbDrone.Core.Test.MusicTests
         [Test]
         public void should_revert_author_path_on_error()
         {
+            _command.SourceAudiobookPath = null;
+            _command.DestinationAudiobookPath = null;
             GivenFailedMove();
 
             Subject.Execute(_command);
@@ -87,8 +96,27 @@ namespace NzbDrone.Core.Test.MusicTests
         }
 
         [Test]
+        public void should_revert_audiobook_path_on_error()
+        {
+            _command.DestinationPath = _command.SourcePath;
+            GivenFailedMove();
+
+            Subject.Execute(_command);
+
+            ExceptionVerification.ExpectedErrors(1);
+
+            _author.AudiobookPath.Should().Be(_command.SourceAudiobookPath);
+
+            Mocker.GetMock<IAuthorService>()
+                .Verify(v => v.UpdateAuthor(It.IsAny<Author>()), Times.Once());
+        }
+
+        [Test]
         public void should_use_destination_path()
         {
+            _command.SourceAudiobookPath = null;
+            _command.DestinationAudiobookPath = null;
+
             Subject.Execute(_command);
 
             Mocker.GetMock<IDiskTransferService>()
@@ -103,8 +131,25 @@ namespace NzbDrone.Core.Test.MusicTests
         }
 
         [Test]
+        public void should_use_audiobook_destination_path()
+        {
+            _command.DestinationPath = _command.SourcePath;
+
+            Subject.Execute(_command);
+
+            Mocker.GetMock<IDiskTransferService>()
+                .Verify(
+                    v => v.TransferFolder(_command.SourceAudiobookPath,
+                                          _command.DestinationAudiobookPath,
+                                          TransferMode.Move),
+                    Times.Once());
+        }
+
+        [Test]
         public void should_build_new_path_when_root_folder_is_provided()
         {
+            _bulkCommand.DestinationAudiobookRootFolder = null;
+            _bulkCommand.Author.First().SourceAudiobookPath = null;
             var authorFolder = "Author";
             var expectedPath = Path.Combine(_bulkCommand.DestinationRootFolder, authorFolder);
 
@@ -117,6 +162,28 @@ namespace NzbDrone.Core.Test.MusicTests
             Mocker.GetMock<IDiskTransferService>()
                 .Verify(
                     v => v.TransferFolder(_bulkCommand.Author.First().SourcePath,
+                                          expectedPath,
+                                          TransferMode.Move),
+                    Times.Once());
+        }
+
+        [Test]
+        public void should_build_new_audiobook_path_when_audiobook_root_folder_is_provided()
+        {
+            _bulkCommand.DestinationRootFolder = null;
+            _bulkCommand.Author.First().SourcePath = null;
+            var authorFolder = "Author";
+            var expectedPath = Path.Combine(_bulkCommand.DestinationAudiobookRootFolder, authorFolder);
+
+            Mocker.GetMock<IBuildFileNames>()
+                .Setup(s => s.GetAuthorFolder(It.IsAny<Author>(), null))
+                .Returns(authorFolder);
+
+            Subject.Execute(_bulkCommand);
+
+            Mocker.GetMock<IDiskTransferService>()
+                .Verify(
+                    v => v.TransferFolder(_bulkCommand.Author.First().SourceAudiobookPath,
                                           expectedPath,
                                           TransferMode.Move),
                     Times.Once());

@@ -52,10 +52,22 @@ namespace Readarr.Api.V3.Author
                 if (resource.RootFolderPath.IsNotNullOrWhiteSpace())
                 {
                     author.RootFolderPath = resource.RootFolderPath;
+                }
+
+                if (resource.AudiobookRootFolderPath.IsNotNullOrWhiteSpace())
+                {
+                    author.AudiobookRootFolderPath = resource.AudiobookRootFolderPath;
+                }
+
+                if (resource.MoveFiles &&
+                    (resource.RootFolderPath.IsNotNullOrWhiteSpace() ||
+                     resource.AudiobookRootFolderPath.IsNotNullOrWhiteSpace()))
+                {
                     authorsToMove.Add(new BulkMoveAuthor
                     {
                         AuthorId = author.Id,
-                        SourcePath = author.Path
+                        SourcePath = resource.RootFolderPath.IsNotNullOrWhiteSpace() ? author.Path : null,
+                        SourceAudiobookPath = resource.AudiobookRootFolderPath.IsNotNullOrWhiteSpace() ? author.AudiobookPath : null
                     });
                 }
 
@@ -84,6 +96,7 @@ namespace Readarr.Api.V3.Author
                 _commandQueueManager.Push(new BulkMoveAuthorCommand
                 {
                     DestinationRootFolder = resource.RootFolderPath,
+                    DestinationAudiobookRootFolder = resource.AudiobookRootFolderPath,
                     Author = authorsToMove
                 });
             }

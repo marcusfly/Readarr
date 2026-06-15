@@ -21,6 +21,7 @@ Represents a monitored author in the library.
 | Id | INTEGER | NO | PK |
 | CleanName | TEXT | NO | Indexed |
 | Path | TEXT | NO | Indexed |
+| AudiobookPath | TEXT | YES | Separate audiobook author path/root |
 | Monitored | INTEGER | NO | Boolean |
 | LastInfoSync | DATETIME | YES | |
 | SortName | TEXT | YES | |

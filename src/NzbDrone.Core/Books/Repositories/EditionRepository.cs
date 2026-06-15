@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Common.EnsureThat;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Messaging.Events;
 
@@ -96,8 +97,14 @@ namespace NzbDrone.Core.Books
         public List<Edition> SetMonitored(Edition edition)
         {
             var allEditions = FindByBook(new[] { edition.BookId });
-            allEditions.ForEach(r => r.Monitored = r.Id == edition.Id);
-            Ensure.That(allEditions.Count(x => x.Monitored) == 1).IsTrue();
+            var contentType = edition.GetLibraryContentType();
+
+            allEditions
+                .Where(r => r.GetLibraryContentType() == contentType)
+                .ToList()
+                .ForEach(r => r.Monitored = r.Id == edition.Id);
+
+            Ensure.That(allEditions.Count(x => x.Monitored && x.GetLibraryContentType() == contentType) == 1).IsTrue();
             UpdateMany(allEditions);
             return allEditions;
         }

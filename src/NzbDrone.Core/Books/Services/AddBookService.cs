@@ -59,7 +59,7 @@ namespace NzbDrone.Core.Books
 
             // Note it's a manual addition so it's not deleted on next refresh
             book.AddOptions.AddType = BookAddType.Manual;
-            book.Editions.Value.Single(x => x.Monitored).ManualAdd = true;
+            book.GetMonitoredEditions().ForEach(x => x.ManualAdd = true);
 
             // Add the author if necessary
             var dbAuthor = _authorService.FindById(book.AuthorMetadata.Value.ForeignAuthorId);
@@ -103,7 +103,9 @@ namespace NzbDrone.Core.Books
 
         private Book AddSkyhookData(Book newBook)
         {
-            var editionId = newBook.Editions.Value.Single(x => x.Monitored).ForeignEditionId;
+            var editionIds = newBook.GetMonitoredEditions()
+                                    .Select(x => x.ForeignEditionId)
+                                    .ToHashSet();
 
             Tuple<string, Book, List<AuthorMetadata>> tuple = null;
             try
@@ -125,7 +127,12 @@ namespace NzbDrone.Core.Books
 
             newBook.Editions = tuple.Item2.Editions.Value;
             newBook.Editions.Value.ForEach(x => x.Monitored = false);
-            newBook.Editions.Value.Single(x => x.ForeignEditionId == editionId).Monitored = true;
+            newBook.Editions.Value.Where(x => editionIds.Contains(x.ForeignEditionId)).ToList().ForEach(x => x.Monitored = true);
+
+            if (!newBook.Editions.Value.Any(x => x.Monitored))
+            {
+                newBook.Editions.Value.First().Monitored = true;
+            }
 
             var metadata = tuple.Item3.FirstOrDefault(x => x.ForeignAuthorId == tuple.Item1);
             newBook.AuthorMetadata = metadata;

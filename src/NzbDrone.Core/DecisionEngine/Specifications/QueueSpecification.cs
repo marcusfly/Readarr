@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.IndexerSearch.Definitions;
@@ -38,6 +39,7 @@ namespace NzbDrone.Core.DecisionEngine.Specifications
         public Decision IsSatisfiedBy(RemoteBook subject, SearchCriteriaBase searchCriteria)
         {
             var queue = _queueService.GetQueue();
+            var releaseContentType = subject.GetLibraryContentType();
             var matchingBook = queue.Where(q => q.RemoteBook?.Author != null &&
                                                  q.RemoteBook.Author.Id == subject.Author.Id &&
                                                  q.RemoteBook.Books.Select(e => e.Id).Intersect(subject.Books.Select(e => e.Id)).Any())
@@ -52,6 +54,12 @@ namespace NzbDrone.Core.DecisionEngine.Specifications
                 // Failed items (already searching for a replacement) won't be part of the queue since
                 // it's a copy, of the tracked download, not a reference.
                 if (queueItem.TrackedDownloadState == TrackedDownloadState.DownloadFailedPending)
+                {
+                    continue;
+                }
+
+                if (releaseContentType != LibraryContentType.None &&
+                    remoteBook.GetLibraryContentType() != releaseContentType)
                 {
                     continue;
                 }
