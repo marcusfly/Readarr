@@ -297,6 +297,13 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("MetadataRreadingGlassesSource", value); }
         }
 
+        public bool DisableWikidataLookup
+        {
+            get { return GetValueBoolean("DisableWikidataLookup", false); }
+
+            set { SetValue("DisableWikidataLookup", value); }
+        }
+
         public WriteAudioTagsType WriteAudioTags
         {
             get { return GetValueEnum("WriteAudioTags", WriteAudioTagsType.No); }

@@ -4,6 +4,7 @@ using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Indexers.Newznab;
 using NzbDrone.Core.IndexerSearch.Definitions;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Test.Framework;
 
 namespace NzbDrone.Core.Test.IndexerTests.NewznabTests
@@ -11,6 +12,7 @@ namespace NzbDrone.Core.Test.IndexerTests.NewznabTests
     public class NewznabRequestGeneratorFixture : CoreTest<NewznabRequestGenerator>
     {
         private BookSearchCriteria _singleBookSearchCriteria;
+        private MagazineIssueSearchCriteria _singleMagazineIssueSearchCriteria;
         private NewznabCapabilities _capabilities;
 
         [SetUp]
@@ -27,6 +29,15 @@ namespace NzbDrone.Core.Test.IndexerTests.NewznabTests
             {
                 Author = new Books.Author { Name = "Alien Ant Farm" },
                 BookTitle = "TruANT"
+            };
+
+            _singleMagazineIssueSearchCriteria = new MagazineIssueSearchCriteria
+            {
+                Magazine = new Magazine { Title = "National Geographic" },
+                MagazineTitle = "National Geographic",
+                IssueYear = 2024,
+                IssueMonth = 6,
+                IssueDay = 15
             };
 
             _capabilities = new NewznabCapabilities();
@@ -99,6 +110,18 @@ namespace NzbDrone.Core.Test.IndexerTests.NewznabTests
             pageTier.Url.Query.Should().NotContain("and");
             pageTier.Url.Query.Should().NotContain(" & ");
             pageTier.Url.Query.Should().NotContain("%26");
+        }
+
+        [Test]
+        public void should_search_magazine_issue_by_issue_query()
+        {
+            var results = Subject.GetSearchRequests(_singleMagazineIssueSearchCriteria);
+            results.Tiers.Should().Be(1);
+
+            var page = results.GetAllTiers().First().First();
+
+            page.Url.Query.Should().Contain("q=National%20Geographic%202024-06-15");
+            page.Url.Query.Should().Contain("&cat=7000,7010&");
         }
     }
 }

@@ -38,16 +38,17 @@ namespace NzbDrone.Core.Indexers.Newznab
         public virtual IndexerPageableRequestChain GetRecentRequests()
         {
             var pageableRequests = new IndexerPageableRequestChain();
+            var categories = GetSearchCategories(null);
 
             var capabilities = _capabilitiesProvider.GetCapabilities(Settings);
 
             if (capabilities.SupportedBookSearchParameters != null)
             {
-                pageableRequests.Add(GetPagedRequests(MaxPages, Settings.Categories, "book", ""));
+                pageableRequests.Add(GetPagedRequests(MaxPages, categories, "book", ""));
             }
             else if (capabilities.SupportedSearchParameters != null)
             {
-                pageableRequests.Add(GetPagedRequests(MaxPages, Settings.Categories, "search", ""));
+                pageableRequests.Add(GetPagedRequests(MaxPages, categories, "search", ""));
             }
 
             return pageableRequests;
@@ -73,19 +74,19 @@ namespace NzbDrone.Core.Indexers.Newznab
                 pageableRequests.AddTier();
 
                 pageableRequests.Add(GetPagedRequests(MaxPages,
-                    Settings.Categories,
+                    GetSearchCategories(searchCriteria),
                     "search",
                     $"&q={NewsnabifyTitle(searchCriteria.BookQuery)}+{NewsnabifyTitle(searchCriteria.AuthorQuery)}"));
 
                 pageableRequests.Add(GetPagedRequests(MaxPages,
-                    Settings.Categories,
+                    GetSearchCategories(searchCriteria),
                     "search",
                     $"&q={NewsnabifyTitle(searchCriteria.AuthorQuery)}+{NewsnabifyTitle(searchCriteria.BookQuery)}"));
 
                 pageableRequests.AddTier();
 
                 pageableRequests.Add(GetPagedRequests(MaxPages,
-                    Settings.Categories,
+                    GetSearchCategories(searchCriteria),
                     "search",
                     $"&q={NewsnabifyTitle(searchCriteria.BookQuery)}"));
             }
@@ -109,10 +110,24 @@ namespace NzbDrone.Core.Indexers.Newznab
                 pageableRequests.AddTier();
 
                 pageableRequests.Add(GetPagedRequests(MaxPages,
-                    Settings.Categories,
+                    GetSearchCategories(searchCriteria),
                     "search",
                     $"&q={NewsnabifyTitle(searchCriteria.AuthorQuery)}"));
             }
+
+            return pageableRequests;
+        }
+
+        public virtual IndexerPageableRequestChain GetSearchRequests(MagazineIssueSearchCriteria searchCriteria)
+        {
+            var pageableRequests = new IndexerPageableRequestChain();
+
+            pageableRequests.AddTier();
+
+            pageableRequests.Add(GetPagedRequests(MaxPages,
+                GetSearchCategories(searchCriteria),
+                "search",
+                $"&q={NewsnabifyTitle(searchCriteria.IssueQuery)}"));
 
             return pageableRequests;
         }
@@ -121,7 +136,14 @@ namespace NzbDrone.Core.Indexers.Newznab
         {
             chain.AddTier();
 
-            chain.Add(GetPagedRequests(MaxPages, Settings.Categories, "book", $"{parameters}"));
+            chain.Add(GetPagedRequests(MaxPages, GetSearchCategories(searchCriteria), "book", $"{parameters}"));
+        }
+
+        private IEnumerable<int> GetSearchCategories(SearchCriteriaBase searchCriteria)
+        {
+            var criteriaCategories = searchCriteria?.IndexerCategories;
+
+            return criteriaCategories != null && criteriaCategories.Any() ? criteriaCategories : Settings.Categories;
         }
 
         private IEnumerable<IndexerRequest> GetPagedRequests(int maxPages, IEnumerable<int> categories, string searchType, string parameters)

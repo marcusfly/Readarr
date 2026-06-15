@@ -24,7 +24,12 @@ namespace NzbDrone.Core.Indexers.Torrentleech
 
         public virtual IndexerPageableRequestChain GetSearchRequests(AuthorSearchCriteria searchCriteria)
         {
-            throw new System.NotImplementedException();
+            return new IndexerPageableRequestChain();
+        }
+
+        public virtual IndexerPageableRequestChain GetSearchRequests(MagazineIssueSearchCriteria searchCriteria)
+        {
+            return new IndexerPageableRequestChain();
         }
 
         private IEnumerable<IndexerRequest> GetRssRequests(string searchParameters)

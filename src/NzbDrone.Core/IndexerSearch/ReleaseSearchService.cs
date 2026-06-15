@@ -9,6 +9,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.IndexerSearch.Definitions;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Parser.Model;
 
 namespace NzbDrone.Core.IndexerSearch
@@ -17,6 +18,7 @@ namespace NzbDrone.Core.IndexerSearch
     {
         Task<List<DownloadDecision>> BookSearch(int bookId, bool missingOnly, bool userInvokedSearch, bool interactiveSearch);
         Task<List<DownloadDecision>> AuthorSearch(int authorId, bool missingOnly, bool userInvokedSearch, bool interactiveSearch);
+        Task<List<DownloadDecision>> MagazineIssueSearch(int magazineIssueId, bool userInvokedSearch, bool interactiveSearch);
     }
 
     public class ReleaseSearchService : ISearchForReleases
@@ -24,18 +26,21 @@ namespace NzbDrone.Core.IndexerSearch
         private readonly IIndexerFactory _indexerFactory;
         private readonly IBookService _bookService;
         private readonly IAuthorService _authorService;
+        private readonly IMagazineIssueService _magazineIssueService;
         private readonly IMakeDownloadDecision _makeDownloadDecision;
         private readonly Logger _logger;
 
         public ReleaseSearchService(IIndexerFactory indexerFactory,
                                 IBookService bookService,
                                 IAuthorService authorService,
+                                IMagazineIssueService magazineIssueService,
                                 IMakeDownloadDecision makeDownloadDecision,
                                 Logger logger)
         {
             _indexerFactory = indexerFactory;
             _bookService = bookService;
             _authorService = authorService;
+            _magazineIssueService = magazineIssueService;
             _makeDownloadDecision = makeDownloadDecision;
             _logger = logger;
         }
@@ -72,6 +77,36 @@ namespace NzbDrone.Core.IndexerSearch
             books = books.Where(a => a.Monitored).ToList();
 
             searchSpec.Books = books;
+
+            return await Dispatch(indexer => indexer.Fetch(searchSpec), searchSpec);
+        }
+
+        public async Task<List<DownloadDecision>> MagazineIssueSearch(int magazineIssueId, bool userInvokedSearch, bool interactiveSearch)
+        {
+            var downloadDecisions = new List<DownloadDecision>();
+
+            var issue = _magazineIssueService.GetIssue(magazineIssueId);
+            if (issue == null)
+            {
+                _logger.Warn("Unable to find magazine issue {0} for search.", magazineIssueId);
+                return downloadDecisions;
+            }
+
+            var decisions = await MagazineIssueSearch(issue, userInvokedSearch, interactiveSearch);
+            downloadDecisions.AddRange(decisions);
+
+            return DeDupeDecisions(downloadDecisions);
+        }
+
+        public async Task<List<DownloadDecision>> MagazineIssueSearch(MagazineIssue issue, bool userInvokedSearch, bool interactiveSearch)
+        {
+            var searchSpec = Get(issue, userInvokedSearch, interactiveSearch);
+
+            if (searchSpec.MagazineTitle.IsNullOrWhiteSpace())
+            {
+                _logger.Warn("Unable to search magazine issue {0} because no magazine title was available.", issue.Id);
+                return new List<DownloadDecision>();
+            }
 
             return await Dispatch(indexer => indexer.Fetch(searchSpec), searchSpec);
         }
@@ -117,6 +152,23 @@ namespace NzbDrone.Core.IndexerSearch
             return spec;
         }
 
+        private static MagazineIssueSearchCriteria Get(MagazineIssue issue, bool userInvokedSearch, bool interactiveSearch)
+        {
+            var magazine = issue.Magazine?.Value;
+
+            return new MagazineIssueSearchCriteria
+            {
+                Magazine = magazine,
+                Issue = issue,
+                MagazineTitle = magazine?.Title ?? issue.ReleaseTitle,
+                IssueYear = issue.IssueYear,
+                IssueMonth = issue.IssueMonth,
+                IssueDay = issue.IssueDay,
+                UserInvokedSearch = userInvokedSearch,
+                InteractiveSearch = interactiveSearch
+            };
+        }
+
         private async Task<List<DownloadDecision>> Dispatch(Func<IIndexer, Task<IList<ReleaseInfo>>> searchAction, SearchCriteriaBase criteriaBase)
         {
             var indexers = criteriaBase.InteractiveSearch ?
@@ -124,7 +176,8 @@ namespace NzbDrone.Core.IndexerSearch
                 _indexerFactory.AutomaticSearchEnabled();
 
             // Filter indexers to untagged indexers and indexers with intersecting tags
-            indexers = indexers.Where(i => i.Definition.Tags.Empty() || i.Definition.Tags.Intersect(criteriaBase.Author.Tags).Any()).ToList();
+            IEnumerable<int> criteriaTags = criteriaBase.Tags != null ? criteriaBase.Tags : Array.Empty<int>();
+            indexers = indexers.Where(i => i.Definition.Tags.Empty() || (criteriaTags.Any() && i.Definition.Tags.Intersect(criteriaTags).Any())).ToList();
 
             _logger.ProgressInfo("Searching indexers for {0}. {1} active indexers", criteriaBase, indexers.Count);
 
@@ -136,14 +189,22 @@ namespace NzbDrone.Core.IndexerSearch
 
             _logger.ProgressDebug("Total of {0} reports were found for {1} from {2} indexers", reports.Count, criteriaBase, indexers.Count);
 
-            // Update the last search time for all albums if at least 1 indexer was searched.
+            // Update the last search time for the searched items if at least 1 indexer was searched.
             if (indexers.Any())
             {
                 var lastSearchTime = DateTime.UtcNow;
                 _logger.Debug("Setting last search time to: {0}", lastSearchTime);
 
-                criteriaBase.Books.ForEach(a => a.LastSearchTime = lastSearchTime);
-                _bookService.UpdateLastSearchTime(criteriaBase.Books);
+                if (criteriaBase is MagazineIssueSearchCriteria magazineIssueSearchCriteria)
+                {
+                    magazineIssueSearchCriteria.Issue.LastSearchTime = lastSearchTime;
+                    _magazineIssueService.UpsertIssue(magazineIssueSearchCriteria.Issue);
+                }
+                else
+                {
+                    criteriaBase.Books.ForEach(a => a.LastSearchTime = lastSearchTime);
+                    _bookService.UpdateLastSearchTime(criteriaBase.Books);
+                }
             }
 
             return _makeDownloadDecision.GetSearchDecision(reports, criteriaBase).ToList();

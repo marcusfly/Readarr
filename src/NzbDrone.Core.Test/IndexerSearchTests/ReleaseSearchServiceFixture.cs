@@ -10,6 +10,7 @@ using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.IndexerSearch;
 using NzbDrone.Core.IndexerSearch.Definitions;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Test.Framework;
 
 namespace NzbDrone.Core.Test.IndexerSearchTests
@@ -19,6 +20,8 @@ namespace NzbDrone.Core.Test.IndexerSearchTests
         private Mock<IIndexer> _mockIndexer;
         private Author _author;
         private Book _firstBook;
+        private Magazine _magazine;
+        private MagazineIssue _magazineIssue;
 
         [SetUp]
         public void SetUp()
@@ -53,6 +56,27 @@ namespace NzbDrone.Core.Test.IndexerSearchTests
             Mocker.GetMock<IAuthorService>()
                 .Setup(v => v.GetAuthor(_author.Id))
                 .Returns(_author);
+
+            _magazine = Builder<Magazine>.CreateNew()
+                .With(v => v.Tags = new HashSet<int> { 3 })
+                .Build();
+
+            _magazineIssue = Builder<MagazineIssue>.CreateNew()
+                .With(v => v.MagazineId = _magazine.Id)
+                .With(v => v.Magazine = _magazine)
+                .With(v => v.IssueYear = 2024)
+                .With(v => v.IssueMonth = 6)
+                .With(v => v.IssueDay = 15)
+                .With(v => v.ReleaseTitle = "Sample Magazine 2024-06-15")
+                .Build();
+
+            Mocker.GetMock<IMagazineIssueService>()
+                .Setup(v => v.GetIssue(_magazineIssue.Id))
+                .Returns(_magazineIssue);
+
+            Mocker.GetMock<IMagazineIssueService>()
+                .Setup(v => v.UpsertIssue(It.IsAny<MagazineIssue>()))
+                .Returns<MagazineIssue>(v => v);
         }
 
         private List<SearchCriteriaBase> WatchForSearchCriteria()
@@ -61,6 +85,10 @@ namespace NzbDrone.Core.Test.IndexerSearchTests
 
             _mockIndexer.Setup(v => v.Fetch(It.IsAny<BookSearchCriteria>()))
                 .Callback<BookSearchCriteria>(s => result.Add(s))
+                .Returns(Task.FromResult<IList<Parser.Model.ReleaseInfo>>(new List<Parser.Model.ReleaseInfo>()));
+
+            _mockIndexer.Setup(v => v.Fetch(It.IsAny<MagazineIssueSearchCriteria>()))
+                .Callback<MagazineIssueSearchCriteria>(s => result.Add(s))
                 .Returns(Task.FromResult<IList<Parser.Model.ReleaseInfo>>(new List<Parser.Model.ReleaseInfo>()));
 
             return result;
@@ -162,6 +190,60 @@ namespace NzbDrone.Core.Test.IndexerSearchTests
             var criteria = allCriteria.OfType<BookSearchCriteria>().ToList();
 
             criteria.Count.Should().Be(0);
+        }
+
+        [Test]
+        public async Task Tags_IndexerAndMagazineTagsMatch_IndexerIncluded()
+        {
+            _mockIndexer.SetupGet(s => s.Definition).Returns(new IndexerDefinition
+            {
+                Id = 1,
+                Tags = new HashSet<int> { 3 }
+            });
+
+            var allCriteria = WatchForSearchCriteria();
+
+            await Subject.MagazineIssueSearch(_magazineIssue.Id, true, false);
+
+            var criteria = allCriteria.OfType<MagazineIssueSearchCriteria>().ToList();
+
+            criteria.Count.Should().Be(1);
+        }
+
+        [Test]
+        public async Task Tags_IndexerAndMagazineTagsMismatch_IndexerNotIncluded()
+        {
+            _mockIndexer.SetupGet(s => s.Definition).Returns(new IndexerDefinition
+            {
+                Id = 1,
+                Tags = new HashSet<int> { 7 }
+            });
+
+            var allCriteria = WatchForSearchCriteria();
+
+            await Subject.MagazineIssueSearch(_magazineIssue.Id, true, false);
+
+            var criteria = allCriteria.OfType<MagazineIssueSearchCriteria>().ToList();
+
+            criteria.Count.Should().Be(0);
+        }
+
+        [Test]
+        public async Task MagazineIssueSearch_Should_Update_LastSearchTime()
+        {
+            _mockIndexer.SetupGet(s => s.Definition).Returns(new IndexerDefinition
+            {
+                Id = 1
+            });
+
+            var allCriteria = WatchForSearchCriteria();
+
+            await Subject.MagazineIssueSearch(_magazineIssue.Id, true, false);
+
+            var criteria = allCriteria.OfType<MagazineIssueSearchCriteria>().ToList();
+            criteria.Count.Should().Be(1);
+            _magazineIssue.LastSearchTime.Should().NotBeNull();
+            Mocker.GetMock<IMagazineIssueService>().Verify(v => v.UpsertIssue(It.IsAny<MagazineIssue>()), Times.Once);
         }
     }
 }

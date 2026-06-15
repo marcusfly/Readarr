@@ -70,6 +70,16 @@ namespace NzbDrone.Core.Indexers
             return FetchReleases(g => g.GetSearchRequests(searchCriteria));
         }
 
+        public override Task<IList<ReleaseInfo>> Fetch(MagazineIssueSearchCriteria searchCriteria)
+        {
+            if (!SupportsSearch)
+            {
+                return Task.FromResult<IList<ReleaseInfo>>(Array.Empty<ReleaseInfo>());
+            }
+
+            return FetchReleases(g => g.GetSearchRequests(searchCriteria));
+        }
+
         public override HttpRequest GetDownloadRequest(string link)
         {
             return new HttpRequest(link);

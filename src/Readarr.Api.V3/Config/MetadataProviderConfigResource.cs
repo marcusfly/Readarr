@@ -14,6 +14,7 @@ namespace Readarr.Api.V3.Config
         public string MetadataSearchProviders { get; set; }
         public string MetadataOpenLibrarySource { get; set; }
         public string MetadataRreadingGlassesSource { get; set; }
+        public bool DisableWikidataLookup { get; set; }
         public List<MetadataProviderDescriptorResource> AvailableMetadataProviders { get; set; }
         public WriteAudioTagsType WriteAudioTags { get; set; }
         public bool ScrubAudioTags { get; set; }
@@ -32,6 +33,7 @@ namespace Readarr.Api.V3.Config
                 MetadataSearchProviders = model.MetadataSearchProviders,
                 MetadataOpenLibrarySource = model.MetadataOpenLibrarySource,
                 MetadataRreadingGlassesSource = model.MetadataRreadingGlassesSource,
+                DisableWikidataLookup = model.DisableWikidataLookup,
                 AvailableMetadataProviders = metadataProviders?
                     .Where(x => x.Descriptor != null && x.Descriptor.ProviderKey.IsNotNullOrWhiteSpace())
                     .GroupBy(x => x.Descriptor.ProviderKey, StringComparer.OrdinalIgnoreCase)

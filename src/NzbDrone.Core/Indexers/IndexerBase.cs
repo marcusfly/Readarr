@@ -70,6 +70,7 @@ namespace NzbDrone.Core.Indexers
         public abstract Task<IList<ReleaseInfo>> FetchRecent();
         public abstract Task<IList<ReleaseInfo>> Fetch(BookSearchCriteria searchCriteria);
         public abstract Task<IList<ReleaseInfo>> Fetch(AuthorSearchCriteria searchCriteria);
+        public abstract Task<IList<ReleaseInfo>> Fetch(MagazineIssueSearchCriteria searchCriteria);
         public abstract HttpRequest GetDownloadRequest(string link);
 
         protected virtual IList<ReleaseInfo> CleanupReleases(IEnumerable<ReleaseInfo> releases)
