@@ -1,0 +1,86 @@
+[
+  {
+    "rawTitle": "motortrend",
+    "canonicalTitle": "MotorTrend",
+    "normalizedTitle": "motortrend",
+    "aliases": ["motor trend", "Motor Trend"],
+    "publisher": "MotorTrend Group"
+  },
+  {
+    "rawTitle": "car and driver",
+    "canonicalTitle": "Car and Driver",
+    "normalizedTitle": "car and driver",
+    "aliases": ["caranddriver"],
+    "publisher": "Hearst"
+  },
+  {
+    "rawTitle": "pcworld",
+    "canonicalTitle": "PCWorld",
+    "normalizedTitle": "pcworld",
+    "aliases": ["pc world"],
+    "publisher": "Foundry"
+  },
+  {
+    "rawTitle": "wired",
+    "canonicalTitle": "Wired Magazine",
+    "normalizedTitle": "wired magazine",
+    "aliases": ["wired"],
+    "publisher": "Condé Nast"
+  },
+  {
+    "rawTitle": "the economist",
+    "canonicalTitle": "The Economist",
+    "normalizedTitle": "economist",
+    "aliases": ["the economist"],
+    "publisher": "The Economist Group"
+  },
+  {
+    "rawTitle": "the new yorker",
+    "canonicalTitle": "The New Yorker",
+    "normalizedTitle": "new yorker",
+    "aliases": ["the new yorker", "New Yorker", "The New Yorker Magazine"],
+    "publisher": "Condé Nast"
+  },
+  {
+    "rawTitle": "go",
+    "canonicalTitle": "GO",
+    "normalizedTitle": "go",
+    "aliases": ["go"],
+    "publisher": "People Inc."
+  },
+  {
+    "rawTitle": "offgrid",
+    "canonicalTitle": "OFFGRID",
+    "normalizedTitle": "offgrid",
+    "aliases": ["offgrid"],
+    "publisher": "Oath"
+  },
+  {
+    "rawTitle": "gun dog",
+    "canonicalTitle": "Gun Dog",
+    "normalizedTitle": "gun dog",
+    "aliases": ["gundog"],
+    "publisher": "Outdoor Sportsman Group"
+  },
+  {
+    "rawTitle": "highlights",
+    "canonicalTitle": "Highlights",
+    "normalizedTitle": "highlights",
+    "aliases": ["highlights magazine"],
+    "publisher": "Highlights for Children"
+  },
+  {
+    "rawTitle": "national geographic",
+    "canonicalTitle": "National Geographic",
+    "normalizedTitle": "national geographic",
+    "aliases": ["nat geo", "NatGeo", "National Geographic Magazine"],
+    "publisher": "National Geographic Partners"
+  },
+  {
+    "rawTitle": "forbes",
+    "canonicalTitle": "Forbes",
+    "normalizedTitle": "forbes",
+    "aliases": ["forbes magazine"],
+    "publisher": "Forbes Media"
+  }
+]

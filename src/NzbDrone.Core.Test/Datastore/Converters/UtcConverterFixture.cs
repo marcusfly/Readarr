@@ -34,5 +34,13 @@ namespace NzbDrone.Core.Test.Datastore.Converters
 
             Subject.Parse(dateTime).Should().Be(dateTime);
         }
+
+        [Test]
+        public void should_parse_utc_string_values_from_db()
+        {
+            var value = "2026-06-15 17:07:23.786928";
+
+            Subject.Parse(value).Should().Be(new DateTime(2026, 6, 15, 17, 7, 23, 786, DateTimeKind.Utc).AddTicks(9280));
+        }
     }
 }

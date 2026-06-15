@@ -5,6 +5,8 @@ using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.MetadataSource.Contracts;
 using NzbDrone.Core.MetadataSource.Identity;
 
@@ -13,12 +15,20 @@ namespace NzbDrone.Core.MetadataSource
     public class MetadataProviderSelector : IProvideAuthorInfo, IProvideBookInfo, ISearchForNewBook, ISearchForNewAuthor, ISearchForNewEntity
     {
         private readonly IConfigService _configService;
+        private readonly IMagazineService _magazineService;
+        private readonly IMagazineTitleAuthorityProvider _magazineTitleAuthorityProvider;
         private readonly IReadOnlyList<IMetadataProviderV1> _providers;
         private readonly Logger _logger;
 
-        public MetadataProviderSelector(IConfigService configService, IEnumerable<IMetadataProviderV1> providers, Logger logger)
+        public MetadataProviderSelector(IConfigService configService,
+                                        IMagazineService magazineService,
+                                        IMagazineTitleAuthorityProvider magazineTitleAuthorityProvider,
+                                        IEnumerable<IMetadataProviderV1> providers,
+                                        Logger logger)
         {
             _configService = configService;
+            _magazineService = magazineService;
+            _magazineTitleAuthorityProvider = magazineTitleAuthorityProvider;
             _providers = providers
                 .OrderByDescending(x => x.Descriptor.Priority)
                 .ToList();
@@ -87,7 +97,108 @@ namespace NzbDrone.Core.MetadataSource
                 result.Add(book);
             }
 
+            foreach (var magazine in SearchForNewMagazine(title))
+            {
+                result.Add(magazine);
+            }
+
             return result;
+        }
+
+        private List<Magazine> SearchForNewMagazine(string title)
+        {
+            var results = new List<Magazine>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (title.IsNullOrWhiteSpace())
+            {
+                return results;
+            }
+
+            AddMagazineCandidate(results, seen, _magazineService.FindByNormalizedTitle(MagazineTitleNormalizer.Normalize(title))
+                                               ?? _magazineService.FindByNormalizedTitle(title));
+
+            MagazineAuthorityResult authorityResult;
+            try
+            {
+                var lookupTask = _magazineTitleAuthorityProvider.LookupByTitleAsync(title);
+                authorityResult = lookupTask == null ? null : lookupTask.GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Magazine title authority lookup failed while searching for '{0}'", title);
+                return results;
+            }
+
+            if (authorityResult == null)
+            {
+                return results;
+            }
+
+            var canonicalTitle = authorityResult.CanonicalTitle.IsNotNullOrWhiteSpace() ? authorityResult.CanonicalTitle : title;
+            var canonicalNormalized = MagazineTitleNormalizer.Normalize(canonicalTitle);
+            var knownCanonical = _magazineService.FindByNormalizedTitle(canonicalNormalized);
+
+            if (knownCanonical != null)
+            {
+                AddMagazineCandidate(results, seen, knownCanonical);
+                return results;
+            }
+
+            AddMagazineCandidate(results, seen, new Magazine
+            {
+                Title = canonicalTitle,
+                CleanTitle = canonicalTitle,
+                NormalizedTitle = authorityResult.NormalizedTitle.IsNotNullOrWhiteSpace() ? authorityResult.NormalizedTitle : canonicalNormalized,
+                WikidataId = authorityResult.WikidataId,
+                Issn = authorityResult.Issn,
+                Publisher = authorityResult.Publisher,
+                AddOptions = new AddMagazineOptions
+                {
+                    Monitor = MonitorTypes.All,
+                    SearchForMissingIssues = false
+                }
+            });
+
+            return results;
+        }
+
+        private static void AddMagazineCandidate(ICollection<Magazine> results, ISet<string> seen, Magazine magazine)
+        {
+            if (magazine == null)
+            {
+                return;
+            }
+
+            var key = GetMagazineIdentityKey(magazine);
+            if (key.IsNullOrWhiteSpace())
+            {
+                results.Add(magazine);
+                return;
+            }
+
+            if (seen.Add(key))
+            {
+                results.Add(magazine);
+            }
+        }
+
+        private static string GetMagazineIdentityKey(Magazine magazine)
+        {
+            if (magazine == null)
+            {
+                return null;
+            }
+
+            var wikidataId = magazine.WikidataId.IsNotNullOrWhiteSpace() ? magazine.WikidataId.Trim() : null;
+            var normalizedTitle = MagazineTitleNormalizer.Normalize(magazine.NormalizedTitle ?? magazine.CleanTitle ?? magazine.Title);
+
+            if (wikidataId.IsNotNullOrWhiteSpace())
+            {
+                return $"{wikidataId}:{normalizedTitle}";
+            }
+
+            return normalizedTitle;
         }
 
         private IMetadataProviderV1 ResolveProviderForIdentifier(string id, MetadataProviderCapability capability)

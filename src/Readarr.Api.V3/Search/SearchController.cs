@@ -8,6 +8,7 @@ using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.Organizer;
 using Readarr.Api.V3.Author;
 using Readarr.Api.V3.Books;
+using Readarr.Api.V3.Magazines;
 using Readarr.Http;
 
 namespace Readarr.Api.V3.Search
@@ -75,6 +76,11 @@ namespace Readarr.Api.V3.Search
                     }
 
                     resource.Book.Author.Folder = _fileNameBuilder.GetAuthorFolder(book.Author);
+                }
+                else if (result is NzbDrone.Core.Magazines.Magazine magazine)
+                {
+                    resource.Magazine = magazine.ToResource(new List<NzbDrone.Core.Magazines.MagazineIssue>());
+                    resource.ForeignId = magazine.WikidataId ?? magazine.CleanTitle ?? magazine.Title;
                 }
                 else
                 {

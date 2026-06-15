@@ -55,6 +55,12 @@ Note: GitHub Issues are for Bugs and Feature Requests Only
 
 [![GitHub - Bugs and Feature Requests Only](https://img.shields.io/badge/github-issues-red.svg?maxAge=60)](https://github.com/Readarr/Readarr/issues)
 
+## Releases
+
+- Linux release tarballs are published for `linux-core-x64` and `linux-core-arm64`.
+- Verify downloaded archives with `sha256sum -c Readarr.<version>.sha256`.
+- Install, rollback, and release-signature guidance lives in [SUPPORT.md](SUPPORT.md).
+
 ## Contributors & Developers
 
 [API Documentation](https://readarr.com/docs/api/)

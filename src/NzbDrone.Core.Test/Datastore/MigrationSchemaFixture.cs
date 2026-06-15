@@ -51,6 +51,10 @@ namespace NzbDrone.Core.Test.Datastore
                 "Books",
                 "Editions",
                 "BookFiles",
+                "Magazines",
+                "MagazineIssues",
+                "MagazineIssueFiles",
+                "MagazineRootFolders",
                 "Config",
                 "RootFolders",
                 "QualityProfiles",
@@ -70,6 +74,91 @@ namespace NzbDrone.Core.Test.Datastore
             {
                 tables.Should().Contain(table, $"table '{table}' must exist after all migrations");
             }
+        }
+
+        [Test]
+        public void full_migration_should_create_magazine_tables()
+        {
+            using var conn = Mocker.Resolve<IDatabase>().OpenConnection();
+
+            var magazinesColumns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"Magazines\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            magazinesColumns.Should().Contain(new[]
+            {
+                "Id",
+                "CleanTitle",
+                "Title",
+                "NormalizedTitle",
+                "Aliases",
+                "Issn",
+                "WikidataId",
+                "Publisher",
+                "Monitored",
+                "Path",
+                "RootFolderPath",
+                "QualityProfileId",
+                "MetadataProfileId",
+                "Tags",
+                "Added",
+                "LastInfoSync",
+                "AddOptions",
+            });
+
+            var magazineIssuesColumns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"MagazineIssues\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            magazineIssuesColumns.Should().Contain(new[]
+            {
+                "Id",
+                "MagazineId",
+                "IssueYear",
+                "IssueMonth",
+                "IssueDay",
+                "Volume",
+                "IssueNumber",
+                "ReleaseTitle",
+                "Monitored",
+                "Added",
+                "LastSearchTime",
+            });
+
+            var magazineIssueFilesColumns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"MagazineIssueFiles\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            magazineIssueFilesColumns.Should().Contain(new[]
+            {
+                "Id",
+                "MagazineIssueId",
+                "MagazineId",
+                "Path",
+                "Size",
+                "DateAdded",
+                "Quality",
+                "MediaInfo",
+            });
+
+            var magazineRootFoldersColumns = conn
+                .Query<SqliteColumnInfo>("PRAGMA table_info(\"MagazineRootFolders\")")
+                .Select(c => c.Name)
+                .ToHashSet();
+
+            magazineRootFoldersColumns.Should().Contain(new[]
+            {
+                "Id",
+                "Name",
+                "Path",
+                "DefaultQualityProfileId",
+                "DefaultMetadataProfileId",
+                "DefaultMonitorOption",
+                "DefaultTags",
+            });
         }
 
         [Test]

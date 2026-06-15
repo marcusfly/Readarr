@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Globalization;
 using Dapper;
 
 namespace NzbDrone.Core.Datastore.Converters
@@ -13,6 +14,16 @@ namespace NzbDrone.Core.Datastore.Converters
 
         public override DateTime Parse(object value)
         {
+            if (value is DateTime dateTime)
+            {
+                return dateTime;
+            }
+
+            if (value is string text && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsed))
+            {
+                return parsed;
+            }
+
             return (DateTime)value;
         }
     }

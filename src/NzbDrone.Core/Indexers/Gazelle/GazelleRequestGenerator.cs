@@ -42,6 +42,13 @@ namespace NzbDrone.Core.Indexers.Gazelle
             return pageableRequests;
         }
 
+        public IndexerPageableRequestChain GetSearchRequests(MagazineIssueSearchCriteria searchCriteria)
+        {
+            var pageableRequests = new IndexerPageableRequestChain();
+            pageableRequests.Add(GetRequest(searchCriteria.IssueQuery));
+            return pageableRequests;
+        }
+
         private IEnumerable<IndexerRequest> GetRequest(string searchParameters)
         {
             Authenticate().GetAwaiter().GetResult();

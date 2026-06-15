@@ -14,6 +14,8 @@ namespace NzbDrone.Core.IndexerSearch.Definitions
         public virtual bool MonitoredBooksOnly { get; set; }
         public virtual bool UserInvokedSearch { get; set; }
         public virtual bool InteractiveSearch { get; set; }
+        public virtual int[] IndexerCategories => null;
+        public virtual HashSet<int> Tags => Author?.Tags;
 
         public Author Author { get; set; }
         public List<Book> Books { get; set; }

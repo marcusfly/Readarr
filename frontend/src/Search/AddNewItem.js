@@ -13,6 +13,7 @@ import getErrorMessage from 'Utilities/Object/getErrorMessage';
 import translate from 'Utilities/String/translate';
 import AddNewAuthorSearchResultConnector from './Author/AddNewAuthorSearchResultConnector';
 import AddNewBookSearchResultConnector from './Book/AddNewBookSearchResultConnector';
+import AddNewMagazineSearchResultConnector from './Magazine/AddNewMagazineSearchResultConnector';
 import styles from './AddNewItem.css';
 
 class AddNewItem extends Component {
@@ -199,6 +200,15 @@ class AddNewItem extends Component {
                           {...author}
                         />
                       );
+                    } else if (item.magazine) {
+                      const magazine = item.magazine;
+                      return (
+                        <AddNewMagazineSearchResultConnector
+                          key={item.id}
+                          isExistingMagazine={'id' in magazine && magazine.id !== 0}
+                          {...magazine}
+                        />
+                      );
                     } else if (item.book) {
                       const book = item.book;
                       return (
@@ -233,10 +243,10 @@ class AddNewItem extends Component {
               null :
               <div className={styles.message}>
                 <div className={styles.helpText}>
-                  {translate('ItsEasyToAddANewAuthorOrBookJustStartTypingTheNameOfTheItemYouWantToAdd')}
+                  It's easy to add a new author, book, or magazine. Just start typing the name of the item you want to add.
                 </div>
                 <div>
-                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), or search by ISBN (e.g. isbn:9780439554930)
+                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), search by ISBN (e.g. isbn:9780439554930), or search by Wikidata id (e.g. Q123456).
                 </div>
               </div>
           }

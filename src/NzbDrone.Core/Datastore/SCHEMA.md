@@ -1,8 +1,7 @@
 # Readarr Database Schema
 
 Canonical reference for the Readarr main database schema as produced by running
-all migrations from `000_database_engine_version_check` through
-`040_add_indexer_flags` against a fresh database.
+the full current migration set against a fresh database.
 
 Supported backends: **SQLite** (default) and **PostgreSQL**.
 
@@ -162,6 +161,83 @@ Join table linking books to series.
 | BookId | INTEGER | NO | FK → Books.Id CASCADE DELETE |
 | Position | TEXT | YES | |
 | IsPrimary | INTEGER | NO | Boolean |
+
+---
+
+### Magazines
+A monitored publication title tracked by Readarr.
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| Id | INTEGER | NO | PK |
+| CleanTitle | TEXT | NO | Indexed |
+| Title | TEXT | NO | |
+| NormalizedTitle | TEXT | NO | |
+| Aliases | TEXT | NO | JSON array; default `[]` |
+| Issn | TEXT | YES | |
+| WikidataId | TEXT | YES | |
+| Publisher | TEXT | YES | |
+| Monitored | INTEGER | NO | Boolean |
+| Path | TEXT | YES | Indexed |
+| RootFolderPath | TEXT | YES | |
+| QualityProfileId | INTEGER | NO | Default 1 |
+| MetadataProfileId | INTEGER | NO | Default 1 |
+| Tags | TEXT | YES | JSON array |
+| Added | DATETIME | YES | |
+| LastInfoSync | DATETIME | YES | |
+| AddOptions | TEXT | YES | JSON |
+
+---
+
+### MagazineIssues
+Tracked publication issues/editions within a magazine.
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| Id | INTEGER | NO | PK |
+| MagazineId | INTEGER | NO | Indexed; FK → Magazines.Id |
+| IssueYear | INTEGER | NO | |
+| IssueMonth | INTEGER | NO | |
+| IssueDay | INTEGER | YES | |
+| Volume | TEXT | YES | |
+| IssueNumber | TEXT | YES | |
+| ReleaseTitle | TEXT | YES | |
+| Monitored | INTEGER | NO | Boolean |
+| Added | DATETIME | YES | |
+| LastSearchTime | DATETIME | YES | |
+
+Indexes: `MagazineId`, `MagazineId + IssueYear + IssueMonth + IssueDay` (UNIQUE)
+
+---
+
+### MagazineIssueFiles
+Physical files for specific magazine issues.
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| Id | INTEGER | NO | PK |
+| MagazineIssueId | INTEGER | NO | Indexed; FK → MagazineIssues.Id |
+| MagazineId | INTEGER | NO | Indexed; FK → Magazines.Id |
+| Path | TEXT | NO | UNIQUE |
+| Size | INTEGER | NO | Default 0 |
+| DateAdded | DATETIME | YES | |
+| Quality | TEXT | YES | JSON |
+| MediaInfo | TEXT | YES | JSON |
+
+---
+
+### MagazineRootFolders
+Magazine library roots for collection configuration.
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| Id | INTEGER | NO | PK |
+| Name | TEXT | YES | |
+| Path | TEXT | NO | UNIQUE |
+| DefaultQualityProfileId | INTEGER | NO | Default 1 |
+| DefaultMetadataProfileId | INTEGER | NO | Default 1 |
+| DefaultMonitorOption | INTEGER | NO | Default 0 |
+| DefaultTags | TEXT | YES | JSON array |
 
 ---
 

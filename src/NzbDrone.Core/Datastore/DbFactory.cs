@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Data.SQLite;
 using System.Net.Sockets;
 using System.Threading;
+using Microsoft.Data.Sqlite;
 using NLog;
 using Npgsql;
 using NzbDrone.Common.Disk;
@@ -101,8 +102,7 @@ namespace NzbDrone.Core.Datastore
 
                 if (connectionInfo.DatabaseType == DatabaseType.SQLite)
                 {
-                    conn = SQLiteFactory.Instance.CreateConnection();
-                    conn.ConnectionString = connectionInfo.ConnectionString;
+                    conn = TryCreateSqliteConnection(connectionInfo.ConnectionString);
                 }
                 else
                 {
@@ -114,6 +114,34 @@ namespace NzbDrone.Core.Datastore
             });
 
             return db;
+        }
+
+        private static DbConnection CreateSqliteFallbackConnection(string connectionString)
+        {
+            var builder = new SQLiteConnectionStringBuilder(connectionString);
+            var sqliteBuilder = new SqliteConnectionStringBuilder { DataSource = builder.DataSource };
+
+            return new SqliteConnection(sqliteBuilder.ConnectionString);
+        }
+
+        private static DbConnection TryCreateSqliteConnection(string connectionString)
+        {
+            try
+            {
+                var conn = SQLiteFactory.Instance.CreateConnection();
+                conn.ConnectionString = connectionString;
+                return conn;
+            }
+            catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException)
+            {
+                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop symbols are unavailable.");
+                return CreateSqliteFallbackConnection(connectionString);
+            }
+            catch (DllNotFoundException ex)
+            {
+                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop is unavailable.");
+                return CreateSqliteFallbackConnection(connectionString);
+            }
         }
 
         private void CreateMain(string connectionString, MigrationContext migrationContext, DatabaseType databaseType)

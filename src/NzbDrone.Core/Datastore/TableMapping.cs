@@ -23,6 +23,7 @@ using NzbDrone.Core.ImportLists.Exclusions;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Instrumentation;
 using NzbDrone.Core.Jobs;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Messaging.Commands;
@@ -174,6 +175,26 @@ namespace NzbDrone.Core.Datastore
                                                             .Join<Book, Edition>((l, r) => l.Id == r.BookId)
                                                             .Where<Edition>(a => a.Id == f.EditionId)).SingleOrDefault(),
                           t => t.Id > 0);
+
+            Mapper.Entity<Magazine>("Magazines").RegisterModel()
+                .Ignore(m => m.Issues)
+                .HasOne(m => m.QualityProfile, m => m.QualityProfileId)
+                .HasOne(m => m.MetadataProfile, m => m.MetadataProfileId);
+
+            Mapper.Entity<MagazineIssue>("MagazineIssues").RegisterModel()
+                .HasOne(i => i.Magazine, i => i.MagazineId)
+                .Ignore(i => i.IssueFiles)
+                .LazyLoad(i => i.IssueFiles,
+                          (db, issue) => db.Query<MagazineIssueFile>(new SqlBuilder(db.DatabaseType)
+                                                                    .Where<MagazineIssueFile>(f => f.MagazineIssueId == issue.Id)).ToList(),
+                          i => i.Id > 0);
+
+            Mapper.Entity<MagazineIssueFile>("MagazineIssueFiles").RegisterModel();
+
+            Mapper.Entity<MagazineRootFolder>("MagazineRootFolders").RegisterModel()
+                .Ignore(m => m.Accessible)
+                .Ignore(m => m.FreeSpace)
+                .Ignore(m => m.TotalSpace);
 
             Mapper.Entity<QualityDefinition>("QualityDefinitions").RegisterModel()
                   .Ignore(d => d.GroupName)

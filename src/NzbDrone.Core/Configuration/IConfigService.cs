@@ -72,6 +72,7 @@ namespace NzbDrone.Core.Configuration
         string MetadataSearchProviders { get; set; }
         string MetadataOpenLibrarySource { get; set; }
         string MetadataRreadingGlassesSource { get; set; }
+        bool DisableWikidataLookup { get; set; }
         WriteAudioTagsType WriteAudioTags { get; set; }
         bool ScrubAudioTags { get; set; }
         WriteBookTagsType WriteBookTags { get; set; }

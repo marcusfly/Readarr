@@ -266,29 +266,47 @@ jobs:
               -o cyclonedx-json \
               --file readarr-${{ steps.version.outputs.version }}-sbom.cyclonedx.json
 
-      # ── Build linux-x64 and linux-arm64 tar.gz release archives ─────────────
+      # ── Build linux amd64 and arm64 tar.gz release archives ────────────────
       - name: Build release archives
         run: |
-          VERSION=${{ steps.version.outputs.version }}
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}"
 
           build_archive() {
-            local RID="$1"
-            local LABEL="$2"
-            docker run --rm --platform "$3" \
-              -v "$(pwd):/workspace" \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" \
-              sh -c "tar czf /workspace/Readarr.${VERSION}.${LABEL}.tar.gz -C /app ."
+            local platform="$1"
+            local label="$2"
+            local archive="Readarr.${VERSION}.${label}.tar.gz"
+            local container
+            local staging
+
+            staging="$(mktemp -d)"
+            container="$(docker create --platform "$platform" --entrypoint /bin/true "$IMAGE")"
+            cleanup() {
+              docker rm -f "$container" >/dev/null 2>&1 || true
+              rm -rf "$staging"
+            }
+            trap cleanup EXIT
+
+            docker cp "$container":/app/. "$staging"/
+            docker rm "$container" >/dev/null
+            tar czf "$archive" -C "$staging" .
+            rm -rf "$staging"
+            trap - EXIT
           }
 
-          # Extract binaries from the published image layers via crane
-          docker run --rm \
-            gcr.io/go-containerregistry/crane:latest \
-            export "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}" \
-            - | tar x --wildcards --strip-components=2 -C . "./app/*" 2>/dev/null || true
+          build_archive linux/amd64 linux-core-x64
+          build_archive linux/arm64 linux-core-arm64
 
-          # Package what we have
-          tar czf "Readarr.${VERSION}.linux-core-x64.tar.gz" -C . app/ 2>/dev/null || \
-            echo "Archive creation skipped (no extracted binaries found)"
+      # ── Smoke-test the published install layout ────────────────────────────
+      - name: Verify release archives
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-x64.tar.gz" "linux-core-x64"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-arm64.tar.gz" "linux-core-arm64"
 
       # ── SHA256 checksums ─────────────────────────────────────────────────────
       - name: Generate SHA256 checksums
