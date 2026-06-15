@@ -18,6 +18,7 @@ namespace Readarr.Api.V3.Config
         public bool EnableColorImpairedMode { get; set; }
         public int UILanguage { get; set; }
         public string Theme { get; set; }
+        public bool SearchWhileTyping { get; set; }
     }
 
     public static class UiConfigResourceMapper
@@ -36,6 +37,7 @@ namespace Readarr.Api.V3.Config
 
                 EnableColorImpairedMode = model.EnableColorImpairedMode,
                 UILanguage = model.UILanguage,
+                SearchWhileTyping = model.SearchWhileTyping,
 
                 Theme = config.Theme
             };

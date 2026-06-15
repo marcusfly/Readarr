@@ -25,7 +25,8 @@ class AddNewItem extends Component {
 
     this.state = {
       term: props.term || '',
-      isFetching: false
+      isFetching: false,
+      hasSearched: false
     };
   }
 
@@ -33,7 +34,9 @@ class AddNewItem extends Component {
     const term = this.state.term;
 
     if (term) {
-      this.props.onSearchChange(term);
+      this.setState({ hasSearched: true, isFetching: true }, () => {
+        this.props.onSearchChange(term);
+      });
     }
   }
 
@@ -46,7 +49,8 @@ class AddNewItem extends Component {
     if (term && term !== prevProps.term) {
       this.setState({
         term,
-        isFetching: true
+        isFetching: true,
+        hasSearched: true
       });
       this.props.onSearchChange(term);
     } else if (isFetching !== prevProps.isFetching) {
@@ -56,23 +60,61 @@ class AddNewItem extends Component {
     }
   }
 
+  onSearch = (term) => {
+    const trimmedTerm = term.trim();
+
+    if (!trimmedTerm) {
+      this.props.onClearSearch();
+      this.setState({ hasSearched: false });
+      return;
+    }
+
+    this.setState({ isFetching: true, hasSearched: true }, () => {
+      this.props.onSearchChange(trimmedTerm);
+    });
+  };
+
   //
   // Listeners
 
   onSearchInputChange = ({ value }) => {
     const hasValue = !!value.trim();
+    const { searchWhileTyping } = this.props;
 
-    this.setState({ term: value, isFetching: hasValue }, () => {
-      if (hasValue) {
-        this.props.onSearchChange(value);
-      } else {
+    this.setState({
+      term: value,
+      isFetching: false,
+      hasSearched: false
+    }, () => {
+      if (!hasValue) {
         this.props.onClearSearch();
+        return;
+      }
+
+      if (searchWhileTyping) {
+        this.onSearch(value);
       }
     });
   };
 
+  onSearchInputKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.onSearchSubmit();
+    }
+  };
+
+  onSearchSubmit = () => {
+    const term = this.state.term;
+    this.onSearch(term);
+  };
+
   onClearSearchPress = () => {
-    this.setState({ term: '' });
+    this.setState({
+      term: '',
+      hasSearched: false
+    });
+
     this.props.onClearSearch();
   };
 
@@ -88,6 +130,7 @@ class AddNewItem extends Component {
 
     const term = this.state.term;
     const isFetching = this.state.isFetching;
+    const hasSearched = this.state.hasSearched;
 
     return (
       <PageContent title={translate('AddNewItem')}>
@@ -107,6 +150,7 @@ class AddNewItem extends Component {
               placeholder={translate('SearchBoxPlaceHolder')}
               autoFocus={true}
               onChange={this.onSearchInputChange}
+              onKeyDown={this.onSearchInputKeyDown}
             />
 
             <Button
@@ -173,7 +217,7 @@ class AddNewItem extends Component {
           }
 
           {
-            !isFetching && !error && !items.length && !!term &&
+            !isFetching && !error && hasSearched && !!term && !items.length &&
               <div className={styles.message}>
                 <div className={styles.noResults}>
                   {translate('CouldntFindAnyResultsForTerm', [term])}
@@ -230,6 +274,7 @@ AddNewItem.propTypes = {
   addError: PropTypes.object,
   items: PropTypes.arrayOf(PropTypes.object).isRequired,
   hasExistingAuthors: PropTypes.bool.isRequired,
+  searchWhileTyping: PropTypes.bool,
   onSearchChange: PropTypes.func.isRequired,
   onClearSearch: PropTypes.func.isRequired
 };

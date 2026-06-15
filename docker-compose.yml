@@ -9,6 +9,7 @@
 
 services:
   readarr:
+    platform: linux/amd64
     # Use a locally built image during development:
     #   docker build -t readarr:local .
     #   Then replace 'image:' below with 'image: readarr:local'
@@ -21,6 +22,7 @@ services:
       args:
         READARRVERSION: "0.0.0.0"
         BUILD_SOURCEBRANCHNAME: develop
+        TARGETARCH: amd64
     image: readarr:local
 
     container_name: readarr
@@ -28,12 +30,23 @@ services:
     # Port mapping: HOST:CONTAINER
     ports:
       - "${READARR_PORT:-8787}:8787"
+      - "${READARR_HTTP_PORT:-8788}:8788"
 
     environment:
       # Application data directory inside the container (matches the VOLUME)
       READARR__APP__DATADIR: /config
-      # Override the listening port if needed
-      READARR__SERVER__PORT: "8787"
+      # Plain HTTP listening port (kept for non-SSL compatibility)
+      READARR__SERVER__PORT: "8788"
+      # Enable HTTPS for the primary 8787 bind
+      READARR__SERVER__SSLPORT: "8787"
+      READARR__SERVER__ENABLESSL: "true"
+      READARR__SERVER__SSLCERTPATH: /config/certs/localhost.pfx
+      READARR__SERVER__SSLCERTPASSWORD: "readarr"
+      # Optional: default startup root folder (set this to container-side path)
+      READARR__ROOTFOLDER__PATH: "/books"
+      # For local-only testing, start with auth enabled (for remote access hardening).
+      READARR__AUTH__METHOD: "Forms"
+      READARR__AUTH__REQUIRED: "DisabledForLocalAddresses"
       # Optional: PostgreSQL connection (leave empty to use the default SQLite)
       READARR__POSTGRES__HOST: ""
       READARR__POSTGRES__PORT: "5432"
@@ -41,8 +54,9 @@ services:
       READARR__POSTGRES__PASSWORD: ""
       # Timezone
       TZ: "${TZ:-Etc/UTC}"
-      ASPNETCORE_URLS: "http://*:8787"
+      # ASPNETCORE_URLS is intentionally omitted so Readarr applies its own URL config.
       ASPNETCORE_HTTP_PORTS: ""
+      ASPNETCORE_HTTPS_PORTS: ""
 
     volumes:
       # Persistent config / database
@@ -57,7 +71,7 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8787/ping"]
+      test: ["CMD", "sh", "-c", "curl -sf https://localhost:8787/ping -k"]
       interval: 30s
       timeout: 10s
       retries: 3

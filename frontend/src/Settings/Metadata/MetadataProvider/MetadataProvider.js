@@ -10,7 +10,20 @@ import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import { inputTypes, kinds } from 'Helpers/Props';
 import translate from 'Utilities/String/translate';
 
-const metadataProviderOptions = [
+const metadataCapability = {
+  authorLookup: 1 << 0,
+  bookLookup: 1 << 1,
+  authorSearch: 1 << 2,
+  bookSearch: 1 << 3,
+  entitySearch: 1 << 4,
+  isbnSearch: 1 << 5,
+  asinSearch: 1 << 6
+};
+
+const lookupCapabilityMask = metadataCapability.authorLookup | metadataCapability.bookLookup;
+const searchCapabilityMask = metadataCapability.authorSearch | metadataCapability.bookSearch | metadataCapability.entitySearch | metadataCapability.isbnSearch | metadataCapability.asinSearch;
+
+const legacyMetadataProviderOptions = [
   {
     key: 'openlibrary',
     value: 'Open Library'
@@ -20,6 +33,79 @@ const metadataProviderOptions = [
     value: 'rreading-glasses'
   }
 ];
+
+function normalizeProviderDescriptor(provider) {
+  const key = (provider?.providerKey || provider?.ProviderKey || provider?.key || provider?.Key || '').toLowerCase();
+
+  if (!key) {
+    return null;
+  }
+
+  const name = provider?.name || provider?.Name || provider?.displayName || provider?.DisplayName || key;
+  const capabilities = Number(provider?.capabilities ?? provider?.Capabilities ?? 0);
+  const contentTypes = Number(provider?.contentTypes ?? provider?.ContentTypes ?? 0);
+  const contentTypeNames = provider?.contentTypeNames || provider?.ContentTypeNames || [];
+  const priority = Number(provider?.priority ?? provider?.Priority ?? 0);
+
+  return {
+    key,
+    value: name,
+    capabilities,
+    contentTypes,
+    contentTypeNames,
+    priority
+  };
+}
+
+function filterProvidersByCapability(providers, capabilityMask) {
+  if (!Array.isArray(providers) || providers.length === 0) {
+    return legacyMetadataProviderOptions;
+  }
+
+  const filtered = providers
+    .map(normalizeProviderDescriptor)
+    .filter((provider) => provider &&
+      (provider.capabilities === 0 || (provider.capabilities & capabilityMask) !== 0));
+
+  if (!filtered.length) {
+    return legacyMetadataProviderOptions;
+  }
+
+  const unique = filtered.reduce((accumulator, provider) => {
+    if (!accumulator.some((otherProvider) => otherProvider.key === provider.key)) {
+      accumulator.push(provider);
+    }
+
+    return accumulator;
+  }, []);
+
+  return unique.sort((a, b) => {
+    if (a.priority === b.priority) {
+      return a.value.localeCompare(b.value);
+    }
+
+    return b.priority - a.priority;
+  });
+}
+
+function ensureActiveProviderFallback(options, activeProvider) {
+  if (!activeProvider) {
+    return options;
+  }
+
+  const normalizedActiveProvider = activeProvider.toLowerCase();
+  const hasFallbackProvider = options.some((provider) => provider.key === normalizedActiveProvider);
+  if (hasFallbackProvider) {
+    return options;
+  }
+
+  const fallbackProvider = legacyMetadataProviderOptions.find((provider) => provider.key === normalizedActiveProvider) || {
+    key: normalizedActiveProvider,
+    value: normalizedActiveProvider
+  };
+
+  return [...options, fallbackProvider];
+}
 
 const writeAudioTagOptions = [
   {
@@ -69,6 +155,41 @@ const writeBookTagOptions = [
   }
 ];
 
+function getMetadataSearchProviders(value, fallbackProvider) {
+  const normalizedFallback = fallbackProvider?.toLowerCase();
+
+  const providers = value ?
+    value
+      .split(',')
+      .map((provider) => provider.trim().toLowerCase())
+      .filter(Boolean) :
+    [];
+
+  if (!providers.length) {
+    return normalizedFallback ? [normalizedFallback] : [];
+  }
+
+  return providers;
+}
+
+function buildMetadataSearchProviderValue(previousValues, providerKey, checked, fallbackProvider) {
+  const normalizedProvider = providerKey.toLowerCase();
+  const values = getMetadataSearchProviders(previousValues, fallbackProvider);
+  const selected = new Set(values);
+
+  if (checked) {
+    selected.add(normalizedProvider);
+  } else {
+    selected.delete(normalizedProvider);
+  }
+
+  if (selected.size === 0 && fallbackProvider) {
+    selected.add(fallbackProvider.toLowerCase());
+  }
+
+  return Array.from(selected).join(',');
+}
+
 function MetadataProvider(props) {
   const {
     isFetching,
@@ -77,6 +198,31 @@ function MetadataProvider(props) {
     hasSettings,
     onInputChange
   } = props;
+
+  const activeSearchProviders = getMetadataSearchProviders(
+    settings.metadataSearchProviders?.value,
+    settings.metadataProvider.value
+  );
+  const activeSearchProviderSet = new Set(activeSearchProviders);
+
+  const availableMetadataProviders = settings.availableMetadataProviders?.value;
+  const metadataProviderOptions = ensureActiveProviderFallback(
+    filterProvidersByCapability(availableMetadataProviders, lookupCapabilityMask),
+    settings.metadataProvider.value
+  );
+  const metadataSearchProviderOptions = filterProvidersByCapability(availableMetadataProviders, searchCapabilityMask);
+
+  const onToggleSearchProvider = (providerKey, checked) => {
+    onInputChange({
+      name: 'metadataSearchProviders',
+      value: buildMetadataSearchProviderValue(
+        settings.metadataSearchProviders?.value,
+        providerKey,
+        checked,
+        settings.metadataProvider.value
+      )
+    });
+  };
 
   return (
 
@@ -111,6 +257,37 @@ function MetadataProvider(props) {
                   {...settings.metadataProvider}
                 />
               </FormGroup>
+
+              <FormGroup>
+                <FormLabel>
+                  {translate('MetadataSearchProviders')}
+                </FormLabel>
+
+                <FormLabel>
+                  {translate('MetadataSearchProvidersHelpText')}
+                </FormLabel>
+              </FormGroup>
+
+              {
+                metadataSearchProviderOptions.map((provider) => {
+                  return (
+                    <FormGroup
+                      key={provider.key}
+                    >
+                      <FormLabel>
+                        {provider.value}
+                      </FormLabel>
+
+                      <FormInputGroup
+                        type={inputTypes.CHECK}
+                        name="metadataSearchProviders"
+                        onChange={(event) => onToggleSearchProvider(provider.key, event.value)}
+                        value={activeSearchProviderSet.has(provider.key)}
+                      />
+                    </FormGroup>
+                  );
+                })
+              }
 
               <FormGroup>
                 <FormLabel>

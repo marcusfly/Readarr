@@ -9,6 +9,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaCover;
@@ -57,7 +58,8 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
                 MetadataProviderCapability.EntitySearch |
                 MetadataProviderCapability.IsbnSearch |
                 MetadataProviderCapability.AsinSearch |
-                MetadataProviderCapability.ChangeTracking);
+                MetadataProviderCapability.ChangeTracking,
+                LibraryContentType.Book | LibraryContentType.Audiobook);
 
         public bool SupportsIdentifier(MetadataIdentifier identifier)
         {

@@ -269,6 +269,13 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("MetadataSource", value); }
         }
 
+        public string MetadataSearchProviders
+        {
+            get { return GetValue("MetadataSearchProviders", ""); }
+
+            set { SetValue("MetadataSearchProviders", value); }
+        }
+
         public string MetadataProvider
         {
             get { return GetValue("MetadataProvider", "rreading-glasses"); }
@@ -379,6 +386,13 @@ namespace NzbDrone.Core.Configuration
             get { return GetValueInt("UILanguage", (int)Language.English); }
 
             set { SetValue("UILanguage", value); }
+        }
+
+        public bool SearchWhileTyping
+        {
+            get { return GetValueBoolean("SearchWhileTyping", false); }
+
+            set { SetValue("SearchWhileTyping", value); }
         }
 
         public bool CleanupMetadataImages

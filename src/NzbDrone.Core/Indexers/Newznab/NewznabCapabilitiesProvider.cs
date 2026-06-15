@@ -165,15 +165,19 @@ namespace NzbDrone.Core.Indexers.Newznab
                         Description = xmlCategory.Attribute("description") != null ? xmlCategory.Attribute("description").Value : string.Empty,
                         Subcategories = new List<NewznabCategory>()
                     };
+                    cat.ContentTypes = NewznabCategoryContentTypes.GetContentTypes(cat);
 
                     foreach (var xmlSubcat in xmlCategory.Elements("subcat"))
                     {
-                        cat.Subcategories.Add(new NewznabCategory
+                        var subcat = new NewznabCategory
                         {
                             Id = int.Parse(xmlSubcat.Attribute("id").Value),
                             Name = xmlSubcat.Attribute("name").Value,
                             Description = xmlSubcat.Attribute("description") != null ? xmlSubcat.Attribute("description").Value : string.Empty
-                        });
+                        };
+                        subcat.ContentTypes = NewznabCategoryContentTypes.GetContentTypes(subcat);
+
+                        cat.Subcategories.Add(subcat);
                     }
 
                     capabilities.Categories.Add(cat);

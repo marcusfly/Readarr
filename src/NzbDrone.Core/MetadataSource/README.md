@@ -9,6 +9,8 @@ ownership is not migrated.
   `https://hardcover.bookinfo.pro` unless overridden.
 - `openlibrary` is the independent secondary provider.
 - Provider APIs implement `IMetadataProviderV1` and advertise capabilities.
+- Providers also advertise `LibraryContentType` flags so metadata sources,
+  indexer categories, and future media domains can share one content taxonomy.
 - Namespaced identifiers route refreshes back to the provider that created them.
 
 ## Identity

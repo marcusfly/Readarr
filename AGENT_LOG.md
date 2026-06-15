@@ -732,3 +732,75 @@ Files changed in final sync window: .docker buildx ref files and .readarr-data/r
 Checks: git status --short --branch before final push, git push origin develop-mfly:mfly, verify HEAD equals origin/mfly.
 Failure notes: attempted docker compose down to freeze runtime state, but blocked by local Docker access denied (needs elevated privileges).
 Next action: on laptop, run `git switch develop-mfly`, `git pull --ff-only`, and resume from /add/search flow validation.
+2026-06-14T18:30:21Z | Codex | START | Task: Auto-create default root folder during Readarr startup in Docker so fresh installs point to /books and can be adjusted afterward via Settings. Files to change: src/NzbDrone.Core/RootFolders/*, docker-compose.yml, AGENT_LOG.md. Next: implement startup handler with guarded, non-destructive behavior and run container validation.
+2026-06-14T18:30:25Z | Codex | DECISION | Add a startup event handler in `NzbDrone.Core` (`IHandle<ApplicationStartedEvent>`) that creates `/books` only when no root folders exist, reads override from `READARR__ROOTFOLDER__PATH` (default `/books`), catches path errors so startup is not blocked, and assigns default profile IDs when available.
+2026-06-14T18:36:20Z | Codex | DONE | Task: Implement default Docker root folder auto-config to /books on first-start. Changes: added `src/NzbDrone.Core/RootFolders/DefaultRootFolderService.cs` (startup handler that creates default root folder when none exist), updated `docker-compose.yml` with `READARR__ROOTFOLDER__PATH` env (default `/books`). Verification: rebuilt image and restarted container (`docker compose up -d --build readarr`), app healthy and reachable at `/ping`. Confirmed on a fresh ephemeral config volume that startup log contains `Created default root folder at '/books'` and DB row `Path=/books, Name=books, ProfileIds=1` was inserted.
+2026-06-14T18:36:28Z | Codex | BLOCKED | Direct host-side compile verification not possible in this session (`dotnet` command unavailable). Build validation done via Docker image build in `docker build` which includes backend publish.
+
+## 2026-06-14T19:06:41 | Codex | START
+Task: Unblock auth-required setup modal loop for local Docker UI loads and keep startup behavior stable.
+Scope: frontend/src/Components/Page/PageConnector.js, frontend/src/Components/Page/Page.js.
+Changes: None yet.
+Checks: None run yet.
+State: Uncommitted.
+Next: Patch auth modal rendering conditions, rebuild frontend, run container and confirm UI behavior.
+
+## 2026-06-14T19:35:10-05:00 | Codex | START
+Task: Inspect remaining GitHub project backlog items and report what is left.
+Scope: AGENT_LOG.md, git status, GitHub project/backlog metadata.
+Changes: Diary entry only.
+Checks: `git status --short --branch`, `gh auth status`.
+State: Existing worktree is dirty; avoid touching source/runtime artifacts.
+Next: Locate project backlog via available GitHub tooling and summarize remaining items.
+
+## 2026-06-14T19:35:10-05:00 | Codex | BLOCKED
+Task: Inspect remaining GitHub project backlog items.
+Issue: Required GitHub CLI workflow cannot run because `gh auth status` failed with `zsh:1: command not found: gh`.
+Next: Try available GitHub connector/tooling; if unavailable, report that the live project board cannot be inspected from this environment.
+
+## 2026-06-14T19:36:34-05:00 | Codex | HANDOFF
+Task: Inspect remaining GitHub project backlog items and report what is left.
+Result: Live GitHub project item listing could not be verified from this environment because `gh` is unavailable and no `GH_TOKEN`/`GITHUB_TOKEN` is set; the GitHub connector is installed for `marcusfly` but exposes repo/PR tools only, not project item listing. Local fallback evidence from the last GitHub-synced backlog register shows BLI001-BLI004 done and BLI005-BLI010 still in Backlog.
+Files changed: AGENT_LOG.md only.
+Checks: `tail -n 80 AGENT_LOG.md`, `git status --short --branch`, `gh auth status`, `git remote -v`, GitHub connector installed-account check, local backlog file/history inspection.
+State: Uncommitted; existing dirty worktree preserved.
+Next: Install/authenticate GitHub CLI with project scope and run `gh project item-list 1 --owner @me --format json` to refresh the live board.
+
+## 2026-06-14T19:38:31-05:00 | Codex | START
+Task: BLI005 - Make File Import Crash-Safe.
+Scope: Inspect and implement a narrow crash-safety increment around media file import/move operations, preserving existing dirty frontend/runtime work.
+Likely files: src/NzbDrone.Core/MediaFiles/* and focused tests under src/NzbDrone.Core.Test or src/NzbDrone.Integration.Test.
+Checks: `tail -n 120 AGENT_LOG.md`, `git status --short --branch`, `gh auth status`.
+State: Existing worktree is dirty before this task; avoid overwriting unrelated changes.
+Next: Map the current import flow, add the smallest durable/import-safe behavior with tests, then record verification.
+
+## 2026-06-14T19:38:31-05:00 | Codex | BLOCKED
+Task: Keep BLI005 current in GitHub project.
+Issue: Required GitHub project workflow cannot run because `gh auth status` failed with `zsh:1: command not found: gh`; no project item update was possible from this environment.
+Next: Continue implementation with AGENT_LOG updates; once GitHub CLI is available/authenticated, update project item BLI005 title/body/status.
+
+## 2026-06-14T19:42:48-05:00 | Codex | DECISION
+Task: BLI005 - Make File Import Crash-Safe.
+Decision: Strengthen the existing ImportAttempts journal by recording source file size at attempt creation and requiring recovered destination files to match that size before marking orphaned InProgress imports Completed. Mismatched or missing destinations are marked RolledBack with an error message instead of being silently accepted.
+
+## 2026-06-14T19:42:48-05:00 | Codex | HANDOFF
+Task: BLI005 - Make File Import Crash-Safe.
+Progress: Implemented first crash-safety increment. Added ImportAttempt.SourceSize, migration 043 for ImportAttempts.SourceSize, schema integrity expectations, recovery size validation, and focused tests for completed/missing/mismatched/legacy recovery behavior. ImportApprovedBooks now records local file size in dry-run and normal import attempts.
+Files changed for this task: src/NzbDrone.Core/MediaFiles/BookImport/ImportAttempt.cs, src/NzbDrone.Core/MediaFiles/BookImport/ImportAttemptService.cs, src/NzbDrone.Core/MediaFiles/BookImport/ImportApprovedBooks.cs, src/NzbDrone.Core/Datastore/Migration/043_add_source_size_to_import_attempts.cs, src/NzbDrone.Core/Datastore/MigrationIntegrityCheck.cs, src/NzbDrone.Core.Test/Datastore/MigrationSchemaFixture.cs, src/NzbDrone.Core.Test/MediaFiles/ImportAttemptServiceFixture.cs, src/NzbDrone.Core.Test/MediaFiles/ImportApprovedBooksDryRunFixture.cs.
+Checks: `dotnet build src/NzbDrone.Mono/Readarr.Mono.csproj` passed; `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~ImportAttemptServiceFixture|FullyQualifiedName~ImportApprovedBooksDryRunFixture" --no-restore --no-build` passed 17/17; `dotnet build src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --no-restore` passed; `git diff --check` on touched files passed.
+Verification blocker: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~MigrationSchemaFixture" --no-restore --no-build` failed before assertions because the local macOS arm64 runner cannot load a compatible SQLite provider/native library (`SQLite.Interop.dll` in _tests is x86_64 and Microsoft.Data.Sqlite is missing).
+GitHub project update: BLOCKED because `gh` is not installed/authenticated in this environment and the available GitHub connector cannot list/edit project items.
+State: Uncommitted; existing unrelated dirty frontend/runtime changes preserved.
+Next: Install/authenticate GitHub CLI with project scope, update BLI005 project item to In review/progress with this note, then run migration schema tests in an environment with compatible SQLite native libraries.
+
+## 2026-06-14T19:57:17-05:00 | Codex | START
+Task: Production-readiness review for BLI005 import crash-safety changes.
+Scope: Re-check BLI005 import/journal code paths, close any remaining crash-safety gaps found in the touched area, and rerun focused verification.
+Checks: `tail -n 80 AGENT_LOG.md`, `git status --short --branch`, `gh auth status`.
+State: Worktree has additional unrelated edits outside BLI005; preserve them and avoid editing non-import areas.
+Next: Review filesystem-to-database import ordering, patch if needed, run focused tests/builds, and record outcome.
+
+## 2026-06-14T19:57:17-05:00 | Codex | BLOCKED
+Task: Keep BLI005 current in GitHub project during production-readiness pass.
+Issue: `gh auth status` still fails with `zsh:1: command not found: gh`, so project item status/body updates cannot be performed from this environment.
+Next: Continue local verification and diary updates; update GitHub project item once GitHub CLI/project credentials are available.

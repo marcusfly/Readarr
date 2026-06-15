@@ -12,7 +12,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
         /// <summary>
         /// Creates an attempt record in the Pending state before any file-system work begins.
         /// </summary>
-        ImportAttempt Begin(string sourcePath, string destinationPath, bool isDryRun);
+        ImportAttempt Begin(string sourcePath, string destinationPath, long sourceSize, bool isDryRun);
 
         /// <summary>Transitions an attempt from Pending to InProgress.</summary>
         void MarkInProgress(ImportAttempt attempt);
@@ -24,7 +24,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
         void MarkFailed(ImportAttempt attempt, string errorMessage);
 
         /// <summary>Transitions an attempt to RolledBack after crash recovery.</summary>
-        void MarkRolledBack(ImportAttempt attempt);
+        void MarkRolledBack(ImportAttempt attempt, string errorMessage = null);
 
         /// <summary>
         /// Returns all InProgress attempts from prior runs (for crash recovery on startup).
@@ -39,23 +39,27 @@ namespace NzbDrone.Core.MediaFiles.BookImport
     {
         private readonly IImportAttemptRepository _repository;
         private readonly IDiskProvider _diskProvider;
+        private readonly IMediaFileService _mediaFileService;
         private readonly Logger _logger;
 
         public ImportAttemptService(IImportAttemptRepository repository,
                                     IDiskProvider diskProvider,
+                                    IMediaFileService mediaFileService,
                                     Logger logger)
         {
             _repository = repository;
             _diskProvider = diskProvider;
+            _mediaFileService = mediaFileService;
             _logger = logger;
         }
 
-        public ImportAttempt Begin(string sourcePath, string destinationPath, bool isDryRun)
+        public ImportAttempt Begin(string sourcePath, string destinationPath, long sourceSize, bool isDryRun)
         {
             var attempt = new ImportAttempt
             {
                 SourcePath = sourcePath,
                 DestinationPath = destinationPath,
+                SourceSize = sourceSize,
                 Status = ImportAttemptStatus.Pending,
                 StartedAt = DateTime.UtcNow,
                 IsDryRun = isDryRun
@@ -86,10 +90,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             _repository.Update(attempt);
         }
 
-        public void MarkRolledBack(ImportAttempt attempt)
+        public void MarkRolledBack(ImportAttempt attempt, string errorMessage = null)
         {
             attempt.Status = ImportAttemptStatus.RolledBack;
             attempt.FinishedAt = DateTime.UtcNow;
+            attempt.ErrorMessage = errorMessage;
             _repository.Update(attempt);
         }
 
@@ -128,7 +133,9 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                 try
                 {
                     if (!string.IsNullOrWhiteSpace(attempt.DestinationPath) &&
-                        _diskProvider.FileExists(attempt.DestinationPath))
+                        _diskProvider.FileExists(attempt.DestinationPath) &&
+                        DestinationMatchesAttempt(attempt) &&
+                        DestinationIsTracked(attempt))
                     {
                         _logger.Info(
                             "Recovery: destination file exists for attempt {0} ({1}). Marking Completed.",
@@ -138,12 +145,13 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                     }
                     else
                     {
+                        var errorMessage = "Destination file missing or did not match the recorded source file size.";
                         _logger.Warn(
-                            "Recovery: destination file missing for attempt {0} ({1} → {2}). Marking RolledBack.",
+                            "Recovery: destination file missing or incomplete for attempt {0} ({1} -> {2}). Marking RolledBack.",
                             attempt.Id,
                             attempt.SourcePath,
                             attempt.DestinationPath);
-                        MarkRolledBack(attempt);
+                        MarkRolledBack(attempt, errorMessage);
                     }
                 }
                 catch (Exception ex)
@@ -151,6 +159,58 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                     _logger.Error(ex, "Recovery: failed to resolve orphaned import attempt {0}.", attempt.Id);
                 }
             }
+        }
+
+        private bool DestinationMatchesAttempt(ImportAttempt attempt)
+        {
+            if (attempt.SourceSize <= 0)
+            {
+                return true;
+            }
+
+            var destinationSize = _diskProvider.GetFileSize(attempt.DestinationPath);
+            if (destinationSize == attempt.SourceSize)
+            {
+                return true;
+            }
+
+            _logger.Warn(
+                "Recovery: destination file size mismatch for attempt {0}. Expected {1} bytes but found {2} bytes at {3}.",
+                attempt.Id,
+                attempt.SourceSize,
+                destinationSize,
+                attempt.DestinationPath);
+
+            return false;
+        }
+
+        private bool DestinationIsTracked(ImportAttempt attempt)
+        {
+            var bookFile = _mediaFileService.GetFileWithPath(attempt.DestinationPath);
+
+            if (bookFile == null)
+            {
+                _logger.Warn(
+                    "Recovery: destination file exists for attempt {0}, but no matching BookFile row was found for {1}.",
+                    attempt.Id,
+                    attempt.DestinationPath);
+
+                return false;
+            }
+
+            if (attempt.SourceSize <= 0 || bookFile.Size == attempt.SourceSize)
+            {
+                return true;
+            }
+
+            _logger.Warn(
+                "Recovery: BookFile row size mismatch for attempt {0}. Expected {1} bytes but found {2} bytes for {3}.",
+                attempt.Id,
+                attempt.SourceSize,
+                bookFile.Size,
+                attempt.DestinationPath);
+
+            return false;
         }
     }
 }

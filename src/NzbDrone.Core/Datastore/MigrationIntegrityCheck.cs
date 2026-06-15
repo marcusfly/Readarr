@@ -176,6 +176,7 @@ namespace NzbDrone.Core.Datastore
                 ("ImportAttempts", "Id"),
                 ("ImportAttempts", "SourcePath"),
                 ("ImportAttempts", "DestinationPath"),
+                ("ImportAttempts", "SourceSize"),
                 ("ImportAttempts", "Status"),
                 ("ImportAttempts", "StartedAt"),
                 ("ImportAttempts", "FinishedAt"),

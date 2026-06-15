@@ -1,4 +1,5 @@
 using System;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.MetadataSource.Identity;
 
 namespace NzbDrone.Core.MetadataSource.Contracts
@@ -7,12 +8,13 @@ namespace NzbDrone.Core.MetadataSource.Contracts
     {
         public const int CurrentContractVersion = 1;
 
-        public MetadataProviderDescriptor(string providerKey, string displayName, int priority, MetadataProviderCapability capabilities)
+        public MetadataProviderDescriptor(string providerKey, string displayName, int priority, MetadataProviderCapability capabilities, LibraryContentType contentTypes = LibraryContentType.Book)
         {
             ProviderKey = MetadataIdentifier.NormalizeProviderKey(providerKey);
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? throw new ArgumentException("Display name is required.", nameof(displayName)) : displayName.Trim();
             Priority = priority;
             Capabilities = capabilities;
+            ContentTypes = contentTypes;
         }
 
         public string ProviderKey { get; }
@@ -24,6 +26,8 @@ namespace NzbDrone.Core.MetadataSource.Contracts
         public int Priority { get; }
 
         public MetadataProviderCapability Capabilities { get; }
+
+        public LibraryContentType ContentTypes { get; }
 
         public bool Equals(MetadataProviderDescriptor other)
         {
@@ -41,7 +45,8 @@ namespace NzbDrone.Core.MetadataSource.Contracts
                    ContractVersion == other.ContractVersion &&
                    string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal) &&
                    Priority == other.Priority &&
-                   Capabilities == other.Capabilities;
+                   Capabilities == other.Capabilities &&
+                   ContentTypes == other.ContentTypes;
         }
 
         public override bool Equals(object obj)
@@ -59,6 +64,7 @@ namespace NzbDrone.Core.MetadataSource.Contracts
                 hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(DisplayName);
                 hash = (hash * 31) + Priority;
                 hash = (hash * 31) + (int)Capabilities;
+                hash = (hash * 31) + (int)ContentTypes;
                 return hash;
             }
         }

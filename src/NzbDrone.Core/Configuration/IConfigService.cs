@@ -59,6 +59,7 @@ namespace NzbDrone.Core.Configuration
         bool ShowRelativeDates { get; set; }
         bool EnableColorImpairedMode { get; set; }
         int UILanguage { get; set; }
+        bool SearchWhileTyping { get; set; }
 
         //Internal
         bool CleanupMetadataImages { get; set; }
@@ -68,6 +69,7 @@ namespace NzbDrone.Core.Configuration
         //Metadata
         string MetadataProvider { get; set; }
         string MetadataSource { get; set; }
+        string MetadataSearchProviders { get; set; }
         string MetadataOpenLibrarySource { get; set; }
         string MetadataRreadingGlassesSource { get; set; }
         WriteAudioTagsType WriteAudioTags { get; set; }

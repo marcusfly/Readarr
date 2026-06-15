@@ -43,8 +43,9 @@ namespace NzbDrone.Core.MetadataSource
 
         public List<Book> SearchForNewBook(string title, string author, bool getAllEditions = true)
         {
-            var provider = ResolveProvider(MetadataProviderCapability.BookSearch);
-            return NormalizeSearchResults(provider, provider.SearchForNewBook(title, author, getAllEditions));
+            return SearchBySourcePreference(
+                MetadataProviderCapability.BookSearch,
+                provider => provider.SearchForNewBook(title, author, getAllEditions));
         }
 
         public List<Book> SearchByIsbn(string isbn)
@@ -65,7 +66,9 @@ namespace NzbDrone.Core.MetadataSource
 
         public List<Author> SearchForNewAuthor(string title)
         {
-            return ResolveProvider(MetadataProviderCapability.AuthorSearch).SearchForNewAuthor(title);
+            return SearchForAllProviders(
+                MetadataProviderCapability.AuthorSearch,
+                provider => provider.SearchForNewAuthor(title));
         }
 
         public List<object> SearchForNewEntity(string title)
@@ -120,6 +123,109 @@ namespace NzbDrone.Core.MetadataSource
                 .Where(x => SupportsCapability(x, capability))
                 .OrderByDescending(x => string.Equals(x.Descriptor.ProviderKey, activeProviderKey, StringComparison.OrdinalIgnoreCase))
                 .ThenByDescending(x => x.Descriptor.Priority);
+        }
+
+        private IEnumerable<IMetadataProviderV1> GetSearchProviders(MetadataProviderCapability capability)
+        {
+            var providerKeys = GetConfiguredSearchProviders().ToList();
+            if (!providerKeys.Any())
+            {
+                return GetProviders(capability).Take(1);
+            }
+
+            var providers = GetProviders(capability)
+                .ToDictionary(x => NormalizeProviderKey(x.Descriptor.ProviderKey), x => x, StringComparer.OrdinalIgnoreCase);
+
+            var orderedProviders = new List<IMetadataProviderV1>();
+            var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var providerKey in providerKeys)
+            {
+                if (providers.TryGetValue(providerKey, out var provider) &&
+                    added.Add(providerKey))
+                {
+                    orderedProviders.Add(provider);
+                }
+            }
+
+            if (!orderedProviders.Any())
+            {
+                return GetProviders(capability).Take(1);
+            }
+
+            return orderedProviders;
+        }
+
+        private IEnumerable<string> GetConfiguredSearchProviders()
+        {
+            if (_configService.MetadataSearchProviders.IsNullOrWhiteSpace())
+            {
+                return Array.Empty<string>();
+            }
+
+            return _configService.MetadataSearchProviders
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => NormalizeProviderKey(x))
+                .Where(x => x.IsNotNullOrWhiteSpace());
+        }
+
+        private List<Book> SearchBySourcePreference(MetadataProviderCapability capability,
+                                                  Func<IMetadataProviderV1, List<Book>> search)
+        {
+            var results = new List<Book>();
+
+            foreach (var provider in GetSearchProviders(capability))
+            {
+                try
+                {
+                    var searchResults = NormalizeSearchResults(provider, search(provider));
+                    results.AddRange(searchResults);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Metadata provider {0} failed while searching for books", provider.Descriptor.ProviderKey);
+                }
+            }
+
+            return DeduplicateByEditionIdentity(results);
+        }
+
+        private List<Author> SearchForAllProviders(MetadataProviderCapability capability,
+                                                  Func<IMetadataProviderV1, List<Author>> search)
+        {
+            var results = new List<Author>();
+
+            foreach (var provider in GetSearchProviders(capability))
+            {
+                try
+                {
+                    results.AddRange(search(provider));
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Metadata provider {0} failed while searching for author", provider.Descriptor.ProviderKey);
+                }
+            }
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var deduplicated = new List<Author>();
+
+            foreach (var author in results)
+            {
+                var authorId = author?.Metadata?.Value?.ForeignAuthorId ?? author?.ForeignAuthorId;
+                if (authorId.IsNullOrWhiteSpace())
+                {
+                    deduplicated.Add(author);
+                    continue;
+                }
+
+                if (seen.Add(authorId))
+                {
+                    deduplicated.Add(author);
+                }
+            }
+
+            return deduplicated;
         }
 
         private List<Book> SearchWithFallback(MetadataProviderCapability capability,

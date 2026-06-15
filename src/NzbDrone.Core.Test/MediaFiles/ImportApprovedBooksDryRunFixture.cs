@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -77,7 +78,7 @@ namespace NzbDrone.Core.Test.MediaFiles
 
             // Stub import attempt service so Begin returns a usable object.
             Mocker.GetMock<IImportAttemptService>()
-                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<bool>()))
                   .Returns(new ImportAttempt { Id = 1, Status = ImportAttemptStatus.Pending });
         }
 
@@ -106,7 +107,7 @@ namespace NzbDrone.Core.Test.MediaFiles
             Subject.Import(_approvedDecisions, false, dryRun: true);
 
             Mocker.GetMock<IImportAttemptService>()
-                  .Verify(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), true),
+                  .Verify(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), true),
                           Times.Exactly(_approvedDecisions.Count));
         }
 
@@ -125,13 +126,53 @@ namespace NzbDrone.Core.Test.MediaFiles
         {
             // Reset so the attempt returned by Begin starts Pending (required before MarkInProgress).
             Mocker.GetMock<IImportAttemptService>()
-                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), false))
+                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), false))
                   .Returns(new ImportAttempt { Id = 2, Status = ImportAttemptStatus.Pending });
 
             Subject.Import(_approvedDecisions, false, dryRun: false);
 
             Mocker.GetMock<IImportAttemptService>()
-                  .Verify(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), false), Times.Once());
+                  .Verify(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), false), Times.Once());
+        }
+
+        [Test]
+        public void normal_import_should_complete_attempt_after_media_file_insert()
+        {
+            var attempt = new ImportAttempt { Id = 3, Status = ImportAttemptStatus.Pending };
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), false))
+                  .Returns(attempt);
+
+            Subject.Import(_approvedDecisions, false, dryRun: false);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Verify(s => s.AddMany(It.IsAny<List<BookFile>>()), Times.Once());
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Verify(s => s.MarkCompleted(attempt), Times.Once());
+        }
+
+        [Test]
+        public void normal_import_should_not_complete_attempt_when_media_file_insert_fails()
+        {
+            var attempt = new ImportAttempt { Id = 4, Status = ImportAttemptStatus.Pending };
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), false))
+                  .Returns(attempt);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.AddMany(It.IsAny<List<BookFile>>()))
+                  .Throws(new InvalidOperationException("db insert failed"));
+
+            Assert.Throws<InvalidOperationException>(() => Subject.Import(_approvedDecisions, false, dryRun: false));
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Verify(s => s.MarkCompleted(It.IsAny<ImportAttempt>()), Times.Never());
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Verify(s => s.MarkFailed(It.IsAny<ImportAttempt>(), It.IsAny<string>()), Times.Never());
         }
     }
 }
