@@ -636,6 +636,24 @@ Changes: Added `src/NzbDrone.Core/RootFolders/AudiobookPathBackfillService.cs` t
 Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter FullyQualifiedName~AudiobookPathBackfillServiceFixture --logger "console;verbosity=minimal"` (pass); `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~DefaultRootFolderServiceFixture|FullyQualifiedName~AudiobookPathBackfillServiceFixture|FullyQualifiedName~BookFilePathBuilderFixture|FullyQualifiedName~MoveAuthorServiceFixture" --logger "console;verbosity=minimal"` (pass); `git diff --check` (pass).
 State: Committed as `b743d7449` and pushed to `origin/mfly`.
 Next: Continue the remaining BLI011 manual/runtime checks for Calibre separation and live author-add/import validation.
+## 2026-06-15T11:40:24-05:00 | Codex | START
+Task: Reconcile the magazine plans and turn the remaining follow-up work into a new P1 backlog item.
+Scope: `/Users/mfly/Downloads/files.zip` plan docs, the live GitHub project board, and the project diary.
+Changes: None yet.
+Checks: Read `00-overview.md` through `08-corrections.md`, compared them against the current magazine code paths, and confirmed the board still only tracks the shipped magazine work plus BLI011.
+State: Clean worktree; no product code modified yet.
+Next: Create a new P1 magazine backlog item for the residual hardening/packaging/validation work, then log the board update in this diary.
+## 2026-06-15T11:40:24-05:00 | Codex | DECISION
+Task: Scope the new magazine backlog item to the residual hardening work only.
+Decision: Treat the core magazine feature path as implemented and leave the remaining backlog item focused on the open metadata provider chain, seed-cache packaging, archive-format quality mapping, and live validation.
+Reason: The current code already covers the major magazine schema, API, search, command, and frontend surfaces. The remaining plan items are the unresolved follow-ups that still need a dedicated P1 track.
+Impact: The new backlog item can stay narrow, actionable, and clearly separate from the delivered BLI012 feature work.
+## 2026-06-15T11:41:33-05:00 | Codex | DONE
+Task: Reconcile the magazine plans and document the remaining follow-up work as a new P1 backlog item.
+Changes: Added GitHub project item `BLI013 - Magazine Hardening and Validation` with P1 priority and Backlog status. The item captures the remaining magazine hardening scope: provider chain/seed cache packaging, archive-format quality mapping, and live validation.
+Checks: Read `plan/00-overview.md` through `plan/08-corrections.md`; compared plan claims to current magazine code; verified project board item creation and status with `gh project item-list 1 --owner @me --format json`.
+State: Uncommitted diary update only; project board updated; no product code changed.
+Next: Implement the new P1 magazine backlog item when it becomes the active workstream.
 Latest startup log scan (`readarr-host.out.log`) shows no WARN/ERROR/ERROR regex matches after `initialize` success.
 Current open issue: process lifecycle in this sandbox is short-lived after each shell call; use the provided command below for persistent local runs.
 ## 2026-06-14T16:20:00-05:00 | Codex | START
