@@ -971,6 +971,14 @@ Exact next action: Re-run the schema fixture in an environment with the proper S
 Task: Clean and checkpoint current Readarr worktree.
 Areas: BLI005/BLI011 source changes, AGENT_LOG, and generated `.readarr-data` runtime artifacts.
 
+## 2026-06-14T22:23:52-05:00 | Codex | DONE
+Task: Clean and checkpoint current Readarr worktree.
+Summary: The code changes were checkpointed in commit `669b0209d` and the generated runtime artifacts were removed from the worktree. The local tree is now clean.
+Files changed: AGENT_LOG.md plus the committed BLI005/BLI011 source files in `669b0209d`.
+Checks: `git status --short --branch` is clean after restoring `.readarr-data` and removing untracked runtime folders.
+State: Committed locally, not pushed.
+Exact next action: None required for the cleanup request.
+
 ## 2026-06-14T22:06:06-05:00 | Codex | START
 Task: BLI011 - Full testing, regression, and build verification.
 Scope: Run full frontend/backend verification over the current uncommitted BLI011 work without reverting unrelated .readarr-data or plan/ changes.
