@@ -171,8 +171,13 @@ namespace NzbDrone.Host
                 options.PayloadSerializerOptions = STJson.GetSerializerSettings();
             });
 
-            services.AddDataProtection()
+            var dataProtectionBuilder = services.AddDataProtection()
                 .PersistKeysToFileSystem(new DirectoryInfo(Configuration["dataProtectionFolder"]));
+
+            if (OsInfo.IsWindows)
+            {
+                dataProtectionBuilder.ProtectKeysWithDpapi();
+            }
 
             services.AddSingleton<IAuthorizationPolicyProvider, UiAuthorizationPolicyProvider>();
             services.AddSingleton<IAuthorizationHandler, UiAuthorizationHandler>();

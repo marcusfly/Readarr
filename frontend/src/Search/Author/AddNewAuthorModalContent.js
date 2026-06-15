@@ -3,6 +3,8 @@ import React, { Component } from 'react';
 import TextTruncate from 'react-text-truncate';
 import AuthorPoster from 'Author/AuthorPoster';
 import CheckInput from 'Components/Form/CheckInput';
+import Alert from 'Components/Alert';
+import Button from 'Components/Link/Button';
 import SpinnerButton from 'Components/Link/SpinnerButton';
 import ModalBody from 'Components/Modal/ModalBody';
 import ModalContent from 'Components/Modal/ModalContent';
@@ -46,11 +48,15 @@ class AddNewAuthorModalContent extends Component {
       disambiguation,
       overview,
       images,
+      rootFolderPath,
       isAdding,
       isSmallScreen,
       onModalClose,
+      isAddDisabled,
       ...otherProps
     } = this.props;
+
+    const hasRootFolder = !!(rootFolderPath && rootFolderPath.value);
 
     return (
       <ModalContent onModalClose={onModalClose}>
@@ -103,7 +109,20 @@ class AddNewAuthorModalContent extends Component {
           </div>
         </ModalBody>
 
-        <ModalFooter className={styles.modalFooter}>
+          <ModalFooter className={styles.modalFooter}>
+          { !hasRootFolder &&
+            <Alert kind={kinds.WARNING}>
+              Configure a root folder before adding authors.
+              <Button
+                className={styles.addRootFolderButton}
+                to="/settings/mediamanagement"
+                kind={kinds.PRIMARY}
+              >
+                {translate('AddRootFolder')}
+              </Button>
+            </Alert>
+          }
+
           <label className={styles.searchForMissingBooksLabelContainer}>
             <span className={styles.searchForMissingBooksLabel}>
               Start search for missing books
@@ -122,6 +141,7 @@ class AddNewAuthorModalContent extends Component {
             className={styles.addButton}
             kind={kinds.SUCCESS}
             isSpinning={isAdding}
+            isDisabled={isAddDisabled || !hasRootFolder}
             onPress={this.onAddAuthorPress}
           >
             Add {authorName}
@@ -141,6 +161,7 @@ AddNewAuthorModalContent.propTypes = {
   addError: PropTypes.object,
   isSmallScreen: PropTypes.bool.isRequired,
   onModalClose: PropTypes.func.isRequired,
+  isAddDisabled: PropTypes.bool.isRequired,
   onAddAuthorPress: PropTypes.func.isRequired
 };
 

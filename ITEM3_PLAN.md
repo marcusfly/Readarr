@@ -1,5 +1,8 @@
 # Item 3 Plan
 
+**Status:** Complete. This document is historical handoff context; the live status
+register is [BACKLOG_STATUS.md](BACKLOG_STATUS.md).
+
 ## Objective
 Capture the critical Readarr workflow in repeatable CI tests so modernization work cannot break user-visible behavior without detection.
 

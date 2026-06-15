@@ -87,6 +87,7 @@ namespace NzbDrone.Core.Test.Datastore
                 "Id",
                 "SourcePath",
                 "DestinationPath",
+                "SourceSize",
                 "Status",
                 "StartedAt",
                 "FinishedAt",

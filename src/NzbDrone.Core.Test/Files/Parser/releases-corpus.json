@@ -1,0 +1,82 @@
+[
+  {
+    "ReleaseTitle": "Brandon Sanderson - The Way of Kings (2010) EPUB",
+    "ExpectedAuthor": "Brandon Sanderson",
+    "ExpectedBook": "The Way of Kings",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "standard"
+  },
+  {
+    "ReleaseTitle": "Frank Herbert - Dune - 1965 EPUB",
+    "ExpectedAuthor": "Frank Herbert",
+    "ExpectedBook": "Dune",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "standard"
+  },
+  {
+    "ReleaseTitle": "George Orwell - Nineteen Eighty-Four [EPUB]",
+    "ExpectedAuthor": "George Orwell",
+    "ExpectedBook": "Nineteen Eighty-Four",
+    "ExpectedConfidenceMin": 0.65,
+    "ExpectedConfidenceMax": 0.69,
+    "Category": "missing_year"
+  },
+  {
+    "ReleaseTitle": "Ursula K Le Guin - The Left Hand of Darkness (MOBI)",
+    "ExpectedAuthor": "Ursula K Le Guin",
+    "ExpectedBook": "The Left Hand of Darkness",
+    "ExpectedConfidenceMin": 0.65,
+    "ExpectedConfidenceMax": 0.69,
+    "Category": "missing_year"
+  },
+  {
+    "ReleaseTitle": "Stephen King - It (Audiobook) (2020) MP3 64kbps",
+    "ExpectedAuthor": "Stephen King",
+    "ExpectedBook": "It",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "audiobook"
+  },
+  {
+    "ReleaseTitle": "Patrick Rothfuss - The Name of the Wind (Unabridged) - 2018 - M4B",
+    "ExpectedAuthor": "Patrick Rothfuss",
+    "ExpectedBook": "The Name of the Wind",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "audiobook"
+  },
+  {
+    "ReleaseTitle": "Isaac Asimov - Discography 1950-1992",
+    "ExpectedAuthor": "Isaac Asimov",
+    "ExpectedBook": "Discography",
+    "ExpectedConfidenceMin": 0.9,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "discography"
+  },
+  {
+    "ReleaseTitle": "Cormac McCarthy - Blood Meridian (1985) EPUB Retail",
+    "ExpectedAuthor": "Cormac McCarthy",
+    "ExpectedBook": "Blood Meridian",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "ebook"
+  },
+  {
+    "ReleaseTitle": "Neil Gaiman - American Gods (2001) PDF",
+    "ExpectedAuthor": "Neil Gaiman",
+    "ExpectedBook": "American Gods",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "ebook"
+  },
+  {
+    "ReleaseTitle": "J.R.R. Tolkien - The Hobbit - Annotated Edition (2002) EPUB",
+    "ExpectedAuthor": "J.R.R. Tolkien",
+    "ExpectedBook": "The Hobbit",
+    "ExpectedConfidenceMin": 0.95,
+    "ExpectedConfidenceMax": 1.0,
+    "Category": "edition_variant"
+  }
+]

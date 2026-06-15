@@ -66,6 +66,10 @@
   composes: button from '~Components/Link/SpinnerButton.css';
 }
 
+.addRootFolderButton {
+  margin-left: 8px;
+}
+
 @media only screen and (max-width: $breakpointSmall) {
   .modalFooter {
     display: block;

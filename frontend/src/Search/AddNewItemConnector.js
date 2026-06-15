@@ -12,12 +12,14 @@ function createMapStateToProps() {
     (state) => state.search,
     (state) => state.authors.items.length,
     (state) => state.router.location,
-    (search, existingAuthorsCount, location) => {
+    (state) => state.settings.ui.item,
+    (search, existingAuthorsCount, location, uiSettings) => {
       const { params } = parseUrl(location.search);
 
       return {
         ...search,
         term: params.term,
+        searchWhileTyping: uiSettings.searchWhileTyping === true,
         hasExistingAuthors: existingAuthorsCount > 0
       };
     }
@@ -31,25 +33,14 @@ const mapDispatchToProps = {
 };
 
 class AddNewItemConnector extends Component {
-
   //
   // Lifecycle
-
-  constructor(props, context) {
-    super(props, context);
-
-    this._searchTimeout = null;
-  }
 
   componentDidMount() {
     this.props.fetchRootFolders();
   }
 
   componentWillUnmount() {
-    if (this._searchTimeout) {
-      clearTimeout(this._searchTimeout);
-    }
-
     this.props.clearSearchResults();
   }
 
@@ -57,16 +48,10 @@ class AddNewItemConnector extends Component {
   // Listeners
 
   onSearchChange = (term) => {
-    if (this._searchTimeout) {
-      clearTimeout(this._searchTimeout);
-    }
-
-    if (term.trim() === '') {
+    if (term === '') {
       this.props.clearSearchResults();
     } else {
-      this._searchTimeout = setTimeout(() => {
-        this.props.getSearchResults({ term });
-      }, 300);
+      this.props.getSearchResults({ term });
     }
   };
 
@@ -96,6 +81,7 @@ class AddNewItemConnector extends Component {
 
 AddNewItemConnector.propTypes = {
   term: PropTypes.string,
+  searchWhileTyping: PropTypes.bool,
   getSearchResults: PropTypes.func.isRequired,
   clearSearchResults: PropTypes.func.isRequired,
   fetchRootFolders: PropTypes.func.isRequired

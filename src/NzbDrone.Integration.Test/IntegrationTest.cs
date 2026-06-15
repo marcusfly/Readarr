@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using NLog;
@@ -17,6 +18,7 @@ namespace NzbDrone.Integration.Test
     {
         protected static int StaticPort = 8787;
 
+        protected OpenLibraryStubServer _openLibraryStubServer;
         protected NzbDroneRunner _runner;
 
         public override string AuthorRootFolder => GetTempDirectory("AuthorRootFolder");
@@ -33,6 +35,9 @@ namespace NzbDrone.Integration.Test
         {
             Port = Interlocked.Increment(ref StaticPort);
 
+            var repoRoot = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", ".."));
+            _openLibraryStubServer = new OpenLibraryStubServer(repoRoot);
+
             PostgresOptions = PostgresDatabase.GetTestOptions();
 
             if (PostgresOptions?.Host != null)
@@ -48,7 +53,17 @@ namespace NzbDrone.Integration.Test
 
         protected override void InitializeTestTarget()
         {
-            // Make sure tasks have been initialized so the config put below doesn't cause errors
+            var appData = _runner.AppData;
+            _runner.Kill(false);
+            _runner.UpsertConfigValue("MetadataProvider", "openlibrary");
+            _runner.UpsertConfigValue("MetadataSource", string.Empty);
+            _runner.UpsertConfigValue("MetadataOpenLibrarySource", _openLibraryStubServer.BaseUrl);
+            _runner.UpsertConfigValue("MetadataRreadingGlassesSource", string.Empty);
+
+            _runner.Start();
+            Assert.That(_runner.AppData, Is.EqualTo(appData));
+
+            // Make sure tasks have been initialized before the workflow fixture mutates config.
             WaitForCompletion(() => Tasks.All().SelectList(x => x.TaskName).Contains("RssSync"), 30000);
 
             var indexer = Indexers.Schema().FirstOrDefault(i => i.Implementation == nameof(Newznab));
@@ -65,16 +80,12 @@ namespace NzbDrone.Integration.Test
             indexer.Implementation = nameof(Newznab);
             indexer.Name = "NewznabTest";
             indexer.Protocol = Core.Indexers.DownloadProtocol.Usenet;
-
-            // Change Console Log Level to Debug so we get more details.
-            var config = HostConfig.Get(1);
-            config.ConsoleLogLevel = "Debug";
-            HostConfig.Put(config);
         }
 
         protected override void StopTestTarget()
         {
             _runner.Kill();
+            _openLibraryStubServer?.Dispose();
             if (PostgresOptions?.Host != null)
             {
                 DropPostgresDb(PostgresOptions);

@@ -49,7 +49,8 @@ namespace NzbDrone.Core.Indexers.Newznab
                 {
                     Value = category.Id,
                     Name = category.Name,
-                    Hint = $"({category.Id})"
+                    Hint = $"({category.Id})",
+                    ContentTypes = (int)NewznabCategoryContentTypes.GetContentTypes(category)
                 });
 
                 if (category.Subcategories != null)
@@ -61,7 +62,8 @@ namespace NzbDrone.Core.Indexers.Newznab
                             Value = subcat.Id,
                             Name = subcat.Name,
                             Hint = $"({subcat.Id})",
-                            ParentValue = category.Id
+                            ParentValue = category.Id,
+                            ContentTypes = (int)NewznabCategoryContentTypes.GetContentTypes(subcat)
                         });
                     }
                 }

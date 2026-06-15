@@ -2,8 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.SQLite;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading;
 using NLog;
 using NLog.Common;
@@ -96,56 +98,78 @@ namespace NzbDrone.Common.Instrumentation.Sentry
         private bool _disposed;
 
         private bool _unauthorized;
+        private bool _sentryInitialized;
 
         public bool FilterEvents { get; set; }
         public bool SentryEnabled { get; set; }
 
         public SentryTarget(string dsn, IAppFolderInfo appFolderInfo)
         {
-            _sdk = SentrySdk.Init(o =>
-                                  {
-                                      o.Dsn = dsn;
-                                      o.AttachStacktrace = true;
-                                      o.MaxBreadcrumbs = 200;
-                                      o.Release = $"{BuildInfo.AppName}@{BuildInfo.Release}";
-                                      o.SetBeforeSend(x => SentryCleanser.CleanseEvent(x));
-                                      o.SetBeforeBreadcrumb(x => SentryCleanser.CleanseBreadcrumb(x));
-                                      o.Environment = BuildInfo.Branch;
-
-                                      // Crash free run statistics (sends a ping for healthy and for crashes sessions)
-                                      o.AutoSessionTracking = false;
-
-                                      // Caches files in the event device is offline
-                                      // Sentry creates a 'sentry' sub directory, no need to concat here
-                                      o.CacheDirectoryPath = appFolderInfo.GetAppDataPath();
-
-                                      // default environment is production
-                                      if (!RuntimeInfo.IsProduction)
-                                      {
-                                          if (RuntimeInfo.IsDevelopment)
-                                          {
-                                              o.Environment = "development";
-                                          }
-                                          else if (RuntimeInfo.IsTesting)
-                                          {
-                                              o.Environment = "testing";
-                                          }
-                                          else
-                                          {
-                                              o.Environment = "other";
-                                          }
-                                      }
-                                  });
-
-            InitializeScope();
-
             _debounce = new SentryDebounce();
 
-            // initialize to true and reconfigure later
-            // Otherwise it will default to false and any errors occuring
-            // before config file gets read will not be filtered
-            FilterEvents = true;
-            SentryEnabled = true;
+            try
+            {
+                _sdk = SentrySdk.Init(o =>
+                                      {
+                                          o.Dsn = dsn;
+                                          o.AttachStacktrace = true;
+                                          o.MaxBreadcrumbs = 200;
+                                          o.Release = $"{BuildInfo.AppName}@{BuildInfo.Release}";
+                                          o.SetBeforeSend(x => SentryCleanser.CleanseEvent(x));
+                                          o.SetBeforeBreadcrumb(x => SentryCleanser.CleanseBreadcrumb(x));
+                                          o.Environment = BuildInfo.Branch;
+
+                                          // Crash free run statistics (sends a ping for healthy and for crashes sessions)
+                                          o.AutoSessionTracking = false;
+
+                                          // Caches files in the event device is offline.
+                                          // Sentry creates a 'sentry' sub directory, no need to concat here.
+                                          o.CacheDirectoryPath = GetCacheDirectoryPath(appFolderInfo);
+
+                                          // default environment is production
+                                          if (!RuntimeInfo.IsProduction)
+                                          {
+                                              if (RuntimeInfo.IsDevelopment)
+                                              {
+                                                  o.Environment = "development";
+                                              }
+                                              else if (RuntimeInfo.IsTesting)
+                                              {
+                                                  o.Environment = "testing";
+                                              }
+                                              else
+                                              {
+                                                  o.Environment = "other";
+                                              }
+                                          }
+                                      });
+
+                InitializeScope();
+
+                // initialize to true and reconfigure later
+                // Otherwise it will default to false and any errors occuring
+                // before config file gets read will not be filtered
+                FilterEvents = true;
+                SentryEnabled = true;
+                _sentryInitialized = true;
+            }
+            catch (Exception ex)
+            {
+                InternalLogger.Warn(ex, "Unable to initialize Sentry. Sentry target will be disabled.");
+                FilterEvents = false;
+                SentryEnabled = false;
+            }
+        }
+
+        private static string GetCacheDirectoryPath(IAppFolderInfo appFolderInfo)
+        {
+            var appDataPath = appFolderInfo.GetAppDataPath();
+            if (!string.IsNullOrWhiteSpace(appDataPath) && Directory.Exists(appDataPath) && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return appDataPath;
+            }
+
+            return Path.Combine(Path.GetTempPath(), "Sentry");
         }
 
         public void InitializeScope()
@@ -282,6 +306,11 @@ namespace NzbDrone.Common.Instrumentation.Sentry
         protected override void Write(LogEventInfo logEvent)
         {
             if (_unauthorized || !SentryEnabled)
+            {
+                return;
+            }
+
+            if (!_sentryInitialized)
             {
                 return;
             }

@@ -10,6 +10,7 @@ using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.Contracts;
 using NzbDrone.Core.MetadataSource.Identity;
 using NzbDrone.Core.Test.Framework;
+using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.MetadataSource
 {
@@ -104,12 +105,98 @@ namespace NzbDrone.Core.Test.MetadataSource
 
             var result = Subject.SearchForNewBook("guards", "pratchett");
 
-            result.Should().BeSameAs(expected);
+            result.Should().HaveCount(1);
+            result.Single().Editions.Should().NotBeNull();
             result.Single().AuthorMetadata.Value.ForeignAuthorId.Should().Be(metadataId);
             result.Single().Author.Value.Metadata.Value.Name.Should().Be("Terry Pratchett");
             _rreadingGlassesProvider.Verify(x => x.SearchForNewBook("guards", "pratchett", true), Times.Once);
             _rreadingGlassesProvider.Verify(x => x.GetBookInfo("book-1"), Times.Once);
             _openLibraryProvider.Verify(x => x.SearchForNewBook(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+        }
+
+        [Test]
+        public void should_route_book_search_to_selected_providers()
+        {
+            var openLibraryMetadataId = MetadataIdentifier.Create("openlibrary", MetadataEntityType.Author, "1").ToString();
+            var rreadingMetadataId = MetadataIdentifier.Create("rreading-glasses", MetadataEntityType.Author, "2").ToString();
+
+            var openLibrarySearchResults = new List<Book>
+            {
+                new Book
+                {
+                    ForeignBookId = "book-1",
+                    AuthorMetadata = new AuthorMetadata { ForeignAuthorId = openLibraryMetadataId, Name = "Open Library Author" },
+                    Editions = new List<Edition>
+                    {
+                        new Edition { ForeignEditionId = "edition-1", Isbn13 = "9781111111111", Monitored = true }
+                    }
+                }
+            };
+
+            var rreadingSearchResults = new List<Book>
+            {
+                new Book
+                {
+                    ForeignBookId = "book-2",
+                    AuthorMetadata = new AuthorMetadata { ForeignAuthorId = rreadingMetadataId, Name = "Rreading Glasses Author" },
+                    Editions = new List<Edition>
+                    {
+                        new Edition { ForeignEditionId = "edition-2", Isbn13 = "9782222222222", Monitored = true },
+                        new Edition { ForeignEditionId = "edition-3", Isbn13 = "9782222222222", Monitored = false },
+                        new Edition { ForeignEditionId = "edition-4", Isbn13 = "9783333333333", Monitored = true }
+                    }
+                }
+            };
+
+            Mocker.GetMock<IConfigService>()
+                .SetupGet(x => x.MetadataProvider)
+                .Returns("openlibrary");
+
+            Mocker.GetMock<IConfigService>()
+                .SetupGet(x => x.MetadataSearchProviders)
+                .Returns("openlibrary, rreading-glasses");
+
+            _openLibraryProvider
+                .Setup(x => x.SearchForNewBook("guardians", "pratchett", true))
+                .Returns(openLibrarySearchResults);
+
+            _rreadingGlassesProvider
+                .Setup(x => x.SearchForNewBook("guardians", "pratchett", true))
+                .Returns(rreadingSearchResults);
+
+            var result = Subject.SearchForNewBook("guardians", "pratchett", true);
+
+            result.Should().HaveCount(2);
+            result.Sum(x => x.Editions.Value.Count).Should().Be(3);
+            _openLibraryProvider.Verify(x => x.SearchForNewBook("guardians", "pratchett", true), Times.Once);
+            _rreadingGlassesProvider.Verify(x => x.SearchForNewBook("guardians", "pratchett", true), Times.Once);
+            _openLibraryProvider.Verify(x => x.GetBookInfo(It.IsAny<string>()), Times.Never);
+            _rreadingGlassesProvider.Verify(x => x.GetBookInfo(It.IsAny<string>()), Times.Never);
+        }
+
+        [Test]
+        public void should_route_author_search_to_selected_providers()
+        {
+            var openLibraryAuthor = new Author { Metadata = new AuthorMetadata { ForeignAuthorId = "openlibrary:author:OL100", Name = "Neil Gaiman" } };
+            var rreadingAuthor = new Author { Metadata = new AuthorMetadata { ForeignAuthorId = "rreading-glasses:author:RG100", Name = "Neil Gaiman" } };
+
+            Mocker.GetMock<IConfigService>()
+                .SetupGet(x => x.MetadataSearchProviders)
+                .Returns("rreading-glasses,openlibrary");
+
+            _openLibraryProvider
+                .Setup(x => x.SearchForNewAuthor("neil"))
+                .Returns(new List<Author> { openLibraryAuthor });
+
+            _rreadingGlassesProvider
+                .Setup(x => x.SearchForNewAuthor("neil"))
+                .Returns(new List<Author> { rreadingAuthor });
+
+            var result = Subject.SearchForNewAuthor("neil");
+
+            result.Should().HaveCount(2);
+            _openLibraryProvider.Verify(x => x.SearchForNewAuthor("neil"), Times.Once);
+            _rreadingGlassesProvider.Verify(x => x.SearchForNewAuthor("neil"), Times.Once);
         }
 
         [Test]
@@ -178,6 +265,7 @@ namespace NzbDrone.Core.Test.MetadataSource
             result[0].ForeignBookId.Should().Be("openlibrary:work:OL1W");
             _rreadingGlassesProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
             _openLibraryProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
+            ExceptionVerification.ExpectedWarns(1);
         }
 
         private Mock<IMetadataProviderV1> CreateProvider(string providerKey, int priority, MetadataProviderCapability capabilities)

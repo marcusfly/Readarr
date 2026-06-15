@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Text;
 using FluentAssertions;
 using NLog;
 using NzbDrone.Common.Serializer;
@@ -12,16 +14,25 @@ namespace NzbDrone.Integration.Test.Client
 {
     public class ClientBase
     {
+        private const string JsonContentType = "application/json";
+
         protected readonly RestClient _restClient;
         protected readonly string _resource;
         protected readonly string _apiKey;
         protected readonly Logger _logger;
+        private readonly bool _assertDisableCache;
 
         public ClientBase(RestClient restClient, string apiKey, string resource)
+            : this(restClient, apiKey, resource, true)
+        {
+        }
+
+        protected ClientBase(RestClient restClient, string apiKey, string resource, bool assertDisableCache)
         {
             _restClient = restClient;
             _resource = resource;
             _apiKey = apiKey;
+            _assertDisableCache = assertDisableCache;
 
             _logger = LogManager.GetLogger("REST");
         }
@@ -30,7 +41,6 @@ namespace NzbDrone.Integration.Test.Client
         {
             var request = new RestRequest(_resource + "/" + command.Trim('/'));
 
-            request.AddHeader("Authorization", _apiKey);
             request.AddHeader("X-Api-Key", _apiKey);
 
             return request;
@@ -38,7 +48,7 @@ namespace NzbDrone.Integration.Test.Client
 
         public string Execute(RestRequest request, HttpStatusCode statusCode)
         {
-            _logger.Info("{0}: {1}", request.Method, _restClient.BuildUri(request));
+            LogRequest(request);
 
             var response = _restClient.Execute(request);
             _logger.Info("Response: {0}", response.Content);
@@ -47,8 +57,6 @@ namespace NzbDrone.Integration.Test.Client
             {
                 throw response.ErrorException;
             }
-
-            AssertDisableCache(response);
 
             response.ErrorMessage.Should().BeNullOrWhiteSpace();
 
@@ -63,6 +71,52 @@ namespace NzbDrone.Integration.Test.Client
             var content = Execute(request, statusCode);
 
             return Json.Deserialize<T>(content);
+        }
+
+        internal T ExecuteJson<T>(RestRequest request, string body, HttpStatusCode statusCode)
+            where T : class, new()
+        {
+            LogRequest(request, body);
+
+            using var httpClient = new HttpClient();
+            using var httpRequest = new HttpRequestMessage(new HttpMethod(request.Method.ToString().ToUpperInvariant()), _restClient.BuildUri(request));
+            httpRequest.Headers.Add("X-Api-Key", _apiKey);
+            httpRequest.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue(JsonContentType));
+
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                httpRequest.Content = new StringContent(body, Encoding.UTF8, JsonContentType);
+            }
+
+            using var response = httpClient.SendAsync(httpRequest).GetAwaiter().GetResult();
+            var content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+            _logger.Info("Response: {0}", content);
+
+            if (!response.IsSuccessStatusCode && response.StatusCode != statusCode)
+            {
+                response.StatusCode.Should().Be(statusCode, content ?? string.Empty);
+            }
+            else
+            {
+                response.StatusCode.Should().Be(statusCode, content ?? string.Empty);
+            }
+
+            return string.IsNullOrWhiteSpace(content) ? default : Json.Deserialize<T>(content);
+        }
+
+        private void LogRequest(RestRequest request, string body = null)
+        {
+            _logger.Info("{0}: {1}", request.Method, _restClient.BuildUri(request));
+            foreach (var parameter in request.Parameters)
+            {
+                _logger.Info("Request parameter {0} ({1}): {2}", parameter.Name, parameter.Type, parameter.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                _logger.Info("Request body: {0}", body);
+            }
         }
 
         private static void AssertDisableCache(RestResponse response)
@@ -80,6 +134,11 @@ namespace NzbDrone.Integration.Test.Client
     {
         public ClientBase(RestClient restClient, string apiKey, string resource = null)
             : base(restClient, apiKey, resource ?? new TResource().ResourceName)
+        {
+        }
+
+        public ClientBase(RestClient restClient, string apiKey, string resource, bool assertDisableCache)
+            : base(restClient, apiKey, resource ?? new TResource().ResourceName, assertDisableCache)
         {
         }
 
@@ -108,15 +167,15 @@ namespace NzbDrone.Integration.Test.Client
         public TResource Post(TResource body, HttpStatusCode statusCode = HttpStatusCode.Created)
         {
             var request = BuildRequest();
-            request.AddJsonBody(body);
-            return Post<TResource>(request, statusCode);
+            request.Method = Method.Post;
+            return ExecuteJson<TResource>(request, body.ToJson(), statusCode);
         }
 
         public TResource Put(TResource body, HttpStatusCode statusCode = HttpStatusCode.Accepted)
         {
             var request = BuildRequest();
-            request.AddJsonBody(body);
-            return Put<TResource>(request, statusCode);
+            request.Method = Method.Put;
+            return ExecuteJson<TResource>(request, body.ToJson(), statusCode);
         }
 
         public TResource Get(int id, HttpStatusCode statusCode = HttpStatusCode.OK)
@@ -146,15 +205,15 @@ namespace NzbDrone.Integration.Test.Client
         public object InvalidPost(TResource body, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
         {
             var request = BuildRequest();
-            request.AddJsonBody(body);
-            return Post<object>(request, statusCode);
+            request.Method = Method.Post;
+            return ExecuteJson<object>(request, body.ToJson(), statusCode);
         }
 
         public object InvalidPut(TResource body, HttpStatusCode statusCode = HttpStatusCode.BadRequest)
         {
             var request = BuildRequest();
-            request.AddJsonBody(body);
-            return Put<object>(request, statusCode);
+            request.Method = Method.Put;
+            return ExecuteJson<object>(request, body.ToJson(), statusCode);
         }
 
         public T Get<T>(RestRequest request, HttpStatusCode statusCode = HttpStatusCode.OK)

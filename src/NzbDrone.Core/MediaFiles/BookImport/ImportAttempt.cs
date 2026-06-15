@@ -18,6 +18,12 @@ namespace NzbDrone.Core.MediaFiles.BookImport
         /// </summary>
         public string DestinationPath { get; set; }
 
+        /// <summary>
+        /// Expected source file size in bytes when the attempt was created.
+        /// Used during crash recovery to avoid accepting partial destination files.
+        /// </summary>
+        public long SourceSize { get; set; }
+
         /// <summary>Lifecycle state of this attempt.</summary>
         public ImportAttemptStatus Status { get; set; }
 

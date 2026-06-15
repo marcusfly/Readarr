@@ -77,6 +77,7 @@ class Page extends Component {
       isSidebarVisible,
       enableColorImpairedMode,
       authenticationEnabled,
+      isPopulated,
       onSidebarToggle,
       onSidebarVisibleChange
     } = this.props;
@@ -112,7 +113,7 @@ class Page extends Component {
           />
 
           <AuthenticationRequiredModal
-            isOpen={!authenticationEnabled}
+            isOpen={authenticationEnabled === false && isPopulated}
           />
         </div>
       </ColorImpairedContext.Provider>
@@ -130,6 +131,7 @@ Page.propTypes = {
   isDisconnected: PropTypes.bool.isRequired,
   enableColorImpairedMode: PropTypes.bool.isRequired,
   authenticationEnabled: PropTypes.bool.isRequired,
+  isPopulated: PropTypes.bool.isRequired,
   onResize: PropTypes.func.isRequired,
   onSidebarToggle: PropTypes.func.isRequired,
   onSidebarVisibleChange: PropTypes.func.isRequired

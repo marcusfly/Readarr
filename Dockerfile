@@ -20,11 +20,13 @@ RUN yarn run build --env production
 # Stage 2 – backend build
 # Supports both linux/amd64 and linux/arm64 via TARGETARCH build arg
 # ──────────────────────────────────────────────────────────────────────────────
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-bookworm-slim AS backend-build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 
 ARG TARGETARCH
 ARG READARRVERSION=0.0.0.0
 ARG BUILD_SOURCEBRANCHNAME=develop
+ARG ENABLE_ANALYZERS=false
+ARG ENABLE_NET_ANALYZERS=false
 
 WORKDIR /src
 
@@ -42,6 +44,7 @@ COPY src/*.sln src/
 COPY src/Directory.Build.props src/Directory.Build.targets src/Directory.Packages.props src/
 # Copy all project files for restore
 COPY src/ src/
+COPY Logo/ Logo/
 
 RUN RID=$(cat /tmp/rid) && \
     if [ -n "$READARRVERSION" ] && [ "$READARRVERSION" != "0.0.0.0" ]; then \
@@ -52,6 +55,9 @@ RUN RID=$(cat /tmp/rid) && \
         -p:Configuration=Release \
         -p:Platform=Posix \
         -p:RuntimeIdentifiers="$RID" \
+        -p:EnableAnalyzers=$ENABLE_ANALYZERS \
+        -p:EnableNETAnalyzers=$ENABLE_NET_ANALYZERS \
+        -p:TreatWarningsAsErrors=false \
         -t:PublishAllRids
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -76,7 +82,7 @@ COPY --from=frontend-build /src/_output/UI /app/UI
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 4 – minimal runtime image
 # ──────────────────────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-bookworm-slim AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 LABEL org.opencontainers.image.title="Readarr" \
       org.opencontainers.image.description="Book manager and automation for Usenet and BitTorrent users" \
@@ -93,8 +99,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
-RUN groupadd --gid 1000 readarr && \
-    useradd --uid 1000 --gid readarr --shell /bin/sh --create-home readarr
+RUN if ! getent group 1000 >/dev/null 2>&1; then \
+        groupadd --gid 1000 readarr; \
+    fi && \
+    if ! id -u readarr >/dev/null 2>&1; then \
+        if getent passwd 1000 >/dev/null 2>&1; then \
+            useradd --uid 1001 --gid 1000 --shell /bin/sh --create-home readarr; \
+        else \
+            useradd --uid 1000 --gid 1000 --shell /bin/sh --create-home readarr; \
+        fi; \
+    fi
 
 COPY --from=assemble /app /app
 

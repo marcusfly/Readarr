@@ -42,7 +42,7 @@ namespace Readarr.Api.V3.Logs
                     Id = i + 1,
                     Filename = filename,
                     LastWriteTime = _diskProvider.FileGetLastWrite(file),
-                    ContentsUrl = string.Format("{0}/api/v3/{1}/{2}", _configFileProvider.UrlBase, _resource, filename),
+                    ContentsUrl = string.Format("{0}/api/v1/{1}/{2}", _configFileProvider.UrlBase, _resource, filename),
                     DownloadUrl = string.Format("{0}/{1}/{2}", _configFileProvider.UrlBase, DownloadUrlRoot, filename)
                 });
             }

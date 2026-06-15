@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NzbDrone.Core.ContentTypes;
 
 namespace NzbDrone.Core.Indexers.Newznab
 {
@@ -29,6 +30,7 @@ namespace NzbDrone.Core.Indexers.Newznab
         public int Id { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+        public LibraryContentType ContentTypes { get; set; }
 
         public List<NewznabCategory> Subcategories { get; set; }
     }

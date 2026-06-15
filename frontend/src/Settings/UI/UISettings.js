@@ -46,6 +46,11 @@ export const timeFormatOptions = [
   { key: 'HH:mm', value: '17:00/17:30' }
 ];
 
+const searchBehaviorOptions = [
+  { key: false, value: 'SearchOnEnter' },
+  { key: true, value: 'SearchWhileTyping' }
+];
+
 class UISettings extends Component {
 
   //
@@ -179,6 +184,26 @@ class UISettings extends Component {
                       helpText={translate('ShowRelativeDatesHelpText')}
                       onChange={onInputChange}
                       {...settings.showRelativeDates}
+                    />
+                  </FormGroup>
+                </FieldSet>
+
+                <FieldSet legend={translate('Search')}>
+                  <FormGroup>
+                    <FormLabel>
+                      {translate('SearchBehavior')}
+                    </FormLabel>
+
+                    <FormInputGroup
+                      type={inputTypes.SELECT}
+                      name="searchWhileTyping"
+                      values={searchBehaviorOptions.map((option) => ({
+                        ...option,
+                        value: translate(option.value)
+                      }))}
+                      onChange={onInputChange}
+                      helpText={translate('SearchBehaviorHelpText')}
+                      {...settings.searchWhileTyping}
                     />
                   </FormGroup>
                 </FieldSet>

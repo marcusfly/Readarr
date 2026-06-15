@@ -65,6 +65,7 @@ namespace NzbDrone.Core.Annotations
         public int Order { get; set; }
         public string Hint { get; set; }
         public int? ParentValue { get; set; }
+        public int ContentTypes { get; set; }
     }
 
     public enum FieldType

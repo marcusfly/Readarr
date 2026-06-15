@@ -131,6 +131,14 @@ namespace NzbDrone.Core.Books
         {
             var updated = false;
 
+            if (remoteData == null)
+            {
+                _logger.Debug("Skipping series refresh for author {0} because metadata was unavailable.", authorMetadataId);
+                return false;
+            }
+
+            remoteSeries ??= new List<Series>();
+
             var existingByAuthor = _seriesService.GetByAuthorMetadataId(authorMetadataId);
             var existingBySeries = _seriesService.FindById(remoteSeries.Select(x => x.ForeignSeriesId).ToList());
             var existing = existingByAuthor.Concat(existingBySeries).GroupBy(x => x.ForeignSeriesId).Select(x => x.First()).ToList();
@@ -139,13 +147,20 @@ namespace NzbDrone.Core.Books
             var bookDict = books.ToDictionary(x => x.ForeignBookId);
             var links = new List<SeriesBookLink>();
 
-            foreach (var s in remoteData.Series.Value)
+            foreach (var s in remoteData.Series?.Value ?? new List<Series>())
             {
-                s.LinkItems.Value.ForEach(x => x.Series = s);
-                links.AddRange(s.LinkItems.Value.Where(x => bookDict.ContainsKey(x.Book.Value.ForeignBookId)));
+                if (s == null)
+                {
+                    continue;
+                }
+
+                var seriesLinks = s.LinkItems?.Value ?? new List<SeriesBookLink>();
+                seriesLinks.ForEach(x => x.Series = s);
+                links.AddRange(seriesLinks.Where(x => x?.Book?.Value != null && bookDict.ContainsKey(x.Book.Value.ForeignBookId)));
             }
 
-            var grouped = links.GroupBy(x => x.Series.Value);
+            var grouped = links.Where(x => x?.Series?.Value != null)
+                .GroupBy(x => x.Series.Value);
 
             // Put in the links that go with the books we actually have
             foreach (var group in grouped)

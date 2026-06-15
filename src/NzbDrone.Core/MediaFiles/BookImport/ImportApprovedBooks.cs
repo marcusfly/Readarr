@@ -166,11 +166,13 @@ namespace NzbDrone.Core.MediaFiles.BookImport
 
             var filesToAdd = new List<BookFile>(qualifiedImports.Count);
             var trackImportedEvents = new List<TrackImportedEvent>(qualifiedImports.Count);
+            var importAttemptsToComplete = new List<ImportAttempt>(qualifiedImports.Count);
 
             foreach (var importDecision in qualifiedImports)
             {
                 var localTrack = importDecision.Item;
                 var oldFiles = new List<BookFile>();
+                ImportAttempt attempt = null;
 
                 try
                 {
@@ -244,7 +246,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                                 localTrack.Book);
 
                             // Record a dry-run attempt so callers can audit the plan.
-                            var dryRunAttempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, isDryRun: true);
+                            var dryRunAttempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, localTrack.Size, isDryRun: true);
                             _importAttemptService.MarkCompleted(dryRunAttempt);
 
                             importResults.Add(new ImportResult(importDecision));
@@ -252,20 +254,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                         }
 
                         // Begin a durable import attempt before touching the file system.
-                        var attempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, isDryRun: false);
+                        attempt = _importAttemptService.Begin(localTrack.Path, bookFile.Path, localTrack.Size, isDryRun: false);
                         _importAttemptService.MarkInProgress(attempt);
 
-                        try
-                        {
-                            var moveResult = _bookFileUpgrader.UpgradeBookFile(bookFile, localTrack, copyOnly);
-                            oldFiles = moveResult.OldFiles;
-                            _importAttemptService.MarkCompleted(attempt);
-                        }
-                        catch
-                        {
-                            _importAttemptService.MarkFailed(attempt, "File-system operation failed; see application log for details.");
-                            throw;
-                        }
+                        var moveResult = _bookFileUpgrader.UpgradeBookFile(bookFile, localTrack, copyOnly);
+                        oldFiles = moveResult.OldFiles;
                     }
                     else
                     {
@@ -285,16 +278,17 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                         _metadataTagService.WriteTags(bookFile, false);
                     }
 
-                    filesToAdd.Add(bookFile);
-                    importResults.Add(new ImportResult(importDecision));
-
                     if (!localTrack.ExistingFile)
                     {
                         _extraService.ImportTrack(localTrack, bookFile, copyOnly);
                     }
 
+                    filesToAdd.Add(bookFile);
+                    importResults.Add(new ImportResult(importDecision));
+
                     allImportedTrackFiles.Add(bookFile);
                     allOldTrackFiles.AddRange(oldFiles);
+                    AddImportAttemptToComplete(importAttemptsToComplete, attempt);
 
                     // create all the import events here, but we can't publish until the trackfiles have been
                     // inserted and ids created
@@ -302,6 +296,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                 }
                 catch (RootFolderNotFoundException e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
                     _eventAggregator.PublishEvent(new TrackImportFailedEvent(e, localTrack, !localTrack.ExistingFile, downloadClientItem));
 
@@ -309,11 +304,13 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                 }
                 catch (DestinationAlreadyExistsException e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
                     importResults.Add(new ImportResult(importDecision, "Failed to import book, destination already exists."));
                 }
                 catch (UnauthorizedAccessException e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
                     _eventAggregator.PublishEvent(new TrackImportFailedEvent(e, localTrack, !localTrack.ExistingFile, downloadClientItem));
 
@@ -321,6 +318,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                 }
                 catch (RecycleBinException e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
                     _eventAggregator.PublishEvent(new TrackImportFailedEvent(e, localTrack, !localTrack.ExistingFile, downloadClientItem));
 
@@ -328,12 +326,14 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                 }
                 catch (CalibreException e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
 
                     importResults.Add(new ImportResult(importDecision, "Failed to import book, error communicating with Calibre.  Check log for details."));
                 }
                 catch (Exception e)
                 {
+                    MarkImportAttemptFailed(attempt, e);
                     _logger.Warn(e, "Couldn't import book " + localTrack);
                     importResults.Add(new ImportResult(importDecision, "Failed to import book."));
                 }
@@ -342,6 +342,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
             _mediaFileService.AddMany(filesToAdd);
+            foreach (var attempt in importAttemptsToComplete)
+            {
+                _importAttemptService.MarkCompleted(attempt);
+            }
+
             _logger.Debug("Inserted new trackfiles in {0}ms", watch.ElapsedMilliseconds);
 
             // now that trackfiles have been inserted and ids generated, publish the import events
@@ -566,6 +571,22 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             foreach (var decision in decisions)
             {
                 decision.Reject(new Rejection("Failed to add missing book", RejectionType.Temporary));
+            }
+        }
+
+        private void AddImportAttemptToComplete(List<ImportAttempt> attempts, ImportAttempt attempt)
+        {
+            if (attempt != null)
+            {
+                attempts.Add(attempt);
+            }
+        }
+
+        private void MarkImportAttemptFailed(ImportAttempt attempt, Exception exception)
+        {
+            if (attempt != null)
+            {
+                _importAttemptService.MarkFailed(attempt, exception.Message);
             }
         }
 

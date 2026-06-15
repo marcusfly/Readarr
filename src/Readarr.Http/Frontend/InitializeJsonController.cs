@@ -44,8 +44,9 @@ namespace Readarr.Http.Frontend
             }
 
             var builder = new StringBuilder();
+            const string apiVersion = "v1";
             builder.AppendLine("{");
-            builder.AppendLine($"  \"apiRoot\": \"{_urlBase}/api/v3\",");
+            builder.AppendLine($"  \"apiRoot\": \"{_urlBase}/api/{apiVersion}\",");
             builder.AppendLine($"  \"apiKey\": \"{_apiKey}\",");
             builder.AppendLine($"  \"release\": \"{BuildInfo.Release}\",");
             builder.AppendLine($"  \"version\": \"{BuildInfo.Version.ToString()}\",");

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_PATH="$SCRIPT_DIR/../scripts/RunReadarrLatest.ps1"
+
+if [ ! -f "$SCRIPT_PATH" ]; then
+  echo "[readarr-dev-hooks] Missing $SCRIPT_PATH"
+  exit 0
+fi
+
+POWERSHELL_BIN=$(command -v powershell.exe || command -v pwsh || true)
+if [ -z "$POWERSHELL_BIN" ]; then
+  echo "[readarr-dev-hooks] powershell executable not found"
+  exit 0
+fi
+
+"$POWERSHELL_BIN" -NoProfile -ExecutionPolicy Bypass -NoLogo -File "$SCRIPT_PATH" || echo "[readarr-dev-hooks] Rebuild/restart failed after push."
+exit 0

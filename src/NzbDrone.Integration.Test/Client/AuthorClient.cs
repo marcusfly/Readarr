@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Net;
+using NzbDrone.Common.Serializer;
 using Readarr.Api.V3.Author;
 using RestSharp;
 
@@ -22,8 +23,8 @@ namespace NzbDrone.Integration.Test.Client
         public List<AuthorResource> Editor(AuthorEditorResource author)
         {
             var request = BuildRequest("editor");
-            request.AddJsonBody(author);
-            return Put<List<AuthorResource>>(request);
+            request.Method = Method.Put;
+            return ExecuteJson<List<AuthorResource>>(request, author.ToJson(), HttpStatusCode.Accepted);
         }
 
         public AuthorResource Get(string slug, HttpStatusCode statusCode = HttpStatusCode.OK)

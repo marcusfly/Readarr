@@ -31,6 +31,7 @@ interface Window {
     instanceName: string;
     theme: string;
     urlBase: string;
+    apiRoot: string;
     version: string;
     isProduction: boolean;
   };

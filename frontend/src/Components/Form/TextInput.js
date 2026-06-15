@@ -96,6 +96,14 @@ class TextInput extends Component {
     this.selectionChange();
   };
 
+  onKeyDown = (event) => {
+    if (this.props.onKeyDown) {
+      this.props.onKeyDown(event);
+    }
+
+    this.selectionChange();
+  };
+
   onMouseDown = () => {
     this._isMouseTarget = true;
   };
@@ -162,6 +170,7 @@ class TextInput extends Component {
         onChange={this.onChange}
         onFocus={this.onFocus}
         onBlur={onBlur}
+        onKeyDown={this.onKeyDown}
         onCopy={onCopy}
         onCut={onCopy}
         onKeyUp={this.onKeyUp}
@@ -191,6 +200,7 @@ TextInput.propTypes = {
   onFocus: PropTypes.func,
   onBlur: PropTypes.func,
   onCopy: PropTypes.func,
+  onKeyDown: PropTypes.func,
   onSelectionChange: PropTypes.func
 };
 

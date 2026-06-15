@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Data.SQLite;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Xml.Linq;
 using NLog;
@@ -32,7 +34,7 @@ namespace NzbDrone.Test.Common
         public NzbDroneRunner(Logger logger, PostgresOptions postgresOptions, int port = 8787)
         {
             _processProvider = new ProcessProvider(logger);
-            _restClient = new RestClient(new RestClientOptions($"http://localhost:{port}/api/v3"));
+            _restClient = new RestClient(new RestClientOptions($"http://localhost:{port}/api/v1"));
 
             PostgresOptions = postgresOptions;
             Port = port;
@@ -40,7 +42,7 @@ namespace NzbDrone.Test.Common
 
         public void Start(bool enableAuth = false)
         {
-            AppData = Path.Combine(TestContext.CurrentContext.TestDirectory, "_intg_" + TestBase.GetUID());
+            AppData ??= Path.Combine(TestContext.CurrentContext.TestDirectory, "_intg_" + TestBase.GetUID());
             Directory.CreateDirectory(AppData);
 
             GenerateConfigFile(enableAuth);
@@ -56,14 +58,7 @@ namespace NzbDrone.Test.Common
             }
 
             _startupLog = new List<string>();
-            if (BuildInfo.IsDebug)
-            {
-                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "_output", "net8.0", readarrConsoleExe));
-            }
-            else
-            {
-                Start(Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "bin", readarrConsoleExe));
-            }
+            Start(ResolveReadarrConsolePath(readarrConsoleExe));
 
             while (true)
             {
@@ -78,7 +73,6 @@ namespace NzbDrone.Test.Common
                 }
 
                 var request = new RestRequest("system/status");
-                request.AddHeader("Authorization", ApiKey);
                 request.AddHeader("X-Api-Key", ApiKey);
 
                 var statusCall = _restClient.Get(request);
@@ -96,7 +90,7 @@ namespace NzbDrone.Test.Common
             }
         }
 
-        public void Kill()
+        public void Kill(bool deleteAppData = true)
         {
             try
             {
@@ -118,7 +112,10 @@ namespace NzbDrone.Test.Common
                 // May happen if the process closes while being closed
             }
 
-            TestBase.DeleteTempFolder(AppData);
+            if (deleteAppData)
+            {
+                TestBase.DeleteTempFolder(AppData);
+            }
         }
 
         public void KillAll()
@@ -139,6 +136,31 @@ namespace NzbDrone.Test.Common
             }
 
             TestBase.DeleteTempFolder(AppData);
+        }
+
+        public void UpsertConfigValue(string key, string value)
+        {
+            var dbPath = Path.Combine(AppData, "readarr.db");
+            var connectionString = new SQLiteConnectionStringBuilder
+            {
+                DataSource = dbPath,
+                Version = 3,
+                JournalMode = SQLiteJournalModeEnum.Wal,
+                Pooling = true,
+                BusyTimeout = 10000
+            }.ToString();
+
+            using var connection = new SQLiteConnection(connectionString);
+            connection.Open();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+INSERT INTO Config (Key, Value)
+VALUES (@key, @value)
+ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value;";
+            command.Parameters.AddWithValue("@key", key);
+            command.Parameters.AddWithValue("@value", value);
+            command.ExecuteNonQuery();
         }
 
         private void Start(string outputNzbdroneConsoleExe)
@@ -163,6 +185,31 @@ namespace NzbDrone.Test.Common
             _nzbDroneProcess = _processProvider.Start(outputNzbdroneConsoleExe, args, envVars, OnOutputDataReceived, OnOutputDataReceived);
         }
 
+        private string ResolveReadarrConsolePath(string readarrConsoleExe)
+        {
+            var testDirectory = TestContext.CurrentContext.TestDirectory;
+            var repoRoot = Path.GetFullPath(Path.Combine(testDirectory, "..", ".."));
+
+            var candidates = new[]
+            {
+                Path.Combine(repoRoot, "_output", "net10.0", readarrConsoleExe),
+                Path.Combine(repoRoot, "_output", "net8.0", readarrConsoleExe),
+                Path.Combine(testDirectory, "..", "bin", readarrConsoleExe),
+                Path.Combine(repoRoot, "bin", readarrConsoleExe)
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (File.Exists(candidate))
+                {
+                    TestContext.Progress.WriteLine("Resolved Readarr console executable to {0}", candidate);
+                    return candidate;
+                }
+            }
+
+            throw new FileNotFoundException($"Unable to locate {readarrConsoleExe} in any expected build output folder.", string.Join("; ", candidates));
+        }
+
         private void OnOutputDataReceived(string data)
         {
             TestContext.Progress.WriteLine($" [{Port}] > " + data);
@@ -181,6 +228,17 @@ namespace NzbDrone.Test.Common
         private void GenerateConfigFile(bool enableAuth)
         {
             var configFile = Path.Combine(AppData, "config.xml");
+
+            if (File.Exists(configFile))
+            {
+                var existingConfig = XDocument.Load(configFile);
+                ApiKey = existingConfig.Descendants(nameof(ConfigFileProvider.ApiKey)).SingleOrDefault()?.Value;
+
+                if (ApiKey.IsNotNullOrWhiteSpace())
+                {
+                    return;
+                }
+            }
 
             // Generate and set the api key so we don't have to poll the config file
             var apiKey = Guid.NewGuid().ToString().Replace("-", "");

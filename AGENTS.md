@@ -8,6 +8,17 @@ Maintain `AGENT_LOG.md` as the shared, append-only record of active work, decisi
 verification, blockers, and handoffs. The purpose is continuity without requiring
 another contributor to reconstruct prior work.
 
+## Principal Rule: Keep the Backlog Current
+
+All task tracking is done only in GitHub projects.
+
+When backlog work changes:
+
+- Use the GitHub project item and project item title/body as the source of truth.
+- Keep titles on the project board in `BLI### - ...` format.
+- Add a concise progress note to `AGENT_LOG.md` describing the change.
+- If the board cannot be updated, record a `BLOCKED` entry in `AGENT_LOG.md` immediately.
+
 Before starting work:
 
 1. Read the latest entries in `AGENT_LOG.md`.
@@ -24,6 +35,25 @@ While working:
   credentials, personal data, or large command output.
 - Prefer one active writer per file. If another agent claims the same area, stop and
   coordinate through the log or user before editing it.
+
+### Required GitHub task workflow for all agents
+
+Before starting backlog work, when making progress, and before stopping:
+
+1. Set token for `gh`:
+   - `setx`/persist your token outside the repo.
+   - ` $env:GH_TOKEN = "<token>"` (or your standard CI/CLI auth mechanism).
+2. Confirm identity:
+   - `gh auth status`
+3. Locate project and item:
+   - `gh project list --owner @me`
+   - `gh project item-list <project-id-or-number> --owner @me --format json`
+4. Update the item state directly in GitHub:
+   - `gh project item-edit <item-id> --project <project-id-or-number> --owner @me --title "BLI### - ..."`
+   - `gh project item-edit <item-id> --project <project-id-or-number> --owner @me --body "<current task metadata>"`
+
+If GitHub is unavailable, record a `BLOCKED` entry in `AGENT_LOG.md` with the
+command error immediately.
 
 Before yielding:
 

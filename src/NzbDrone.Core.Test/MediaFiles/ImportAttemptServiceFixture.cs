@@ -5,6 +5,7 @@ using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Test.Framework;
 using NzbDrone.Test.Common;
@@ -16,6 +17,7 @@ namespace NzbDrone.Core.Test.MediaFiles
     {
         private const string SourcePath = @"C:\downloads\Author - Book (2020).epub";
         private const string DestPath = @"C:\library\Author\Book (2020)\Author - Book (2020).epub";
+        private const long SourceSize = 123456L;
 
         // -----------------------------------------------------------------------
         // Begin
@@ -31,17 +33,19 @@ namespace NzbDrone.Core.Test.MediaFiles
                       return a;
                   });
 
-            var result = Subject.Begin(SourcePath, DestPath, isDryRun: false);
+            var result = Subject.Begin(SourcePath, DestPath, SourceSize, isDryRun: false);
 
             result.Status.Should().Be(ImportAttemptStatus.Pending);
             result.SourcePath.Should().Be(SourcePath);
             result.DestinationPath.Should().Be(DestPath);
+            result.SourceSize.Should().Be(SourceSize);
             result.IsDryRun.Should().BeFalse();
 
             Mocker.GetMock<IImportAttemptRepository>()
                   .Verify(r => r.Insert(It.Is<ImportAttempt>(a =>
                       a.Status == ImportAttemptStatus.Pending &&
-                      a.SourcePath == SourcePath)), Times.Once());
+                      a.SourcePath == SourcePath &&
+                      a.SourceSize == SourceSize)), Times.Once());
         }
 
         [Test]
@@ -55,7 +59,7 @@ namespace NzbDrone.Core.Test.MediaFiles
                       return a;
                   });
 
-            var result = Subject.Begin(SourcePath, DestPath, isDryRun: true);
+            var result = Subject.Begin(SourcePath, DestPath, SourceSize, isDryRun: true);
 
             result.IsDryRun.Should().BeTrue();
         }
@@ -129,6 +133,7 @@ namespace NzbDrone.Core.Test.MediaFiles
                 Id = 10,
                 SourcePath = SourcePath,
                 DestinationPath = DestPath,
+                SourceSize = SourceSize,
                 Status = ImportAttemptStatus.InProgress
             };
 
@@ -139,6 +144,14 @@ namespace NzbDrone.Core.Test.MediaFiles
             Mocker.GetMock<IDiskProvider>()
                   .Setup(d => d.FileExists(DestPath))
                   .Returns(true);
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.GetFileSize(DestPath))
+                  .Returns(SourceSize);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.GetFileWithPath(DestPath))
+                  .Returns(new BookFile { Path = DestPath, Size = SourceSize });
 
             Subject.Handle(new ApplicationStartedEvent());
 
@@ -157,6 +170,7 @@ namespace NzbDrone.Core.Test.MediaFiles
                 Id = 11,
                 SourcePath = SourcePath,
                 DestinationPath = DestPath,
+                SourceSize = SourceSize,
                 Status = ImportAttemptStatus.InProgress
             };
 
@@ -172,9 +186,121 @@ namespace NzbDrone.Core.Test.MediaFiles
 
             Mocker.GetMock<IImportAttemptRepository>()
                   .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
-                      a.Id == 11 && a.Status == ImportAttemptStatus.RolledBack)), Times.Once());
+                      a.Id == 11 &&
+                      a.Status == ImportAttemptStatus.RolledBack &&
+                      a.ErrorMessage == "Destination file missing or did not match the recorded source file size.")), Times.Once());
 
             ExceptionVerification.ExpectedWarns(2);
+        }
+
+        [Test]
+        public void handle_startup_should_mark_rolled_back_when_destination_is_not_tracked_in_database()
+        {
+            var orphan = new ImportAttempt
+            {
+                Id = 12,
+                SourcePath = SourcePath,
+                DestinationPath = DestPath,
+                SourceSize = SourceSize,
+                Status = ImportAttemptStatus.InProgress
+            };
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Setup(r => r.FindInProgress())
+                  .Returns(new List<ImportAttempt> { orphan });
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.FileExists(DestPath))
+                  .Returns(true);
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.GetFileSize(DestPath))
+                  .Returns(SourceSize);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.GetFileWithPath(DestPath))
+                  .Returns((BookFile)null);
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
+                      a.Id == 12 &&
+                      a.Status == ImportAttemptStatus.RolledBack &&
+                      a.ErrorMessage == "Destination file missing or did not match the recorded source file size.")), Times.Once());
+
+            ExceptionVerification.ExpectedWarns(3);
+        }
+
+        [Test]
+        public void handle_startup_should_mark_rolled_back_when_destination_size_does_not_match_source_size()
+        {
+            var orphan = new ImportAttempt
+            {
+                Id = 13,
+                SourcePath = SourcePath,
+                DestinationPath = DestPath,
+                SourceSize = SourceSize,
+                Status = ImportAttemptStatus.InProgress
+            };
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Setup(r => r.FindInProgress())
+                  .Returns(new List<ImportAttempt> { orphan });
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.FileExists(DestPath))
+                  .Returns(true);
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.GetFileSize(DestPath))
+                  .Returns(SourceSize - 1);
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
+                      a.Id == 13 &&
+                      a.Status == ImportAttemptStatus.RolledBack &&
+                      a.ErrorMessage == "Destination file missing or did not match the recorded source file size.")), Times.Once());
+
+            ExceptionVerification.ExpectedWarns(3);
+        }
+
+        [Test]
+        public void handle_startup_should_treat_destination_exists_as_completed_when_legacy_source_size_is_missing()
+        {
+            var orphan = new ImportAttempt
+            {
+                Id = 14,
+                SourcePath = SourcePath,
+                DestinationPath = DestPath,
+                SourceSize = 0,
+                Status = ImportAttemptStatus.InProgress
+            };
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Setup(r => r.FindInProgress())
+                  .Returns(new List<ImportAttempt> { orphan });
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.FileExists(DestPath))
+                  .Returns(true);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.GetFileWithPath(DestPath))
+                  .Returns(new BookFile { Path = DestPath, Size = SourceSize });
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            Mocker.GetMock<IImportAttemptRepository>()
+                  .Verify(r => r.Update(It.Is<ImportAttempt>(a =>
+                      a.Id == 14 && a.Status == ImportAttemptStatus.Completed)), Times.Once());
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Verify(d => d.GetFileSize(It.IsAny<string>()), Times.Never());
+
+            ExceptionVerification.ExpectedWarns(1);
         }
 
         [Test]
@@ -193,8 +319,8 @@ namespace NzbDrone.Core.Test.MediaFiles
         [Test]
         public void handle_startup_should_continue_after_individual_recovery_exception()
         {
-            var orphan1 = new ImportAttempt { Id = 20, SourcePath = SourcePath, DestinationPath = DestPath, Status = ImportAttemptStatus.InProgress };
-            var orphan2 = new ImportAttempt { Id = 21, SourcePath = SourcePath, DestinationPath = DestPath, Status = ImportAttemptStatus.InProgress };
+            var orphan1 = new ImportAttempt { Id = 20, SourcePath = SourcePath, DestinationPath = DestPath, SourceSize = SourceSize, Status = ImportAttemptStatus.InProgress };
+            var orphan2 = new ImportAttempt { Id = 21, SourcePath = SourcePath, DestinationPath = DestPath, SourceSize = SourceSize, Status = ImportAttemptStatus.InProgress };
 
             Mocker.GetMock<IImportAttemptRepository>()
                   .Setup(r => r.FindInProgress())
@@ -214,6 +340,14 @@ namespace NzbDrone.Core.Test.MediaFiles
 
                       return true;
                   });
+
+            Mocker.GetMock<IDiskProvider>()
+                  .Setup(d => d.GetFileSize(DestPath))
+                  .Returns(SourceSize);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Setup(s => s.GetFileWithPath(DestPath))
+                  .Returns(new BookFile { Path = DestPath, Size = SourceSize });
 
             Assert.DoesNotThrow(() => Subject.Handle(new ApplicationStartedEvent()));
 

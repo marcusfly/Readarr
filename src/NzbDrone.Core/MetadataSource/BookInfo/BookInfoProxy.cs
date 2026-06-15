@@ -14,6 +14,7 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Http;
 using NzbDrone.Core.MediaCover;
@@ -54,7 +55,8 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
                 MetadataProviderCapability.AuthorSearch |
                 MetadataProviderCapability.BookSearch |
                 MetadataProviderCapability.EntitySearch |
-                MetadataProviderCapability.IsbnSearch);
+                MetadataProviderCapability.IsbnSearch,
+                LibraryContentType.Book | LibraryContentType.Audiobook);
 
         public BookInfoProxy(IHttpClient httpClient,
                              ICachedHttpResponseService cachedHttpClient,
@@ -531,7 +533,6 @@ namespace NzbDrone.Core.MetadataSource.BookInfo
 
                 // Fetch works (paginated, cap at 10 pages / 500 works)
                 var works = FetchAuthorWorks(foreignAuthorId);
-
                 return MapAuthor(authorResource, works, foreignAuthorId);
             }
 

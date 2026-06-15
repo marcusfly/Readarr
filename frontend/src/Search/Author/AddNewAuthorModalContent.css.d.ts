@@ -2,6 +2,7 @@
 // Please do not change this file!
 interface CssExports {
   'addButton': string;
+  'addRootFolderButton': string;
   'container': string;
   'disambiguation': string;
   'info': string;

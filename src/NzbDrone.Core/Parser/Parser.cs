@@ -390,6 +390,11 @@ namespace NzbDrone.Core.Parser
                     Confidence = ComputeParseConfidence(foundAuthor, foundBook, 0)
                 };
 
+                if (result.Confidence < 0.6)
+                {
+                    result.RejectionReason = "Low confidence fuzzy match — could not reliably extract both author and book from search criteria";
+                }
+
                 try
                 {
                     result.Quality = QualityParser.ParseQuality(title);
@@ -809,6 +814,11 @@ namespace NzbDrone.Core.Parser
 
             // Compute confidence: penalise for missing author, book, or year fields.
             result.Confidence = ComputeParseConfidence(authorName, bookTitle, releaseYear);
+
+            if (result.Confidence < 0.6)
+            {
+                result.RejectionReason = "Low confidence regex match — missing one or more of author, book title, or year";
+            }
 
             if (matchCollection[0].Groups["discography"].Success)
             {

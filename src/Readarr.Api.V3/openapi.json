@@ -11622,12 +11622,68 @@
         },
         "additionalProperties": false
       },
+      "MetadataProviderDescriptorResource": {
+        "type": "object",
+        "properties": {
+          "providerKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capabilities": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "contentTypes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "contentTypeNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "MetadataProviderConfigResource": {
         "type": "object",
         "properties": {
           "id": {
             "type": "integer",
             "format": "int32"
+          },
+          "metadataProvider": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadataSearchProviders": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadataOpenLibrarySource": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadataRreadingGlassesSource": {
+            "type": "string",
+            "nullable": true
+          },
+          "availableMetadataProviders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetadataProviderDescriptorResource"
+            },
+            "nullable": true
           },
           "writeAudioTags": {
             "$ref": "#/components/schemas/WriteAudioTagsType"
@@ -13640,6 +13696,9 @@
             "nullable": true
           },
           "showRelativeDates": {
+            "type": "boolean"
+          },
+          "searchWhileTyping": {
             "type": "boolean"
           },
           "enableColorImpairedMode": {
