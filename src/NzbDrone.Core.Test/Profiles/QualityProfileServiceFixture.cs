@@ -1,13 +1,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using FizzWare.NBuilder;
+using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.ImportLists;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Profiles.Qualities;
+using NzbDrone.Core.Qualities;
 using NzbDrone.Core.RootFolders;
 using NzbDrone.Core.Test.Framework;
 
@@ -17,33 +20,74 @@ namespace NzbDrone.Core.Test.Profiles
 
     public class QualityProfileServiceFixture : CoreTest<QualityProfileService>
     {
-        [Test]
-        public void init_should_add_default_profiles()
+        [SetUp]
+        public void SetUp()
         {
             Mocker.GetMock<ICustomFormatService>()
                 .Setup(s => s.All())
                 .Returns(new List<CustomFormat>());
+        }
 
+        [Test]
+        public void init_should_add_default_profiles()
+        {
             Subject.Handle(new ApplicationStartedEvent());
 
             Mocker.GetMock<IProfileRepository>()
-                .Verify(v => v.Insert(It.IsAny<QualityProfile>()), Times.Exactly(2));
+                .Verify(v => v.Insert(It.IsAny<QualityProfile>()), Times.Exactly(3));
+
+            Mocker.GetMock<IProfileRepository>()
+                .Verify(v => v.Insert(It.Is<QualityProfile>(p =>
+                    p.Name == "Both" &&
+                    p.GetAllowedContentTypes() == (LibraryContentType.Book | LibraryContentType.Audiobook))), Times.Once());
+
+            Mocker.GetMock<IProfileRepository>()
+                .Verify(v => v.Insert(It.Is<QualityProfile>(p =>
+                    p.Name == "eBook" &&
+                    p.GetAllowedContentTypes() == LibraryContentType.Book)), Times.Once());
+
+            Mocker.GetMock<IProfileRepository>()
+                .Verify(v => v.Insert(It.Is<QualityProfile>(p =>
+                    p.Name == "Audiobook" &&
+                    p.GetAllowedContentTypes() == LibraryContentType.Audiobook)), Times.Once());
         }
 
         [Test]
 
-        //This confirms that new profiles are added only if no other profiles exists.
-        //We don't want to keep adding them back if a user deleted them on purpose.
-        public void Init_should_skip_if_any_profiles_already_exist()
+        public void init_should_add_missing_default_profiles_without_duplicating_existing_profiles()
         {
             Mocker.GetMock<IProfileRepository>()
                   .Setup(s => s.All())
-                  .Returns(Builder<QualityProfile>.CreateListOfSize(2).Build().ToList());
+                  .Returns(new List<QualityProfile>
+                  {
+                      Subject.GetDefaultProfile("Both", Quality.AZW3, Quality.EPUB, Quality.MP3),
+                      Subject.GetDefaultProfile("eBook", Quality.MOBI, Quality.MOBI, Quality.EPUB, Quality.AZW3)
+                  });
 
             Subject.Handle(new ApplicationStartedEvent());
 
             Mocker.GetMock<IProfileRepository>()
-                .Verify(v => v.Insert(It.IsAny<QualityProfile>()), Times.Never());
+                .Verify(v => v.Insert(It.Is<QualityProfile>(p => p.Name == "Audiobook")), Times.Once());
+
+            Mocker.GetMock<IProfileRepository>()
+                .Verify(v => v.Insert(It.Is<QualityProfile>(p => p.Name == "Both" || p.Name == "eBook")), Times.Never());
+        }
+
+        [Test]
+        public void init_should_rename_legacy_spoken_profile_when_it_is_audio_only()
+        {
+            var spoken = Subject.GetDefaultProfile("Spoken", Quality.MP3, Quality.UnknownAudio, Quality.MP3, Quality.M4B, Quality.FLAC);
+
+            Mocker.GetMock<IProfileRepository>()
+                  .Setup(s => s.All())
+                  .Returns(new List<QualityProfile> { spoken });
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            spoken.Name.Should().Be("Audiobook");
+
+            Mocker.GetMock<IProfileRepository>()
+                .Verify(v => v.Update(It.Is<QualityProfile>(p => p.Name == "Audiobook")), Times.Once());
         }
 
         [Test]

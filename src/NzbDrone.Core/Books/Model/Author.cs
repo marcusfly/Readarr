@@ -23,7 +23,9 @@ namespace NzbDrone.Core.Books
         public NewItemMonitorTypes MonitorNewItems { get; set; }
         public DateTime? LastInfoSync { get; set; }
         public string Path { get; set; }
+        public string AudiobookPath { get; set; }
         public string RootFolderPath { get; set; }
+        public string AudiobookRootFolderPath { get; set; }
         public DateTime Added { get; set; }
         public int QualityProfileId { get; set; }
         public int MetadataProfileId { get; set; }
@@ -74,7 +76,9 @@ namespace NzbDrone.Core.Books
             MonitorNewItems = other.MonitorNewItems;
             LastInfoSync = other.LastInfoSync;
             Path = other.Path;
+            AudiobookPath = other.AudiobookPath;
             RootFolderPath = other.RootFolderPath;
+            AudiobookRootFolderPath = other.AudiobookRootFolderPath;
             Added = other.Added;
             QualityProfileId = other.QualityProfileId;
             QualityProfile = other.QualityProfile;
@@ -87,6 +91,7 @@ namespace NzbDrone.Core.Books
         public override void ApplyChanges(Author other)
         {
             Path = other.Path;
+            AudiobookPath = other.AudiobookPath;
             QualityProfileId = other.QualityProfileId;
             QualityProfile = other.QualityProfile;
             MetadataProfileId = other.MetadataProfileId;
@@ -96,6 +101,7 @@ namespace NzbDrone.Core.Books
             Tags = other.Tags;
             AddOptions = other.AddOptions;
             RootFolderPath = other.RootFolderPath;
+            AudiobookRootFolderPath = other.AudiobookRootFolderPath;
             Monitored = other.Monitored;
             MonitorNewItems = other.MonitorNewItems;
         }

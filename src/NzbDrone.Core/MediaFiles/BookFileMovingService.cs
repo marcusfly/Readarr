@@ -3,8 +3,10 @@ using System.IO;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnsureThat;
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
@@ -60,7 +62,7 @@ namespace NzbDrone.Core.MediaFiles
         {
             var edition = _editionService.GetEdition(bookFile.EditionId);
             var newFileName = _buildFileNames.BuildBookFileName(author, edition, bookFile);
-            var filePath = _buildFileNames.BuildBookFilePath(author, edition, newFileName, Path.GetExtension(bookFile.Path));
+            var filePath = _buildFileNames.BuildBookFilePath(author, edition, newFileName, Path.GetExtension(bookFile.Path), bookFile);
 
             EnsureBookFolder(bookFile, author, edition.Book.Value, filePath);
 
@@ -72,7 +74,7 @@ namespace NzbDrone.Core.MediaFiles
         public BookFile MoveBookFile(BookFile bookFile, LocalBook localBook)
         {
             var newFileName = _buildFileNames.BuildBookFileName(localBook.Author, localBook.Edition, bookFile);
-            var filePath = _buildFileNames.BuildBookFilePath(localBook.Author, localBook.Edition, newFileName, Path.GetExtension(localBook.Path));
+            var filePath = _buildFileNames.BuildBookFilePath(localBook.Author, localBook.Edition, newFileName, Path.GetExtension(localBook.Path), bookFile);
 
             EnsureTrackFolder(bookFile, localBook, filePath);
 
@@ -84,7 +86,7 @@ namespace NzbDrone.Core.MediaFiles
         public BookFile CopyBookFile(BookFile bookFile, LocalBook localBook)
         {
             var newFileName = _buildFileNames.BuildBookFileName(localBook.Author, localBook.Edition, bookFile);
-            var filePath = _buildFileNames.BuildBookFilePath(localBook.Author, localBook.Edition, newFileName, Path.GetExtension(localBook.Path));
+            var filePath = _buildFileNames.BuildBookFilePath(localBook.Author, localBook.Edition, newFileName, Path.GetExtension(localBook.Path), bookFile);
 
             EnsureTrackFolder(bookFile, localBook, filePath);
 
@@ -125,7 +127,12 @@ namespace NzbDrone.Core.MediaFiles
 
             try
             {
-                _mediaFileAttributeService.SetFolderLastWriteTime(author.Path, bookFile.DateAdded);
+                var authorFolder = bookFile.GetLibraryContentType() == LibraryContentType.Audiobook &&
+                                   author.AudiobookPath.IsNotNullOrWhiteSpace()
+                    ? author.AudiobookPath
+                    : author.Path;
+
+                _mediaFileAttributeService.SetFolderLastWriteTime(authorFolder, bookFile.DateAdded);
             }
             catch (Exception ex)
             {
@@ -145,8 +152,8 @@ namespace NzbDrone.Core.MediaFiles
         private void EnsureBookFolder(BookFile bookFile, Author author, Book book, string filePath)
         {
             var trackFolder = Path.GetDirectoryName(filePath);
-            var bookFolder = _buildFileNames.BuildBookPath(author);
-            var authorFolder = author.Path;
+            var bookFolder = _buildFileNames.BuildBookPath(author, bookFile.GetLibraryContentType());
+            var authorFolder = bookFolder;
             var rootFolder = new OsPath(authorFolder).Directory.FullPath;
 
             if (!_diskProvider.FolderExists(rootFolder))

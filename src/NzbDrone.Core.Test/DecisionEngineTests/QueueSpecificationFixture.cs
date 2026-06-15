@@ -183,6 +183,28 @@ namespace NzbDrone.Core.Test.DecisionEngineTests
         }
 
         [Test]
+        public void should_return_true_when_same_book_has_different_media_type_in_queue()
+        {
+            _author.QualityProfile.Value.Cutoff = Quality.AZW3.Id;
+            _remoteBook.ParsedBookInfo.Quality = new QualityModel(Quality.MP3);
+
+            var remoteBook = Builder<RemoteBook>.CreateNew()
+                                                      .With(r => r.Author = _author)
+                                                      .With(r => r.Books = new List<Book> { _book })
+                                                      .With(r => r.ParsedBookInfo = new ParsedBookInfo
+                                                      {
+                                                          Quality = new QualityModel(Quality.AZW3)
+                                                      })
+                                                      .With(r => r.Release = _releaseInfo)
+                                                      .With(r => r.CustomFormats = new List<CustomFormat>())
+                                                      .Build();
+
+            GivenQueue(new List<RemoteBook> { remoteBook });
+
+            Subject.IsSatisfiedBy(_remoteBook, null).Accepted.Should().BeTrue();
+        }
+
+        [Test]
         public void should_return_true_when_qualities_are_the_same_with_higher_custom_format_score()
         {
             _remoteBook.CustomFormats = new List<CustomFormat> { new CustomFormat("My Format", new ReleaseTitleSpecification { Value = "MP3" }) { Id = 1 } };

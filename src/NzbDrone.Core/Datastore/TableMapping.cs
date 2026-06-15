@@ -109,6 +109,7 @@ namespace NzbDrone.Core.Datastore
 
             Mapper.Entity<Author>("Authors")
                   .Ignore(s => s.RootFolderPath)
+                  .Ignore(s => s.AudiobookRootFolderPath)
                   .Ignore(s => s.Name)
                   .Ignore(s => s.ForeignAuthorId)
                   .HasOne(a => a.Metadata, a => a.AuthorMetadataId)

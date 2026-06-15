@@ -31,12 +31,14 @@ function createMapStateToProps() {
 
       const fallbackRootFolderPath = rootFolderItems[0] ? rootFolderItems[0].path : '';
       const fallbackQualityProfileId = qualityProfileItems[0] ? qualityProfileItems[0].id : 0;
-      const selectedQualityProfileId = parseInt(settings.qualityProfileId.value, 10);
+      const selectedQualityProfileId = parseInt(settings.qualityProfileId.value);
       const fallbackMetadataProfileId = metadataProfiles.items[0] ? metadataProfiles.items[0].id : 0;
-      const selectedMetadataProfileId = parseInt(settings.metadataProfileId.value, 10);
+      const selectedMetadataProfileId = parseInt(settings.metadataProfileId.value);
 
       const selectedRootFolderPath = settings.rootFolderPath.value || '';
+      const selectedAudiobookRootFolderPath = settings.audiobookRootFolderPath ? settings.audiobookRootFolderPath.value : '';
       const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
+      const normalizedAudiobookRootFolderPath = selectedAudiobookRootFolderPath || normalizedRootFolderPath;
       const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
       const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
 
@@ -50,6 +52,7 @@ function createMapStateToProps() {
         isWindows: systemStatus.isWindows,
         isAddDisabled: !normalizedRootFolderPath || !normalizedQualityProfileId || !normalizedMetadataProfileId,
         fallbackRootFolderPath,
+        fallbackAudiobookRootFolderPath: normalizedAudiobookRootFolderPath,
         fallbackQualityProfileId,
         fallbackMetadataProfileId,
         ...settings
@@ -76,21 +79,25 @@ class AddNewAuthorModalContentConnector extends Component {
     const {
       foreignAuthorId,
       rootFolderPath,
+      audiobookRootFolderPath,
       monitor,
       monitorNewItems,
       qualityProfileId,
       metadataProfileId,
       tags,
       fallbackRootFolderPath,
+      fallbackAudiobookRootFolderPath,
       fallbackQualityProfileId,
       fallbackMetadataProfileId
     } = this.props;
 
     const selectedRootFolderPath = rootFolderPath ? rootFolderPath.value : '';
-    const selectedQualityProfileId = parseInt(qualityProfileId.value, 10);
-    const selectedMetadataProfileId = parseInt(metadataProfileId.value, 10);
+    const selectedAudiobookRootFolderPath = audiobookRootFolderPath ? audiobookRootFolderPath.value : '';
+    const selectedQualityProfileId = parseInt(qualityProfileId.value);
+    const selectedMetadataProfileId = parseInt(metadataProfileId.value);
 
     const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
+    const normalizedAudiobookRootFolderPath = selectedAudiobookRootFolderPath || fallbackAudiobookRootFolderPath || normalizedRootFolderPath;
     const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
     const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
 
@@ -101,6 +108,7 @@ class AddNewAuthorModalContentConnector extends Component {
     this.props.addAuthor({
       foreignAuthorId,
       rootFolderPath: normalizedRootFolderPath,
+      audiobookRootFolderPath: normalizedAudiobookRootFolderPath,
       monitor: monitor.value,
       monitorNewItems: monitorNewItems.value,
       qualityProfileId: normalizedQualityProfileId,
@@ -127,12 +135,14 @@ class AddNewAuthorModalContentConnector extends Component {
 AddNewAuthorModalContentConnector.propTypes = {
   foreignAuthorId: PropTypes.string.isRequired,
   rootFolderPath: PropTypes.object,
+  audiobookRootFolderPath: PropTypes.object,
   monitor: PropTypes.object.isRequired,
   monitorNewItems: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,
   metadataProfileId: PropTypes.object,
   isAddDisabled: PropTypes.bool.isRequired,
   fallbackRootFolderPath: PropTypes.string,
+  fallbackAudiobookRootFolderPath: PropTypes.string,
   fallbackQualityProfileId: PropTypes.number,
   fallbackMetadataProfileId: PropTypes.number,
   tags: PropTypes.object.isRequired,

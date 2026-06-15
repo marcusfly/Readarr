@@ -72,10 +72,10 @@ an absolute path. The directory contains:
 
 ### Book library
 
-Mount your book collection read-write so Readarr can rename and move files:
+Mount your ebook and audiobook collections read-write so Readarr can rename and move files. Keep ebook managers such as Calibre pointed at `/books` only.
 
 ```
-docker run -v /your/books:/books ghcr.io/readarr/readarr:latest
+docker run -v /your/books:/books -v /your/audiobooks:/audiobooks ghcr.io/readarr/readarr:latest
 ```
 
 ---

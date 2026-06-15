@@ -86,6 +86,17 @@ namespace Readarr.Api.V3.Author
                            .SetValidator(systemFolderValidator)
                            .When(s => !s.Path.IsNullOrWhiteSpace());
 
+            SharedValidator.RuleFor(s => s.AudiobookPath)
+                           .Cascade(CascadeMode.Stop)
+                           .IsValidPath()
+                           .SetValidator(rootFolderValidator)
+                           .SetValidator(mappedNetworkDriveValidator)
+                           .SetValidator(authorPathValidator)
+                           .SetValidator(authorAncestorValidator)
+                           .SetValidator(recycleBinValidator)
+                           .SetValidator(systemFolderValidator)
+                           .When(s => !s.AudiobookPath.IsNullOrWhiteSpace());
+
             SharedValidator.RuleFor(s => s.QualityProfileId).SetValidator(qualityProfileExistsValidator);
             SharedValidator.RuleFor(s => s.MetadataProfileId).SetValidator(metadataProfileExistsValidator);
 
@@ -154,12 +165,16 @@ namespace Readarr.Api.V3.Author
             {
                 var sourcePath = author.Path;
                 var destinationPath = authorResource.Path;
+                var sourceAudiobookPath = author.AudiobookPath;
+                var destinationAudiobookPath = authorResource.AudiobookPath;
 
                 _commandQueueManager.Push(new MoveAuthorCommand
                 {
                     AuthorId = author.Id,
                     SourcePath = sourcePath,
                     DestinationPath = destinationPath,
+                    SourceAudiobookPath = sourceAudiobookPath,
+                    DestinationAudiobookPath = destinationAudiobookPath,
                     Trigger = CommandTrigger.Manual
                 });
             }
@@ -227,6 +242,9 @@ namespace Readarr.Api.V3.Author
             foreach (var author in authors)
             {
                 author.RootFolderPath = _rootFolderService.GetBestRootFolderPath(author.Path, rootFolders);
+                author.AudiobookRootFolderPath = author.AudiobookPath.IsNotNullOrWhiteSpace()
+                    ? _rootFolderService.GetBestRootFolderPath(author.AudiobookPath, rootFolders)
+                    : null;
             }
         }
 

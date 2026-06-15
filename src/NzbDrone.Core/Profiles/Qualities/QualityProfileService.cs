@@ -3,6 +3,7 @@ using System.Linq;
 using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.CustomFormats.Events;
 using NzbDrone.Core.ImportLists;
@@ -91,25 +92,9 @@ namespace NzbDrone.Core.Profiles.Qualities
 
         public void Handle(ApplicationStartedEvent message)
         {
-            if (All().Any())
-            {
-                return;
-            }
-
             _logger.Info("Setting up default quality profiles");
 
-            AddDefaultProfile("eBook",
-                Quality.MOBI,
-                Quality.MOBI,
-                Quality.EPUB,
-                Quality.AZW3);
-
-            AddDefaultProfile("Spoken",
-                              Quality.MP3,
-                              Quality.UnknownAudio,
-                              Quality.MP3,
-                              Quality.M4B,
-                              Quality.FLAC);
+            EnsureDefaultProfiles();
         }
 
         public void Handle(CustomFormatAddedEvent message)
@@ -207,6 +192,72 @@ namespace NzbDrone.Core.Profiles.Qualities
             var profile = GetDefaultProfile(name, cutoff, allowed);
 
             return Add(profile);
+        }
+
+        private void EnsureDefaultProfiles()
+        {
+            var profiles = All();
+
+            RenameLegacySpokenProfile(profiles);
+
+            profiles = All();
+
+            if (profiles.None(p => p.Name == "Both"))
+            {
+                AddDefaultProfile("Both",
+                                  Quality.AZW3,
+                                  Quality.Unknown,
+                                  Quality.PDF,
+                                  Quality.MOBI,
+                                  Quality.EPUB,
+                                  Quality.AZW3,
+                                  Quality.UnknownAudio,
+                                  Quality.MP3,
+                                  Quality.M4B,
+                                  Quality.FLAC);
+            }
+
+            if (profiles.None(p => p.Name == "eBook"))
+            {
+                AddDefaultProfile("eBook",
+                                  Quality.MOBI,
+                                  Quality.Unknown,
+                                  Quality.PDF,
+                                  Quality.MOBI,
+                                  Quality.EPUB,
+                                  Quality.AZW3);
+            }
+
+            if (profiles.None(p => p.Name == "Audiobook"))
+            {
+                AddDefaultProfile("Audiobook",
+                                  Quality.MP3,
+                                  Quality.UnknownAudio,
+                                  Quality.MP3,
+                                  Quality.M4B,
+                                  Quality.FLAC);
+            }
+        }
+
+        private void RenameLegacySpokenProfile(List<QualityProfile> profiles)
+        {
+            if (profiles.Any(p => p.Name == "Audiobook"))
+            {
+                return;
+            }
+
+            var spoken = profiles.FirstOrDefault(p => p.Name == "Spoken");
+            if (spoken == null)
+            {
+                return;
+            }
+
+            var contentTypes = spoken.GetAllowedContentTypes();
+            if (contentTypes == LibraryContentType.Audiobook)
+            {
+                spoken.Name = "Audiobook";
+                Update(spoken);
+            }
         }
     }
 }

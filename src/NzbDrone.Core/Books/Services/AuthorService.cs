@@ -256,6 +256,13 @@ namespace NzbDrone.Core.Books
                 {
                     _logger.Trace("Not changing path for: {0}", s.Name);
                 }
+
+                if (!s.AudiobookRootFolderPath.IsNullOrWhiteSpace())
+                {
+                    s.AudiobookPath = _authorPathBuilder.BuildAudiobookPath(s, useExistingRelativeFolder);
+
+                    _logger.Trace("Changing audiobook path for {0} to {1}", s.Name, s.AudiobookPath);
+                }
             }
 
             _authorRepository.UpdateMany(author);

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Parser.Model;
@@ -30,9 +31,16 @@ namespace NzbDrone.Core.DecisionEngine.Specifications
         public virtual Decision IsSatisfiedBy(RemoteBook subject, SearchCriteriaBase searchCriteria)
         {
             var qualityProfile = subject.Author.QualityProfile.Value;
+            var releaseContentType = subject.GetLibraryContentType();
 
             foreach (var file in subject.Books.SelectMany(b => b.BookFiles.Value))
             {
+                if (releaseContentType != LibraryContentType.None &&
+                    file.GetLibraryContentType() != releaseContentType)
+                {
+                    continue;
+                }
+
                 // Get a distinct list of all current track qualities for a given book
                 var currentQualities = new List<QualityModel> { file.Quality };
 

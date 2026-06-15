@@ -114,6 +114,7 @@ const mediaInfoTokens = [
 
 const otherTokens = [
   { token: '{Release Group}', example: 'Rls Grp' },
+  { token: '{Media Type}', example: 'Audiobook' },
   { token: '{Custom Formats}', example: 'iNTERNAL' }
 ];
 

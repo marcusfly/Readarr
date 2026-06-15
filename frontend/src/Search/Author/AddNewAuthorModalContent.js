@@ -2,8 +2,8 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import TextTruncate from 'react-text-truncate';
 import AuthorPoster from 'Author/AuthorPoster';
-import CheckInput from 'Components/Form/CheckInput';
 import Alert from 'Components/Alert';
+import CheckInput from 'Components/Form/CheckInput';
 import Button from 'Components/Link/Button';
 import SpinnerButton from 'Components/Link/SpinnerButton';
 import ModalBody from 'Components/Modal/ModalBody';
@@ -109,18 +109,19 @@ class AddNewAuthorModalContent extends Component {
           </div>
         </ModalBody>
 
-          <ModalFooter className={styles.modalFooter}>
-          { !hasRootFolder &&
-            <Alert kind={kinds.WARNING}>
-              Configure a root folder before adding authors.
-              <Button
-                className={styles.addRootFolderButton}
-                to="/settings/mediamanagement"
-                kind={kinds.PRIMARY}
-              >
-                {translate('AddRootFolder')}
-              </Button>
-            </Alert>
+        <ModalFooter className={styles.modalFooter}>
+          {
+            !hasRootFolder &&
+              <Alert kind={kinds.WARNING}>
+                Configure a root folder before adding authors.
+                <Button
+                  className={styles.addRootFolderButton}
+                  to="/settings/mediamanagement"
+                  kind={kinds.PRIMARY}
+                >
+                  {translate('AddRootFolder')}
+                </Button>
+              </Alert>
           }
 
           <label className={styles.searchForMissingBooksLabelContainer}>
@@ -157,6 +158,8 @@ AddNewAuthorModalContent.propTypes = {
   disambiguation: PropTypes.string,
   overview: PropTypes.string,
   images: PropTypes.arrayOf(PropTypes.object).isRequired,
+  rootFolderPath: PropTypes.object,
+  audiobookRootFolderPath: PropTypes.object,
   isAdding: PropTypes.bool.isRequired,
   addError: PropTypes.object,
   isSmallScreen: PropTypes.bool.isRequired,

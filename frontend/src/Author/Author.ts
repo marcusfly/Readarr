@@ -8,9 +8,11 @@ interface Author extends ModelBase {
   monitored: boolean;
   overview: string;
   path: string;
+  audiobookPath: string;
   qualityProfileId: number;
   metadataProfileId: number;
   rootFolderPath: string;
+  audiobookRootFolderPath: string;
   sortName: string;
   status: AuthorStatus;
   tags: number[];

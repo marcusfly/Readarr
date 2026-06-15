@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
-using Microsoft.Extensions.Configuration;
 using NLog;
+using NzbDrone.Common;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Events;
@@ -14,58 +14,76 @@ namespace NzbDrone.Core.RootFolders
     public class DefaultRootFolderService : IHandle<ApplicationStartedEvent>
     {
         private const string DEFAULT_ROOT_FOLDER_PATH = "/books";
+        private const string DEFAULT_AUDIOBOOK_ROOT_FOLDER_PATH = "/audiobooks";
         private const string ROOT_FOLDER_NAME = "Books";
-        private const string ROOT_FOLDER_PATH_CONFIG_KEY = "Readarr:RootFolder:Path";
+        private const string AUDIOBOOK_ROOT_FOLDER_NAME = "Audiobooks";
+        private const string ROOT_FOLDER_PATH_ENV_KEY = "READARR__ROOTFOLDER__PATH";
+        private const string AUDIOBOOK_ROOT_FOLDER_PATH_ENV_KEY = "READARR__ROOTFOLDER__AUDIOBOOKPATH";
         private const int DEFAULT_PROFILE_ID = 1;
 
         private readonly IRootFolderService _rootFolderService;
         private readonly IMetadataProfileService _metadataProfileService;
         private readonly IQualityProfileService _qualityProfileService;
-        private readonly IConfiguration _configuration;
         private readonly Logger _logger;
 
         public DefaultRootFolderService(IRootFolderService rootFolderService,
                                        IMetadataProfileService metadataProfileService,
                                        IQualityProfileService qualityProfileService,
-                                       IConfiguration configuration,
                                        Logger logger)
         {
             _rootFolderService = rootFolderService;
             _metadataProfileService = metadataProfileService;
             _qualityProfileService = qualityProfileService;
-            _configuration = configuration;
             _logger = logger;
         }
 
         public void Handle(ApplicationStartedEvent message)
         {
-            if (_rootFolderService.All().Any())
-            {
-                return;
-            }
+            var existingRootFolders = _rootFolderService.All();
 
-            try
+            foreach (var rootFolder in GetDefaultRootFolders())
             {
-                _rootFolderService.Add(GetDefaultRootFolder());
-                _logger.Info("Created default root folder at '{0}'.", GetRootFolderPath());
-            }
-            catch (Exception ex) when (ex is DirectoryNotFoundException or UnauthorizedAccessException or ArgumentException)
-            {
-                _logger.Warn(ex, "Default root folder could not be created automatically. Path '{0}' is not usable.", GetRootFolderPath());
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Unexpected error while creating default root folder.");
+                if (existingRootFolders.Any(x => x.Path.PathEquals(rootFolder.Path)))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    _rootFolderService.Add(rootFolder);
+                    existingRootFolders.Add(rootFolder);
+                    _logger.Info("Created default root folder at '{0}'.", rootFolder.Path);
+                }
+                catch (Exception ex) when (ex is DirectoryNotFoundException or UnauthorizedAccessException or ArgumentException)
+                {
+                    _logger.Warn(ex, "Default root folder could not be created automatically. Path '{0}' is not usable.", rootFolder.Path);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Unexpected error while creating default root folder '{0}'.", rootFolder.Path);
+                }
             }
         }
 
-        private RootFolder GetDefaultRootFolder()
+        private RootFolder[] GetDefaultRootFolders()
         {
-            var rootFolderPath = GetRootFolderPath();
+            return new[]
+            {
+                GetDefaultRootFolder(GetConfiguredPath(ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_ROOT_FOLDER_PATH), ROOT_FOLDER_NAME),
+                GetDefaultRootFolder(GetConfiguredPath(AUDIOBOOK_ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_AUDIOBOOK_ROOT_FOLDER_PATH), AUDIOBOOK_ROOT_FOLDER_NAME)
+            }
+            .Where(x => x.Path.IsNotNullOrWhiteSpace())
+            .GroupBy(x => x.Path, PathEqualityComparer.Instance)
+            .Select(x => x.First())
+            .ToArray();
+        }
+
+        private RootFolder GetDefaultRootFolder(string rootFolderPath, string fallbackName)
+        {
             var rootFolderName = Path.GetFileName(rootFolderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             if (rootFolderName.IsNullOrWhiteSpace())
             {
-                rootFolderName = ROOT_FOLDER_NAME;
+                rootFolderName = fallbackName;
             }
 
             return new RootFolder
@@ -77,11 +95,11 @@ namespace NzbDrone.Core.RootFolders
             };
         }
 
-        private string GetRootFolderPath()
+        private string GetConfiguredPath(string configKey, string defaultPath)
         {
-            return _configuration[ROOT_FOLDER_PATH_CONFIG_KEY].IsNotNullOrWhiteSpace()
-                ? _configuration[ROOT_FOLDER_PATH_CONFIG_KEY]
-                : DEFAULT_ROOT_FOLDER_PATH;
+            return Environment.GetEnvironmentVariable(configKey).IsNotNullOrWhiteSpace()
+                ? Environment.GetEnvironmentVariable(configKey)
+                : defaultPath;
         }
 
         private int GetDefaultProfileId(int[] profileIds, string profileType)

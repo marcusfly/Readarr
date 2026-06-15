@@ -143,6 +143,13 @@ namespace NzbDrone.Core.Books
             }
 
             newAuthor.Path = path;
+
+            if (newAuthor.AudiobookPath.IsNullOrWhiteSpace() &&
+                newAuthor.AudiobookRootFolderPath.IsNotNullOrWhiteSpace())
+            {
+                newAuthor.AudiobookPath = Path.Combine(newAuthor.AudiobookRootFolderPath, _fileNameBuilder.GetAuthorFolder(newAuthor));
+            }
+
             newAuthor.CleanName = newAuthor.Metadata.Value.Name.CleanAuthorName();
             newAuthor.Added = DateTime.UtcNow;
 

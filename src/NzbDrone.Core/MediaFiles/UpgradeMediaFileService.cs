@@ -3,6 +3,7 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Books.Calibre;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RootFolders;
@@ -47,9 +48,18 @@ namespace NzbDrone.Core.MediaFiles
         public BookFileMoveResult UpgradeBookFile(BookFile bookFile, LocalBook localBook, bool copyOnly = false)
         {
             var moveFileResult = new BookFileMoveResult();
-            var existingFiles = localBook.Book.BookFiles.Value;
+            var replacementContentType = bookFile.GetLibraryContentType();
+            var existingFiles = localBook.Book.BookFiles.Value
+                .Where(file => replacementContentType == LibraryContentType.None ||
+                               file.GetLibraryContentType() == replacementContentType)
+                .ToList();
 
-            var rootFolderPath = _diskProvider.GetParentFolder(localBook.Author.Path);
+            var authorPath = replacementContentType == LibraryContentType.Audiobook &&
+                             localBook.Author.AudiobookPath.IsNotNullOrWhiteSpace()
+                ? localBook.Author.AudiobookPath
+                : localBook.Author.Path;
+
+            var rootFolderPath = _diskProvider.GetParentFolder(authorPath);
             var rootFolder = _rootFolderService.GetBestRootFolder(rootFolderPath);
             var isCalibre = rootFolder.IsCalibreLibrary && rootFolder.CalibreSettings != null;
 

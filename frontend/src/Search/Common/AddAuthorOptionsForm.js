@@ -32,6 +32,7 @@ class AddAuthorOptionsForm extends Component {
   render() {
     const {
       rootFolderPath,
+      audiobookRootFolderPath,
       monitor,
       monitorNewItems,
       qualityProfileId,
@@ -67,6 +68,28 @@ class AddAuthorOptionsForm extends Component {
             helpText={translate('AddNewAuthorRootFolderHelpText', { folder })}
             onChange={onInputChange}
             {...rootFolderPath}
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <FormLabel>
+            Audiobook Root Folder
+          </FormLabel>
+
+          <FormInputGroup
+            type={inputTypes.ROOT_FOLDER_SELECT}
+            name="audiobookRootFolderPath"
+            valueOptions={{
+              authorFolder: folder,
+              isWindows
+            }}
+            selectedValueOptions={{
+              authorFolder: folder,
+              isWindows
+            }}
+            helpText="Audiobook files will be stored under this root folder."
+            onChange={onInputChange}
+            {...audiobookRootFolderPath}
           />
         </FormGroup>
 
@@ -183,6 +206,7 @@ class AddAuthorOptionsForm extends Component {
 
 AddAuthorOptionsForm.propTypes = {
   rootFolderPath: PropTypes.object,
+  audiobookRootFolderPath: PropTypes.object,
   monitor: PropTypes.object.isRequired,
   monitorNewItems: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,

@@ -238,6 +238,35 @@ Impact: The integration clients and startup probe should exercise the same auth 
 Task: Correct the shared tasks client route.
 Decision: Point the integration test `Tasks` client at `api/v1` instead of `api/v3`, because `TaskController` is a v1 controller and the bootstrap was calling a non-existent route.
 Reason: The startup probe uses `Tasks.All()` to wait for background task registration. If that client targets the wrong API version, the smoke setup will fail before the item-3 workflow can run.
+
+## 2026-06-14T20:04:13-05:00 | Codex | START
+Task: Explore and plan unified ebook plus audiobook author/library support, including quality profile labels, acquisition behavior, and folder structure decisions.
+Scope: GitHub project backlog item, AGENT_LOG.md, quality profile/profile schema, author add/edit UI, media file/import/storage paths, root folders, naming, download classification, and existing audiobook/spoken handling.
+Changes: None yet.
+Checks: Read AGENT_LOG.md and ran `git status --short --branch`; existing `.readarr-data` and AGENT_LOG changes preserved.
+State: Uncommitted diary entry only, with pre-existing local `.readarr-data` changes untouched.
+Next: Confirm GitHub project access, add or update the backlog item, then inspect frontend/backend touchpoints and produce the implementation plan.
+
+## 2026-06-14T20:05:00-05:00 | Codex | BLOCKED
+Task: Add unified ebook plus audiobook work as a GitHub project backlog item.
+Blocker: `gh project list --owner @me --format json` failed because the authenticated token is missing the required `read:project` scope.
+Changes: No GitHub project item could be created or updated.
+Checks: `gh auth status` succeeded for account `marcusfly`; project listing failed before item discovery.
+State: Local-only diary update; project board not updated.
+Next: Refresh GitHub CLI auth with project scopes, then create or update the BLI### backlog item with the plan metadata.
+
+## 2026-06-14T20:07:48-05:00 | Codex | DECISION
+Task: Plan unified ebook plus audiobook author/library support.
+Decision: Treat ebook/audiobook as a first-class media-kind dimension, not only as quality profile names. Keep a single Readarr instance and author record, but make missing/search/import/upgrade/storage operate per media kind so ebook files and audiobook files can coexist for the same book.
+Reason: Existing quality profiles can allow both text and audio qualities, but current import and upgrade code removes existing book files for the whole book and monitored-edition logic allows only one monitored edition, so a label-only change would still replace one format with the other.
+Impact: Implementation must add media-kind-aware profile intent, monitored edition selection, missing/cutoff detection, import replacement scope, and optional path routing before exposing `Both`, `eBook`, and `Audiobook` as reliable user choices.
+
+## 2026-06-14T20:07:48-05:00 | Codex | HANDOFF
+Task: Finish exploratory plan for unified ebook plus audiobook support.
+Changes: No product code changed. Added diary entries documenting GitHub project blockage and the planning decision. Researched quality profile defaults, author add/edit UI, root folder model, quality parsing, indexer categories, edition matching, search/cutoff logic, import/upgrade replacement behavior, and storage/naming paths.
+Checks: `gh auth status`; `gh project list --owner @me --format json` failed for missing project scope; repository code inspected with `rg`, `sed`, and `nl`; final worktree status checked.
+State: Uncommitted AGENT_LOG.md changes only from this task; pre-existing `.readarr-data` mutations and untracked `.readarr-data` folders preserved.
+Next: Refresh GitHub CLI with project scopes, create the BLI### project item, then implement the plan in staged backend-first slices with focused tests.
 Impact: The integration bootstrap should now reach the task list endpoint the controller actually exposes, which is a prerequisite for the rest of the suite.
 ## 2026-06-14T12:15:42-05:00 | Codex | DECISION
 Task: Make the task-list bootstrap compatible with the controller's response shape.
@@ -804,3 +833,199 @@ Next: Review filesystem-to-database import ordering, patch if needed, run focuse
 Task: Keep BLI005 current in GitHub project during production-readiness pass.
 Issue: `gh auth status` still fails with `zsh:1: command not found: gh`, so project item status/body updates cannot be performed from this environment.
 Next: Continue local verification and diary updates; update GitHub project item once GitHub CLI/project credentials are available.
+
+## 2026-06-14T20:03:32-05:00 | Codex | DECISION
+Task: Production-readiness review for BLI005 import crash-safety changes.
+Decision: Treat an import attempt as complete only after the primary book file has been inserted into the media-file database, and require startup recovery to find both a size-matched destination file and matching BookFile row before marking orphaned InProgress attempts Completed. Extra-file import failures are now best-effort at the ImportApprovedBooks boundary so they cannot strand a successfully moved primary book file outside the database.
+
+## 2026-06-14T20:03:32-05:00 | Codex | HANDOFF
+Task: Production-readiness review for BLI005 import crash-safety changes.
+Progress: Closed the remaining crash window between filesystem transfer and BookFiles DB insert; added/verified recovery behavior that refuses to silently complete untracked destinations; kept primary imports successful when extra-file generation/import fails after the main transfer.
+Files changed in final review pass: src/NzbDrone.Core/MediaFiles/BookImport/ImportApprovedBooks.cs, src/NzbDrone.Core.Test/MediaFiles/ImportApprovedBooksDryRunFixture.cs. Earlier BLI005 journal/schema changes are present in HEAD.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~ImportAttemptServiceFixture|FullyQualifiedName~ImportApprovedBooksDryRunFixture|FullyQualifiedName~ImportApprovedTracksFixture" --no-restore` passed 33/33; `dotnet build src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --no-restore` passed; `dotnet build src/Readarr.sln --no-restore -m:1` passed with 0 warnings/errors; `git diff --check` on BLI005 touched files passed.
+Verification blocker: MigrationSchemaFixture still cannot run on this macOS arm64 environment because the test SQLite provider/native library is incompatible/missing (`SQLite.Interop.dll` is x86_64 and Microsoft.Data.Sqlite is absent).
+GitHub project update: BLOCKED because `gh` is unavailable (`zsh:1: command not found: gh`); update BLI005 project item when GitHub CLI/project auth is available.
+State: Source changes are committed in current HEAD `803b81be6` (`Keep imports successful when extras fail`); worktree still has runtime .readarr-data changes only.
+Next: Run migration schema tests in a compatible SQLite test environment and update the GitHub project item for BLI005 with this production-readiness status.
+
+## 2026-06-14T20:04:28-05:00 | Codex | START
+Task: Clear BLI005 GitHub project update blocker now that `gh` is installed.
+Scope: GitHub project item BLI005 title/body/status and AGENT_LOG.md.
+Checks: `git status --short --branch`, `gh auth status`.
+State: Existing runtime .readarr-data changes and AGENT_LOG.md edits remain uncommitted.
+Next: Locate project item BLI005 and update its metadata/status, or record any remaining auth/scope blocker.
+
+## 2026-06-14T20:04:28-05:00 | Codex | BLOCKED
+Task: Clear BLI005 GitHub project update blocker.
+Issue: `gh` is installed and authenticated as `marcusfly`, but project commands fail because the token is missing `read:project`/project scopes. Attempted `gh auth refresh --hostname github.com -s read:project -s project`; GitHub device auth requested code `0C88-23F6` at `https://github.com/login/device`, but the device authorization was not completed before the waiting command was stopped.
+Checks: `gh auth status`, `gh project list --owner @me --format json`, `gh project view 1 --owner @me --format json`, `gh auth refresh --hostname github.com -s read:project -s project`.
+State: GitHub project item BLI005 not updated yet.
+Next: Complete `gh auth refresh --hostname github.com -s read:project -s project`, then run `gh project item-list 1 --owner @me --format json` and update BLI005 title/body/status with the BLI005 production-readiness notes.
+
+## 2026-06-14T20:15:12-05:00 | Codex | START
+Task: BLI TBD - Implement unified ebook plus audiobook support for one Readarr instance.
+Scope: Quality profile defaults/naming, media-kind classification, monitored edition selection, book-file import/upgrade coexistence, missing/cutoff search semantics, folder routing/naming, UI labels, focused tests, and GitHub project backlog item when project auth is available.
+Changes: None yet for product code.
+Checks: Read latest AGENT_LOG.md entries, ran `git status --short --branch`, `gh auth status`, and `gh project list --owner @me --format json`; existing `.readarr-data` runtime changes preserved.
+State: Existing dirty runtime data plus uncommitted diary entries; no product code touched yet in this workstream.
+Next: Implement the backend media-kind foundation and default profile changes, then add focused tests before frontend path/profile UI updates.
+
+## 2026-06-14T20:15:12-05:00 | Codex | BLOCKED
+Task: Add unified ebook plus audiobook work as a GitHub project backlog item.
+Issue: `gh project list --owner @me --format json` still fails because the authenticated token is missing `read:project`; the project item cannot be created or updated from this shell yet.
+Changes: No GitHub project item created.
+Checks: `gh auth status` succeeded for `marcusfly`; project listing failed for missing scope.
+State: Backlog tracking is blocked in GitHub; local diary is current.
+Next: Complete `gh auth refresh --hostname github.com -s read:project -s project`, then create the next `BLI### - Support one Readarr instance for ebooks and audiobooks` item with implementation notes.
+
+## 2026-06-14T20:21:57-05:00 | Codex | PROGRESS
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Progress: Cleared the GitHub project blocker after refreshed `gh` project scopes. Created project draft item `PVTI_lAHOABUHg84BapeYzgvuuHQ` titled `BLI011 - Support One Readarr Instance for eBooks and Audiobooks`, set Status `In progress`, Priority `P1`, and Size `XL`, and populated objective/work/done-when/current-notes/next-action metadata.
+Checks: `gh auth status`, `gh project list --owner @me --format json`, `gh project item-list 1 --owner @me --format json`, `gh project field-list 1 --owner @me --format json`, `gh project item-create 1 --owner @me --format json ...`, and three `gh project item-edit ... --single-select-option-id ...` commands all succeeded after auth refresh.
+State: GitHub board is current for this workstream; code changes remain uncommitted for local verification.
+Next: Run final focused verification and record handoff with remaining BLI011 gaps.
+
+## 2026-06-14T20:24:15-05:00 | Codex | HANDOFF
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Progress: Implemented the first backend foundation slice. Default profile seeding now ensures `Both`, `eBook`, and `Audiobook`; legacy audio-only `Spoken` profiles are renamed to `Audiobook`; shared media-kind helpers classify qualities, editions, local books, and book files; monitored ebook and audiobook editions can coexist; upgrade/import replacement only removes existing files of the same media kind.
+GitHub project: BLI011 is created in the sole GitHub project as project item `PVTI_lAHOABUHg84BapeYzgvuuHQ` / draft content `DI_lAHOABUHg84BapeYzgKnxWE`, with Status `In progress`, Priority `P1`, Size `XL`, and body updated with verification plus remaining gaps. One body-update retry was required because draft body edits need the `DI_` content ID and safe shell quoting.
+Files changed: AGENT_LOG.md, src/NzbDrone.Core/ContentTypes/LibraryContentTypeExtensions.cs, src/NzbDrone.Core/Books/Repositories/EditionRepository.cs, src/NzbDrone.Core/MediaFiles/MediaFileExtensions.cs, src/NzbDrone.Core/MediaFiles/UpgradeMediaFileService.cs, src/NzbDrone.Core/Profiles/Qualities/QualityProfileService.cs, src/NzbDrone.Core.Test/MediaFiles/UpgradeMediaFileServiceFixture.cs, src/NzbDrone.Core.Test/Profiles/QualityProfileServiceFixture.cs.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~QualityProfileServiceFixture|FullyQualifiedName~UpgradeMediaFileServiceFixture" --no-restore` passed 13/13 with 1 existing skipped test; `dotnet build src/NzbDrone.Core/Readarr.Core.csproj --no-restore` passed; `dotnet build src/Readarr.sln --no-restore -m:1` passed; `git diff --check` on BLI011 source/diary files passed; `git diff --check` for the full worktree still reports unrelated `.readarr-data` runtime log whitespace.
+State: Uncommitted. Existing `.readarr-data` database/log/MediaCover/certs changes are still dirty and preserved; BLI011 source changes are also uncommitted.
+Next: Implement the remaining BLI011 gaps: media-kind-aware root-folder/naming decisions, missing/cutoff/search behavior for `Both`, and UI/API polish after backend semantics are complete.
+
+## 2026-06-14T20:26:45-05:00 | Codex | START
+Task: Continue BLI011 toward completion.
+Scope: Build on the existing uncommitted BLI011 backend foundation, starting with media-kind-aware missing/cutoff/search behavior and then folder/naming plus UI/API polish as the code shape allows.
+Checks: Read latest AGENT_LOG.md, ran `git status --short --branch`, `gh auth status`, and confirmed BLI011 project item remains `In progress`.
+State: Existing `.readarr-data` runtime changes are still dirty and unrelated; BLI011 source changes from the first slice are uncommitted and should be preserved.
+Next: Inspect book cutoff, wanted/missing, search, author/root-folder, and naming code paths to choose the next narrow implementation slice.
+
+## 2026-06-14T20:40:35-05:00 | Codex | PROGRESS
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Progress: Extended the backend foundation toward feature completion. Decision specs now compare disk/queued releases only within the same media kind; refresh can keep one monitored edition per allowed media kind for `Both`; import event publishing, parser/search, API resources, calendar, manual import, covers, custom scripts, and webhooks no longer assume exactly one monitored edition. Added `{Media Type}` naming token and exposed it in the naming modal for eBook/Audiobook subfolder layouts under one author root.
+Decision: Do not add a separate audiobook root-folder schema in this slice. Use the existing author root plus the new `{Media Type}` token for separable file structures, because a second root path per author would require a larger database/API/UI migration. Revisit separate ebook/audiobook roots only if subfolder separation is insufficient in runtime validation.
+GitHub project: Updated BLI011 draft content `DI_lAHOABUHg84BapeYzgKnxWE` with completed work, storage decision, verification, known gaps, and follow-up.
+Files changed in this slice include: src/NzbDrone.Core/Books/BookEditionExtensions.cs, src/NzbDrone.Core/Books/Services/AddBookService.cs, src/NzbDrone.Core/Books/Services/RefreshBookService.cs, src/NzbDrone.Core/DecisionEngine/Specifications/CutoffSpecification.cs, src/NzbDrone.Core/DecisionEngine/Specifications/QueueSpecification.cs, src/NzbDrone.Core/DecisionEngine/Specifications/UpgradeAllowedSpecification.cs, src/NzbDrone.Core/DecisionEngine/Specifications/UpgradeDiskSpecification.cs, src/NzbDrone.Core/IndexerSearch/ReleaseSearchService.cs, src/NzbDrone.Core/MediaFiles/BookImport/ImportApprovedBooks.cs, src/NzbDrone.Core/Organizer/FileNameBuilder.cs, src/NzbDrone.Core/Parser/Parser.cs, related API/notification files, frontend/src/Settings/MediaManagement/Naming/NamingModal.js, and focused tests.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~QualityProfileServiceFixture|FullyQualifiedName~UpgradeMediaFileServiceFixture|FullyQualifiedName~CutoffSpecificationDecisionFixture|FullyQualifiedName~QueueSpecificationFixture|FullyQualifiedName~FileNameBuilderFixture" --no-restore` passed 103/103 with 1 existing skipped test; `dotnet build src/Readarr.sln --no-restore -m:1` passed; `dotnet build src/Readarr.Api.V3/Readarr.Api.V3.csproj --no-restore` passed; targeted ESLint on `frontend/src/Settings/MediaManagement/Naming/NamingModal.js` passed; `git diff --check` on BLI011 source/diary files passed.
+Verification gaps: Full `yarn lint` still fails on unrelated existing frontend files (`Search/Author/AddNewAuthorModalContent.js`, `Search/Author/AddNewAuthorModalContentConnector.js`, `Settings/Metadata/MetadataProvider/MetadataProvider.js`, `Store/Actions/systemActions.js`, `Utilities/String/translate.ts`). Full-worktree `git diff --check` still reports unrelated `.readarr-data` runtime log whitespace.
+State: Uncommitted. Existing `.readarr-data` database/log/MediaCover/certs changes remain dirty and preserved; BLI011 source changes are also uncommitted.
+Next: Runtime/manual validation with real mixed ebook/audiobook metadata and indexer results; consider broader refresh-selection tests or separate root-folder schema only after validation.
+
+## 2026-06-14T20:41:25-05:00 | Codex | HANDOFF
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Summary: Local implementation now covers profile names/defaults, media-kind classification, per-kind monitored editions, per-kind cutoff/queue/disk decisions, import/upgrade coexistence, multi-monitored-edition safety across backend/API/notifications, and `{Media Type}` naming support.
+Checks: Same as the 20:40:35 progress entry; no additional commands after that entry except timestamp and diary append.
+State: Uncommitted. GitHub project item is updated and `In progress`; `.readarr-data` runtime changes remain unrelated and dirty.
+Exact next action: perform runtime/manual validation by adding an author with `Both`, confirming one ebook and one audiobook edition are monitored/searched/imported, and trying a naming format containing `{Media Type}`.
+
+## 2026-06-14T21:01:22-05:00 | Codex | DECISION
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Decision: Change the storage target from one author root with `{Media Type}` subfolders to distinct ebook and audiobook root folders, e.g. `/books` and `/audiobooks`, to future-proof Calibre and other ebook-manager integrations.
+Reason: Calibre and similar ebook managers expect to own an ebook library. Keeping audiobooks in the same root risks routing audio files through ebook-only management paths and makes future audiobook-manager integration harder.
+Impact: BLI011 now needs a schema/API/import-path change so each author can resolve ebook files to the existing author path and audiobook files to a separate audiobook author path/root. Existing `{Media Type}` naming remains useful inside each root, but it is no longer the primary separation mechanism.
+Next: Add media-kind-aware author root/path routing, preserve Calibre for ebook roots, and update import/move/naming/API/UI/tests accordingly.
+
+## 2026-06-14T21:13:41-05:00 | Codex | PROGRESS
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Progress: Implemented the separate-root design locally. Added `Authors.AudiobookPath` migration/schema/API mapping, exposed audiobook root/path in add/edit/bulk UI flows, routed audiobook file build/move/copy/rename/import/replacement paths to `AudiobookPath`, and kept ebook files on the existing `Path`. Single-author and bulk move commands now carry ebook and audiobook source/destination paths independently.
+Decision: `/books` and `/audiobooks` are now the intended layout. Calibre and ebook managers should be integrated only with `/books`; audiobook managers should use `/audiobooks`. The `{Media Type}` naming token remains optional inside either root but is not the primary separation model.
+GitHub project: Updated BLI011 draft content `DI_lAHOABUHg84BapeYzgKnxWE` with the separate-root storage decision, completed work, verification, known gaps, and remaining follow-up.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~BookFilePathBuilderFixture|FullyQualifiedName~FileNameBuilderFixture|FullyQualifiedName~QualityProfileServiceFixture|FullyQualifiedName~UpgradeMediaFileServiceFixture|FullyQualifiedName~CutoffSpecificationDecisionFixture|FullyQualifiedName~QueueSpecificationFixture|FullyQualifiedName~MigrationIntegrityCheckFixture|FullyQualifiedName~MoveAuthorServiceFixture" --no-restore` passed 117/117 with 1 existing skipped test; targeted ESLint on touched frontend files passed; `dotnet build src/Readarr.sln --no-restore -m:1` passed with 0 warnings and 0 errors; `git diff --check` on BLI011 source/diary files passed.
+State: Uncommitted. Existing `.readarr-data` database/log/MediaCover/certs changes remain dirty and unrelated; BLI011 source changes are also uncommitted.
+Next: Runtime/manual validation with roots configured as `/books` and `/audiobooks`, then review Calibre integration against `/books` only and decide whether existing authors need an `AudiobookPath` backfill helper.
+
+## 2026-06-14T21:13:41-05:00 | Codex | HANDOFF
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Summary: Local code now supports quality profile labels `Both`, `eBook`, and `Audiobook`; media-kind-aware monitoring/search/queue/cutoff/import/upgrade behavior; and separate ebook/audiobook author roots via `Path` plus `AudiobookPath`.
+Files changed: AGENT_LOG.md; frontend author add/edit/bulk/naming files; author model/API/controller/editor resources; author add/update/move/path services and commands; migration/schema/table mapping; media type helpers; file moving/import/upgrade/rename/naming code; decision/search/parser/API/notification multi-edition safety code; focused backend tests.
+Checks: Same as the 21:13:41 PROGRESS entry; no additional commands after the project update and diary append.
+State: Uncommitted. GitHub project item BLI011 is updated and remains `In progress`; unrelated `.readarr-data` runtime changes remain dirty and preserved.
+Exact next action: Start the app with two root folders, add an author using `Both`, set ebook root to `/books` and audiobook root to `/audiobooks`, then verify ebook and audiobook releases import to separate author folders without replacing each other.
+
+## 2026-06-14T21:18:00-05:00 | Codex | PROGRESS
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Question answered: Docker startup wiring for both roots was not done yet. `docker-compose.yml` only mounted `/books` and only set `READARR__ROOTFOLDER__PATH`; the image only declared `/books`; startup root-folder seeding only handled `Readarr:RootFolder:Path`.
+Progress: Implemented startup wiring for both roots. `docker-compose.yml` now mounts `${BOOKS_DIR:-./books}:/books` and `${AUDIOBOOKS_DIR:-./audiobooks}:/audiobooks`, sets `READARR__ROOTFOLDER__PATH=/books` and `READARR__ROOTFOLDER__AUDIOBOOKPATH=/audiobooks`; `Dockerfile` declares `VOLUME /audiobooks`; `DefaultRootFolderService` now seeds missing ebook and audiobook default root folders from `Readarr:RootFolder:Path` and `Readarr:RootFolder:AudiobookPath`; `SUPPORT.md` documents mounting both roots and keeping Calibre on `/books`.
+GitHub project: Updated BLI011 draft content `DI_lAHOABUHg84BapeYzgKnxWE` with docker startup/root-folder seeding work and verification.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~DefaultRootFolderServiceFixture" --no-restore` passed 3/3; `dotnet build src/NzbDrone.Core/Readarr.Core.csproj --no-restore` passed with 0 warnings and 0 errors; `docker compose -f docker-compose.yml config` passed and showed `/books`, `/audiobooks`, and both root-folder env vars; `git diff --check` on docker/startup/diary files passed.
+State: Uncommitted. Existing `.readarr-data` runtime changes remain dirty and unrelated; BLI011 source/docker/doc changes are uncommitted.
+Next: Runtime/manual validation by starting docker compose with a clean or migrated config and confirming both `/books` and `/audiobooks` root folders appear automatically before adding an author with `Both`.
+
+## 2026-06-14T21:18:00-05:00 | Codex | HANDOFF
+Task: BLI011 - Support One Readarr Instance for eBooks and Audiobooks.
+Summary: The specific docker startup root wiring gap is closed locally. Startup should now auto-create missing root folders for `/books` and `/audiobooks` when those paths are usable in the container.
+Files changed in this slice: docker-compose.yml, Dockerfile, SUPPORT.md, src/NzbDrone.Core/RootFolders/DefaultRootFolderService.cs, src/NzbDrone.Core.Test/RootFolderTests/DefaultRootFolderServiceFixture.cs, AGENT_LOG.md.
+Checks: Same as the 21:18:00 PROGRESS entry; no additional verification after diary append.
+State: Uncommitted. GitHub project item BLI011 is current and remains `In progress`.
+Exact next action: Run the container, inspect Settings > Media Management > Root Folders or `/api/v1/rootfolder`, and verify both `/books` and `/audiobooks` were created automatically.
+
+## 2026-06-14T21:49:37-05:00 | Codex | HANDOFF
+Task: BLI005 - Make File Import Crash-Safe.
+Summary: Production-shape validation was attempted in a Linux container, but the schema fixture could not start because the test environment could not load SQLite native/provider assemblies. The import crash-safety code itself remains in place and earlier focused builds/tests still passed.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~MigrationSchemaFixture"` inside `mcr.microsoft.com/dotnet/sdk:10.0` failed during database startup with missing `Microsoft.Data.Sqlite` / `SQLite.Interop.dll` / `Mono.Data.Sqlite` loader dependencies. Prior focused validation still passed: import fixtures `33/33`, `dotnet build src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --no-restore`, `dotnet build src/Readarr.sln --no-restore -m:1`, and `git diff --check` on the BLI005 files.
+State: Uncommitted. GitHub project item BLI005 remains `In review` with updated notes; no source changes were made in this turn.
+Exact next action: Re-run the schema fixture in an environment with the proper SQLite runtime assets, then move BLI005 to `Done` only after that pass is green.
+
+## 2026-06-14T22:23:25-05:00 | Codex | START
+Task: Clean and checkpoint current Readarr worktree.
+Areas: BLI005/BLI011 source changes, AGENT_LOG, and generated `.readarr-data` runtime artifacts.
+
+## 2026-06-14T22:23:52-05:00 | Codex | DONE
+Task: Clean and checkpoint current Readarr worktree.
+Summary: The code changes were checkpointed in commit `669b0209d` and the generated runtime artifacts were removed from the worktree. The local tree is now clean.
+Files changed: AGENT_LOG.md plus the committed BLI005/BLI011 source files in `669b0209d`.
+Checks: `git status --short --branch` is clean after restoring `.readarr-data` and removing untracked runtime folders.
+State: Committed locally, not pushed.
+Exact next action: None required for the cleanup request.
+
+## 2026-06-14T22:06:06-05:00 | Codex | START
+Task: BLI011 - Full testing, regression, and build verification.
+Scope: Run full frontend/backend verification over the current uncommitted BLI011 work without reverting unrelated .readarr-data or plan/ changes.
+Checks planned: git status, yarn lint/stylelint/build, dotnet full solution build, unit/regression test suite via test.sh or dotnet test, docker compose config, and git diff --check.
+State: Worktree already dirty with BLI011 source/docker/doc changes plus unrelated .readarr-data runtime changes and untracked plan/.
+Next: Run broad verification commands, record failures with exact command and output summary, then update BLI011 and AGENT_LOG.md.
+
+## 2026-06-14T22:14:39-05:00 | Codex | PROGRESS
+Task: BLI011 - Full testing, regression, and build verification.
+Progress: Completed broad local verification and fixed two issues found during the run. `DefaultRootFolderService` no longer depends on unregistered `IConfiguration` and now reads `READARR__ROOTFOLDER__PATH` plus `READARR__ROOTFOLDER__AUDIOBOOKPATH` directly; stale `MoveTrackFileFixture` expectations were updated for media-kind-aware path builder signatures and current author-folder event behavior.
+Checks passed: `./build.sh --backend --frontend`; `yarn build`; `yarn stylelint-linux`; `docker compose -f docker-compose.yml config`; `dotnet restore src/Readarr.sln`; `dotnet build src/Readarr.sln --no-restore -m:1`; `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~DefaultRootFolderServiceFixture" --no-restore` passed 3/3; `dotnet test src/NzbDrone.Common.Test/Readarr.Common.Test.csproj --filter "FullyQualifiedName~ServiceFactoryFixture.event_handlers_should_be_unique" --no-restore` passed 1/1; `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~MoveTrackFileFixture" --no-restore` passed 3 with 2 skipped; `git diff --check -- ':!*.db' ':!*.db-shm' ':!*.db-wal' ':!.readarr-data/**'` passed.
+Checks failed: `yarn lint` failed in unrelated existing frontend files (`frontend/src/Settings/Metadata/MetadataProvider/MetadataProvider.js`, `frontend/src/Store/Actions/systemActions.js`, `frontend/src/Utilities/String/translate.ts`). Broad core regression `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --no-build --filter "Category!=ManualTest&Category!=IntegrationTest&Category!=AutomationTest&Category!=WINDOWS"` failed with 198 failed, 2484 passed, 84 skipped; failures bucket into local SQLite native/provider loading on Apple Silicon, log DB SQLite startup, two enum-in-array fixtures, two parser corpus expectation fixtures, two update feed fixtures, and one Transmission ETA overflow fixture. Broad common test still has an environment architecture failure in `ProcessProviderFixture.should_be_able_to_start_process` due `libhostfxr.dylib` arm64 vs x86_64 loading. Full-worktree `git diff --check` fails on unrelated `.readarr-data` runtime log whitespace.
+GitHub project: Updated BLI011 draft content `DI_lAHOABUHg84BapeYzgKnxWE` with full build/regression status, verification failures, and remaining follow-up.
+State: Uncommitted. BLI011 source/docker/doc/test changes remain in the worktree; unrelated `.readarr-data` runtime changes and untracked `plan/` remain preserved.
+Next: Runtime/manual docker validation with `/books` and `/audiobooks`, then isolate unrelated lint/SQLite environment blockers before requiring a fully green repository-wide gate.
+
+## 2026-06-14T22:14:39-05:00 | Codex | HANDOFF
+Task: BLI011 - Full testing, regression, and build verification.
+Summary: Full build path is green locally and docker compose config confirms both root mounts/env vars. Focused tests covering BLI011 startup seeding and touched file-moving behavior pass after fixes. Repository-wide lint/regression is not fully green due unrelated frontend lint and local native SQLite/runtime architecture issues, not due the BLI011 focused paths verified here.
+Files changed in this verification slice: `src/NzbDrone.Core/RootFolders/DefaultRootFolderService.cs`, `src/NzbDrone.Core.Test/RootFolderTests/DefaultRootFolderServiceFixture.cs`, `src/NzbDrone.Core.Test/MediaFiles/TrackFileMovingServiceTests/MoveTrackFileFixture.cs`, and `AGENT_LOG.md`.
+State: Uncommitted and not pushed. GitHub project item BLI011 remains `In progress` and is current.
+Exact next action: Start the docker compose app from a clean or migrated config, confirm `/books` and `/audiobooks` root folders are auto-created, add an author with `Both`, and verify ebook imports land under `/books` while audiobook imports land under `/audiobooks`.
+
+## 2026-06-14T22:18:44-05:00 | Codex | PROGRESS
+Task: BLI011 - Rebuild and verify running container.
+Progress: Rebuilt and force-recreated the local docker compose service with the latest uncommitted code.
+Checks: `docker compose -f docker-compose.yml up -d --build --force-recreate` passed; recreated container `readarr` is healthy and running image `readarr:local` sha256:e1c5d85e219ef2cfc2eb1d0598c9b63879d65ed4376e377fb53d825a3d787e2f. `docker exec readarr printenv` shows `READARR__ROOTFOLDER__PATH=/books` and `READARR__ROOTFOLDER__AUDIOBOOKPATH=/audiobooks`. Container filesystem has `/books` and `/audiobooks`. Startup logs show migration 44 applied and `DefaultRootFolderService` created `/audiobooks`. `/api/v1/rootfolder` returns accessible `/books` and `/audiobooks` roots.
+GitHub project: Updated BLI011 draft content `DI_lAHOABUHg84BapeYzgKnxWE` with runtime container verification.
+State: Container is running latest local image and is healthy. Source changes remain uncommitted; unrelated `.readarr-data` runtime changes remain dirty.
+Next: Add an author with `Both` in the running app and verify ebook imports route to `/books` while audiobook imports route to `/audiobooks`.
+
+## 2026-06-14T22:18:44-05:00 | Codex | HANDOFF
+Task: BLI011 - Rebuild and verify running container.
+Summary: The running container is now current with the latest local BLI011 code and docker-compose wiring.
+State: Uncommitted and not pushed. The app is reachable on the compose ports and reports both configured root folders through the API.
+Exact next action: Browser/manual workflow validation for adding an author with `Both`.
+
+## 2026-06-14T22:25:35-05:00 | Codex | START
+Task: Exclude `.readarr-data` runtime state from Git.
+Scope: Add `.readarr-data/` to ignore rules and remove already-tracked runtime files from the Git index without deleting local app data.
+Checks: Ran `git status --short --branch` and `git ls-files .readarr-data`; confirmed `.readarr-data` files are tracked.
+State: BLI011 changes remain uncommitted; running container is using `.readarr-data` as local runtime state.
+Next: Update ignore rules, untrack `.readarr-data`, verify local files still exist and status no longer reports runtime modifications.
+
+## 2026-06-14T22:25:35-05:00 | Codex | DONE
+Task: Exclude `.readarr-data` runtime state from Git.
+Summary: Added `.readarr-data/` to `.gitignore` and removed tracked `.readarr-data` files from the Git index with `git rm -r --cached .readarr-data`; local runtime files remain on disk and are ignored.
+Checks: `git ls-files .readarr-data | wc -l` returned 0; `git check-ignore -v .readarr-data/readarr.db .readarr-data/logs/readarr.txt` confirms `.gitignore` rule line 108 applies.
+State: Ready to commit the ignore rule, diary update, and indexed `.readarr-data` removals.
+Next: Commit this cleanup, then merge/push `mfly` into `develop`.

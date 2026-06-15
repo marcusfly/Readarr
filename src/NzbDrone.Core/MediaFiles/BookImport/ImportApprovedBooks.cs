@@ -11,6 +11,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Books.Calibre;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Extras;
@@ -361,18 +362,25 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             foreach (var bookImport in bookImports)
             {
                 var book = bookImport.First().ImportDecision.Item.Book;
-                var edition = book.Editions.Value.Single(x => x.Monitored);
                 var author = bookImport.First().ImportDecision.Item.Author;
+                var successfulEditionIds = bookImport
+                    .Where(e => e.Errors.Count == 0)
+                    .Select(e => e.ImportDecision.Item.Edition.Id)
+                    .Distinct()
+                    .ToList();
 
-                if (bookImport.Where(e => e.Errors.Count == 0).ToList().Count > 0 && author != null && book != null)
+                foreach (var editionId in successfulEditionIds)
                 {
-                    _eventAggregator.PublishEvent(new BookImportedEvent(
-                        author,
-                        book,
-                        allImportedTrackFiles.Where(s => s.EditionId == edition.Id).ToList(),
-                        allOldTrackFiles.Where(s => s.EditionId == edition.Id).ToList(),
-                        replaceExisting,
-                        downloadClientItem));
+                    if (author != null && book != null)
+                    {
+                        _eventAggregator.PublishEvent(new BookImportedEvent(
+                            author,
+                            book,
+                            allImportedTrackFiles.Where(s => s.EditionId == editionId).ToList(),
+                            allOldTrackFiles.Where(s => s.EditionId == editionId).ToList(),
+                            replaceExisting,
+                            downloadClientItem));
+                    }
                 }
             }
 
@@ -411,9 +419,15 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                     _logger.Debug("Adding remote author {0}", author);
 
                     var path = decisions.First().Item.Path;
+                    var contentType = decisions.First().Item.GetLibraryContentType();
                     var rootFolder = _rootFolderService.GetBestRootFolder(path);
 
                     author.RootFolderPath = rootFolder.Path;
+                    if (contentType == LibraryContentType.Audiobook)
+                    {
+                        author.AudiobookRootFolderPath = rootFolder.Path;
+                    }
+
                     author.MetadataProfileId = rootFolder.DefaultMetadataProfileId;
                     author.QualityProfileId = rootFolder.DefaultQualityProfileId;
                     author.Monitored = rootFolder.DefaultMonitorOption != MonitorTypes.None;

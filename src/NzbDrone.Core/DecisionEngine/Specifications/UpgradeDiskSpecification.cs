@@ -1,6 +1,7 @@
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Cache;
+using NzbDrone.Core.ContentTypes;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Parser.Model;
@@ -28,11 +29,19 @@ namespace NzbDrone.Core.DecisionEngine.Specifications
 
         public virtual Decision IsSatisfiedBy(RemoteBook subject, SearchCriteriaBase searchCriteria)
         {
+            var releaseContentType = subject.GetLibraryContentType();
+
             foreach (var file in subject.Books.SelectMany(c => c.BookFiles.Value))
             {
                 if (file == null)
                 {
                     return Decision.Accept();
+                }
+
+                if (releaseContentType != LibraryContentType.None &&
+                    file.GetLibraryContentType() != releaseContentType)
+                {
+                    continue;
                 }
 
                 var customFormats = _formatService.ParseCustomFormat(file);

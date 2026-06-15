@@ -37,6 +37,7 @@ namespace Readarr.Api.V3.Author
 
         //View & Edit
         public string Path { get; set; }
+        public string AudiobookPath { get; set; }
         public int QualityProfileId { get; set; }
         public int MetadataProfileId { get; set; }
 
@@ -45,6 +46,7 @@ namespace Readarr.Api.V3.Author
         public NewItemMonitorTypes MonitorNewItems { get; set; }
 
         public string RootFolderPath { get; set; }
+        public string AudiobookRootFolderPath { get; set; }
         public string Folder { get; set; }
         public List<string> Genres { get; set; }
         public string CleanName { get; set; }
@@ -87,6 +89,7 @@ namespace Readarr.Api.V3.Author
                 Images = model.Metadata.Value.Images.JsonClone(),
 
                 Path = model.Path,
+                AudiobookPath = model.AudiobookPath,
                 QualityProfileId = model.QualityProfileId,
                 MetadataProfileId = model.MetadataProfileId,
                 Links = model.Metadata.Value.Links,
@@ -100,6 +103,7 @@ namespace Readarr.Api.V3.Author
 
                 // Root folder path is now calculated from the author path
                 // RootFolderPath = model.RootFolderPath,
+                // AudiobookRootFolderPath = model.AudiobookRootFolderPath,
                 Genres = model.Metadata.Value.Genres,
                 Tags = model.Tags,
                 Added = model.Added,
@@ -139,6 +143,7 @@ namespace Readarr.Api.V3.Author
 
                 //AlternateTitles
                 Path = resource.Path,
+                AudiobookPath = resource.AudiobookPath,
                 QualityProfileId = resource.QualityProfileId,
                 MetadataProfileId = resource.MetadataProfileId,
 
@@ -147,6 +152,7 @@ namespace Readarr.Api.V3.Author
 
                 CleanName = resource.CleanName,
                 RootFolderPath = resource.RootFolderPath,
+                AudiobookRootFolderPath = resource.AudiobookRootFolderPath,
 
                 Tags = resource.Tags,
                 Added = resource.Added,

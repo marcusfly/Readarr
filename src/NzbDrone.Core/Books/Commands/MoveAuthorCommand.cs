@@ -7,6 +7,8 @@ namespace NzbDrone.Core.Books.Commands
         public int AuthorId { get; set; }
         public string SourcePath { get; set; }
         public string DestinationPath { get; set; }
+        public string SourceAudiobookPath { get; set; }
+        public string DestinationAudiobookPath { get; set; }
 
         public override bool SendUpdatesToClient => true;
         public override bool RequiresDiskAccess => true;

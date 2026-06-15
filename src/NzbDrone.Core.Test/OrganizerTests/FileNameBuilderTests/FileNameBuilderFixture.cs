@@ -462,6 +462,27 @@ namespace NzbDrone.Core.Test.OrganizerTests.FileNameBuilderTests
         }
 
         [Test]
+        public void should_replace_media_type_for_audiobook()
+        {
+            _namingConfig.StandardBookFormat = "{Media Type}";
+            _trackFile.Quality = new QualityModel(Quality.MP3);
+
+            Subject.BuildBookFileName(_author, _edition, _trackFile)
+                   .Should().Be("Audiobook");
+        }
+
+        [Test]
+        public void should_replace_media_type_for_ebook()
+        {
+            _namingConfig.StandardBookFormat = "{Media Type}";
+            _trackFile.Path = "/books/book.epub";
+            _trackFile.Quality = new QualityModel(Quality.EPUB);
+
+            Subject.BuildBookFileName(_author, _edition, _trackFile)
+                   .Should().Be("eBook");
+        }
+
+        [Test]
         public void should_be_able_to_use_original_title()
         {
             _author.Name = "Linkin Park";
