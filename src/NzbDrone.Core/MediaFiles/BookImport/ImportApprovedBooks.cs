@@ -278,13 +278,13 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                         _metadataTagService.WriteTags(bookFile, false);
                     }
 
-                    if (!localTrack.ExistingFile)
-                    {
-                        _extraService.ImportTrack(localTrack, bookFile, copyOnly);
-                    }
-
                     filesToAdd.Add(bookFile);
                     importResults.Add(new ImportResult(importDecision));
+
+                    if (!localTrack.ExistingFile)
+                    {
+                        ImportExtraFiles(localTrack, bookFile, copyOnly);
+                    }
 
                     allImportedTrackFiles.Add(bookFile);
                     allOldTrackFiles.AddRange(oldFiles);
@@ -587,6 +587,18 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             if (attempt != null)
             {
                 _importAttemptService.MarkFailed(attempt, exception.Message);
+            }
+        }
+
+        private void ImportExtraFiles(LocalBook localTrack, BookFile bookFile, bool copyOnly)
+        {
+            try
+            {
+                _extraService.ImportTrack(localTrack, bookFile, copyOnly);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to import extra files for book file {0}", bookFile.Path);
             }
         }
 
