@@ -57,8 +57,8 @@ namespace NzbDrone.Core.Test.RootFolderTests
                 .Returns(_rootFolders);
 
             Mocker.GetMock<IRootFolderService>()
-                .Setup(s => s.GetBestRootFolderPath(It.IsAny<string>(), It.IsAny<List<RootFolder>>()))
-                .Returns<string, List<RootFolder>>((path, folders) => folders.First(x => x.Path.PathEquals(@"/books")).Path);
+                .Setup(s => s.GetBestRootFolder(It.IsAny<string>()))
+                .Returns<string>(path => _rootFolders.FirstOrDefault(x => x.Path.PathEquals(path) || x.Path.IsParentPath(path)));
 
             Mocker.GetMock<IAuthorService>()
                 .Setup(s => s.GetAllAuthors())
@@ -110,6 +110,32 @@ namespace NzbDrone.Core.Test.RootFolderTests
             Subject.Handle(new ApplicationStartedEvent());
 
             _updatedAuthors.Should().BeEmpty();
+            Mocker.GetMock<IAuthorService>()
+                .Verify(s => s.UpdateAuthor(It.IsAny<Author>()), Times.Never());
+        }
+
+        [Test]
+        public void should_backfill_authors_that_are_already_rooted_in_the_audiobook_folder()
+        {
+            _authors.Single().Path = @"/audiobooks/Fake Author".AsOsAgnostic();
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            _updatedAuthors.Should().ContainSingle();
+            _authors.Single().AudiobookPath.Should().Be(@"/audiobooks/Fake Author".AsOsAgnostic());
+            Mocker.GetMock<IAuthorService>()
+                .Verify(s => s.UpdateAuthor(It.IsAny<Author>()), Times.Once());
+        }
+
+        [Test]
+        public void should_skip_authors_that_are_not_inside_a_managed_root_folder()
+        {
+            _authors.Single().Path = @"/legacy/Fake Author".AsOsAgnostic();
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            _updatedAuthors.Should().BeEmpty();
+            _authors.Single().AudiobookPath.Should().BeNull();
             Mocker.GetMock<IAuthorService>()
                 .Verify(s => s.UpdateAuthor(It.IsAny<Author>()), Times.Never());
         }

@@ -47,22 +47,28 @@ namespace NzbDrone.Core.RootFolders
             {
                 try
                 {
-                    var rootFolderPath = _rootFolderService.GetBestRootFolderPath(author.Path, rootFolders);
+                    var sourceRootFolder = _rootFolderService.GetBestRootFolder(author.Path);
 
-                    if (rootFolderPath.IsNullOrWhiteSpace() ||
-                        rootFolderPath.PathEquals(audiobookRootFolder.Path))
+                    if (sourceRootFolder == null)
                     {
                         continue;
                     }
 
-                    var relativePath = rootFolderPath.GetRelativePath(author.Path);
-
-                    if (relativePath.IsNullOrWhiteSpace())
+                    if (sourceRootFolder.Path.PathEquals(audiobookRootFolder.Path))
                     {
-                        continue;
+                        author.AudiobookPath = author.Path;
                     }
+                    else
+                    {
+                        var relativePath = sourceRootFolder.Path.GetRelativePath(author.Path);
 
-                    author.AudiobookPath = Path.Combine(audiobookRootFolder.Path, relativePath);
+                        if (relativePath.IsNullOrWhiteSpace())
+                        {
+                            continue;
+                        }
+
+                        author.AudiobookPath = Path.Combine(audiobookRootFolder.Path, relativePath);
+                    }
 
                     _authorService.UpdateAuthor(author);
                     _logger.Info("Backfilled audiobook path for {0} to {1}", author, author.AudiobookPath);
