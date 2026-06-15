@@ -1029,3 +1029,11 @@ Summary: Added `.readarr-data/` to `.gitignore` and removed tracked `.readarr-da
 Checks: `git ls-files .readarr-data | wc -l` returned 0; `git check-ignore -v .readarr-data/readarr.db .readarr-data/logs/readarr.txt` confirms `.gitignore` rule line 108 applies.
 State: Ready to commit the ignore rule, diary update, and indexed `.readarr-data` removals.
 Next: Commit this cleanup, then merge/push `mfly` into `develop`.
+
+## 2026-06-14T22:27:22-05:00 | Codex | DONE
+Task: Commit and merge BLI011/runtime-data cleanup to `develop`.
+Summary: Committed `.readarr-data` ignore/untrack cleanup on `mfly` as fae4f6e04 (`chore: ignore local readarr runtime data`), pushed `mfly`, merged `mfly` into `develop`, and pushed `develop` as d59cbcc13 (`Merge mfly runtime data cleanup into develop`).
+Checks: `git status --short --branch` showed clean `develop...origin/develop`; `git branch -vv` showed `develop` at d59cbcc13 tracking `origin/develop`; `git ls-files .readarr-data | wc -l` returned 0; `git check-ignore -v .readarr-data/readarr.db` confirms the `.gitignore` rule applies.
+GitHub project: Updated BLI011 to `In review` with merge status and verification notes.
+State: BLI011 and runtime-data cleanup are pushed to `develop`; `.readarr-data` remains local runtime state and ignored.
+Next: Continue runtime/manual validation for adding an author with `Both` and verifying ebook/audiobook import routing.
