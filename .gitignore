@@ -105,6 +105,7 @@ _NCrunch_*
 _TeamCity*
 
 # Readarr
+.readarr-data/
 config.xml
 nzbdrone.log*txt
 UpdateLogs/

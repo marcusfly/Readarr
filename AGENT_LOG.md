@@ -1015,3 +1015,17 @@ Task: BLI011 - Rebuild and verify running container.
 Summary: The running container is now current with the latest local BLI011 code and docker-compose wiring.
 State: Uncommitted and not pushed. The app is reachable on the compose ports and reports both configured root folders through the API.
 Exact next action: Browser/manual workflow validation for adding an author with `Both`.
+
+## 2026-06-14T22:25:35-05:00 | Codex | START
+Task: Exclude `.readarr-data` runtime state from Git.
+Scope: Add `.readarr-data/` to ignore rules and remove already-tracked runtime files from the Git index without deleting local app data.
+Checks: Ran `git status --short --branch` and `git ls-files .readarr-data`; confirmed `.readarr-data` files are tracked.
+State: BLI011 changes remain uncommitted; running container is using `.readarr-data` as local runtime state.
+Next: Update ignore rules, untrack `.readarr-data`, verify local files still exist and status no longer reports runtime modifications.
+
+## 2026-06-14T22:25:35-05:00 | Codex | DONE
+Task: Exclude `.readarr-data` runtime state from Git.
+Summary: Added `.readarr-data/` to `.gitignore` and removed tracked `.readarr-data` files from the Git index with `git rm -r --cached .readarr-data`; local runtime files remain on disk and are ignored.
+Checks: `git ls-files .readarr-data | wc -l` returned 0; `git check-ignore -v .readarr-data/readarr.db .readarr-data/logs/readarr.txt` confirms `.gitignore` rule line 108 applies.
+State: Ready to commit the ignore rule, diary update, and indexed `.readarr-data` removals.
+Next: Commit this cleanup, then merge/push `mfly` into `develop`.
