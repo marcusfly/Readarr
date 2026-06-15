@@ -68,6 +68,57 @@ namespace NzbDrone.Core.Datastore
                 ("Books", "Title"),
                 ("Books", "Monitored"),
 
+                // Magazines
+                ("Magazines", "Id"),
+                ("Magazines", "CleanTitle"),
+                ("Magazines", "Title"),
+                ("Magazines", "NormalizedTitle"),
+                ("Magazines", "Aliases"),
+                ("Magazines", "Issn"),
+                ("Magazines", "WikidataId"),
+                ("Magazines", "Publisher"),
+                ("Magazines", "Monitored"),
+                ("Magazines", "Path"),
+                ("Magazines", "RootFolderPath"),
+                ("Magazines", "QualityProfileId"),
+                ("Magazines", "MetadataProfileId"),
+                ("Magazines", "Tags"),
+                ("Magazines", "Added"),
+                ("Magazines", "LastInfoSync"),
+                ("Magazines", "AddOptions"),
+
+                // MagazineIssues
+                ("MagazineIssues", "Id"),
+                ("MagazineIssues", "MagazineId"),
+                ("MagazineIssues", "IssueYear"),
+                ("MagazineIssues", "IssueMonth"),
+                ("MagazineIssues", "IssueDay"),
+                ("MagazineIssues", "Volume"),
+                ("MagazineIssues", "IssueNumber"),
+                ("MagazineIssues", "ReleaseTitle"),
+                ("MagazineIssues", "Monitored"),
+                ("MagazineIssues", "Added"),
+                ("MagazineIssues", "LastSearchTime"),
+
+                // MagazineIssueFiles
+                ("MagazineIssueFiles", "Id"),
+                ("MagazineIssueFiles", "MagazineIssueId"),
+                ("MagazineIssueFiles", "MagazineId"),
+                ("MagazineIssueFiles", "Path"),
+                ("MagazineIssueFiles", "Size"),
+                ("MagazineIssueFiles", "DateAdded"),
+                ("MagazineIssueFiles", "Quality"),
+                ("MagazineIssueFiles", "MediaInfo"),
+
+                // MagazineRootFolders
+                ("MagazineRootFolders", "Id"),
+                ("MagazineRootFolders", "Name"),
+                ("MagazineRootFolders", "Path"),
+                ("MagazineRootFolders", "DefaultQualityProfileId"),
+                ("MagazineRootFolders", "DefaultMetadataProfileId"),
+                ("MagazineRootFolders", "DefaultMonitorOption"),
+                ("MagazineRootFolders", "DefaultTags"),
+
                 // Editions
                 ("Editions", "Id"),
                 ("Editions", "BookId"),

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using FluentMigrator.Runner;
 using FluentMigrator.Runner.Generators;
@@ -34,6 +35,7 @@ namespace NzbDrone.Core.Datastore.Migration.Framework
             var sw = Stopwatch.StartNew();
 
             _logger.Info("*** Migrating {0} ***", connectionString);
+            var sanitizedConnectionString = SanitizeConnectionString(connectionString);
 
             ServiceProvider serviceProvider;
 
@@ -47,7 +49,7 @@ namespace NzbDrone.Core.Datastore.Migration.Framework
                     builder => builder
                     .AddPostgres()
                     .AddNzbDroneSQLite()
-                    .WithGlobalConnectionString(connectionString)
+                    .WithGlobalConnectionString(sanitizedConnectionString)
                     .ScanIn(Assembly.GetExecutingAssembly()).For.All())
                 .Configure<TypeFilterOptions>(opt => opt.Namespace = "NzbDrone.Core.Datastore.Migration")
                 .Configure<ProcessorOptions>(opt =>
@@ -87,6 +89,27 @@ namespace NzbDrone.Core.Datastore.Migration.Framework
             sw.Stop();
 
             _logger.Debug("Took: {0}", sw.Elapsed);
+        }
+
+        private static string SanitizeConnectionString(string connectionString)
+        {
+            var parts = connectionString
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => p.Length > 0)
+                .Where(p =>
+                    {
+                        var key = p.Split('=', 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+                        key = key?.Replace(" ", string.Empty);
+                        return !string.Equals(key, "cachesize", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(key, "fullfsync", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(key, "datetimekind", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(key, "journalmode", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(key, "version", StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(key, "busytimeout", StringComparison.OrdinalIgnoreCase);
+                    });
+
+            return string.Join(";", parts);
         }
     }
 }
