@@ -30,7 +30,9 @@ namespace NzbDrone.Core.Magazines
                 ".epub" => Quality.EPUB,
                 ".mobi" => Quality.MOBI,
                 ".azw3" => Quality.AZW3,
-                ".cbr" or ".cbz" or ".cbt" => Quality.Unknown,
+                ".cbr" => Quality.CBR,
+                ".cbz" => Quality.CBZ,
+                ".cbt" => Quality.CBT,
                 _ => Quality.Unknown
             };
         }

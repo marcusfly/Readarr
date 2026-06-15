@@ -28,7 +28,8 @@ namespace NzbDrone.Core.Magazines
                 return null;
             }
 
-            return Query(s => s.CleanTitle == cleanTitle.ToLowerInvariant()).SingleOrDefault();
+            var normalizedCleanTitle = cleanTitle.ToLowerInvariant();
+            return Query(s => s.CleanTitle == normalizedCleanTitle).SingleOrDefault();
         }
 
         public Magazine GetByNormalizedTitle(string normalizedTitle)
@@ -38,7 +39,8 @@ namespace NzbDrone.Core.Magazines
                 return null;
             }
 
-            return Query(s => s.NormalizedTitle == normalizedTitle.ToLowerInvariant()).SingleOrDefault();
+            var normalized = normalizedTitle.ToLowerInvariant();
+            return Query(s => s.NormalizedTitle == normalized).SingleOrDefault();
         }
 
         public List<Magazine> GetAllMonitored()
