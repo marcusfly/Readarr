@@ -630,6 +630,12 @@ Task: Backfill only missing audiobook paths and leave authors with existing valu
 Decision: Use the configured audiobook root as the destination, derive the relative author folder from the existing book root, and skip authors that cannot be mapped cleanly.
 Reason: This preserves explicit user edits, avoids overwriting custom audiobook locations, and gives older libraries a safe default upgrade path without changing current behavior for already-configured authors.
 Impact: New installs still rely on startup root seeding; upgrades gain a one-time best-effort audiobook-path fill for authors that do not already have one.
+## 2026-06-15T11:35:58-05:00 | Codex | HANDOFF
+Task: Finish the remaining BLI011 AudiobookPath upgrade gap by backfilling legacy authors on startup.
+Changes: Added `src/NzbDrone.Core/RootFolders/AudiobookPathBackfillService.cs` to fill missing audiobook author paths from the configured audiobook root when possible, and added `src/NzbDrone.Core.Test/RootFolderTests/AudiobookPathBackfillServiceFixture.cs` to cover the backfill, skip-existing, and missing-root cases.
+Checks: `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter FullyQualifiedName~AudiobookPathBackfillServiceFixture --logger "console;verbosity=minimal"` (pass); `dotnet test src/NzbDrone.Core.Test/Readarr.Core.Test.csproj --filter "FullyQualifiedName~DefaultRootFolderServiceFixture|FullyQualifiedName~AudiobookPathBackfillServiceFixture|FullyQualifiedName~BookFilePathBuilderFixture|FullyQualifiedName~MoveAuthorServiceFixture" --logger "console;verbosity=minimal"` (pass); `git diff --check` (pass).
+State: Committed as `b743d7449` and pushed to `origin/mfly`.
+Next: Continue the remaining BLI011 manual/runtime checks for Calibre separation and live author-add/import validation.
 Latest startup log scan (`readarr-host.out.log`) shows no WARN/ERROR/ERROR regex matches after `initialize` success.
 Current open issue: process lifecycle in this sandbox is short-lived after each shell call; use the provided command below for persistent local runs.
 ## 2026-06-14T16:20:00-05:00 | Codex | START
