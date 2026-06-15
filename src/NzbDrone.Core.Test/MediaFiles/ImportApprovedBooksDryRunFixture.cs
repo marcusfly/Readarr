@@ -7,6 +7,7 @@ using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.Extras;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Parser.Model;
@@ -173,6 +174,35 @@ namespace NzbDrone.Core.Test.MediaFiles
 
             Mocker.GetMock<IImportAttemptService>()
                   .Verify(s => s.MarkFailed(It.IsAny<ImportAttempt>(), It.IsAny<string>()), Times.Never());
+        }
+
+        [Test]
+        public void normal_import_should_complete_attempt_when_extra_file_import_fails()
+        {
+            var attempt = new ImportAttempt { Id = 5, Status = ImportAttemptStatus.Pending };
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Setup(s => s.Begin(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>(), false))
+                  .Returns(attempt);
+
+            Mocker.GetMock<IExtraService>()
+                  .Setup(s => s.ImportTrack(It.IsAny<LocalBook>(), It.IsAny<BookFile>(), It.IsAny<bool>()))
+                  .Throws(new InvalidOperationException("extra import failed"));
+
+            var results = Subject.Import(_approvedDecisions, false, dryRun: false);
+
+            results.Should().ContainSingle(r => r.Result == ImportResultType.Imported);
+
+            Mocker.GetMock<IMediaFileService>()
+                  .Verify(s => s.AddMany(It.IsAny<List<BookFile>>()), Times.Once());
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Verify(s => s.MarkCompleted(attempt), Times.Once());
+
+            Mocker.GetMock<IImportAttemptService>()
+                  .Verify(s => s.MarkFailed(It.IsAny<ImportAttempt>(), It.IsAny<string>()), Times.Never());
+
+            ExceptionVerification.ExpectedWarns(1);
         }
     }
 }
