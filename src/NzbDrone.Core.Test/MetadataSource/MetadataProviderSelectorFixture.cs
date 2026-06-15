@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.Configuration;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.MetadataSource.Contracts;
 using NzbDrone.Core.MetadataSource.Identity;
@@ -50,6 +53,22 @@ namespace NzbDrone.Core.Test.MetadataSource
                 _openLibraryProvider.Object,
                 _rreadingGlassesProvider.Object
             });
+
+            Mocker.GetMock<IMagazineService>()
+                .Setup(x => x.FindByNormalizedTitle(It.IsAny<string>()))
+                .Returns((Magazine)null);
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((MagazineAuthorityResult)null);
+
+            _openLibraryProvider
+                .Setup(x => x.SearchForNewBook(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Returns(new List<Book>());
+
+            _rreadingGlassesProvider
+                .Setup(x => x.SearchForNewBook(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Returns(new List<Book>());
         }
 
         [Test]
@@ -266,6 +285,25 @@ namespace NzbDrone.Core.Test.MetadataSource
             _rreadingGlassesProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
             _openLibraryProvider.Verify(x => x.SearchByIsbn(isbn), Times.Once);
             ExceptionVerification.ExpectedWarns(1);
+        }
+
+        [Test]
+        public void should_include_magazine_results_in_combined_search()
+        {
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Wired Magazine", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Wired Magazine",
+                    NormalizedTitle = "wired magazine",
+                    WikidataId = "Q12345",
+                    Publisher = "American technology magazine."
+                });
+
+            var result = Subject.SearchForNewEntity("Wired Magazine");
+
+            result.OfType<Magazine>().Should().ContainSingle(m => m.WikidataId == "Q12345");
+            result.OfType<Magazine>().Single().Title.Should().Be("Wired Magazine");
         }
 
         private Mock<IMetadataProviderV1> CreateProvider(string providerKey, int priority, MetadataProviderCapability capabilities)
