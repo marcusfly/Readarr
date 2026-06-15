@@ -618,6 +618,18 @@ Task: Validate translation API startup and rebuild stack after log-noise hardeni
 Checks: `dotnet build src\NzbDrone.Console\Readarr.Console.csproj -c Debug --nologo --no-restore` (pass).
 Runtime check executed: started app on `http://localhost:8787` and validated `GET /` + `GET /initialize.json` return HTTP 200.
 initialize.json confirms `apiRoot` is `/api/v1`.
+## 2026-06-15T11:32:41-05:00 | Codex | START
+Task: Finish the remaining BLI011 AudiobookPath upgrade gap by backfilling legacy authors on startup.
+Scope: `src/NzbDrone.Core/RootFolders/AudiobookPathBackfillService.cs`, root-folder startup wiring, and focused root-folder/author tests.
+Changes: None yet.
+Checks: Read `AGENT_LOG.md`, `gh auth status`, `gh project list`, `gh project item-list`, BLI011 board body, and the current `AudiobookPath` implementation paths.
+State: Clean worktree; no product code modified yet.
+Next: Add a startup backfill helper that fills missing `AudiobookPath` values from the configured audiobook root, then verify it with targeted tests.
+## 2026-06-15T11:32:41-05:00 | Codex | DECISION
+Task: Backfill only missing audiobook paths and leave authors with existing values untouched.
+Decision: Use the configured audiobook root as the destination, derive the relative author folder from the existing book root, and skip authors that cannot be mapped cleanly.
+Reason: This preserves explicit user edits, avoids overwriting custom audiobook locations, and gives older libraries a safe default upgrade path without changing current behavior for already-configured authors.
+Impact: New installs still rely on startup root seeding; upgrades gain a one-time best-effort audiobook-path fill for authors that do not already have one.
 Latest startup log scan (`readarr-host.out.log`) shows no WARN/ERROR/ERROR regex matches after `initialize` success.
 Current open issue: process lifecycle in this sandbox is short-lived after each shell call; use the provided command below for persistent local runs.
 ## 2026-06-14T16:20:00-05:00 | Codex | START
