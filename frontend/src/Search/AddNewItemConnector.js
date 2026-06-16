@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
+import { fetchMagazineRootFolders } from 'Store/Actions/magazineRootFolderActions';
 import { clearSearchResults, getSearchResults } from 'Store/Actions/searchActions';
 import { fetchRootFolders } from 'Store/Actions/settingsActions';
 import parseUrl from 'Utilities/String/parseUrl';
@@ -29,7 +30,8 @@ function createMapStateToProps() {
 const mapDispatchToProps = {
   getSearchResults,
   clearSearchResults,
-  fetchRootFolders
+  fetchRootFolders,
+  fetchMagazineRootFolders
 };
 
 class AddNewItemConnector extends Component {
@@ -38,6 +40,7 @@ class AddNewItemConnector extends Component {
 
   componentDidMount() {
     this.props.fetchRootFolders();
+    this.props.fetchMagazineRootFolders();
   }
 
   componentWillUnmount() {
@@ -84,7 +87,8 @@ AddNewItemConnector.propTypes = {
   searchWhileTyping: PropTypes.bool,
   getSearchResults: PropTypes.func.isRequired,
   clearSearchResults: PropTypes.func.isRequired,
-  fetchRootFolders: PropTypes.func.isRequired
+  fetchRootFolders: PropTypes.func.isRequired,
+  fetchMagazineRootFolders: PropTypes.func.isRequired
 };
 
 export default connect(createMapStateToProps, mapDispatchToProps)(AddNewItemConnector);

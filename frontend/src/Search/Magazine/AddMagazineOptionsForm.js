@@ -21,12 +21,11 @@ class AddMagazineOptionsForm extends Component {
   render() {
     const {
       rootFolderPath,
+      rootFolderValues,
       monitor,
       qualityProfileId,
       metadataProfileId,
       tags,
-      folder,
-      isWindows,
       onInputChange,
       ...otherProps
     } = this.props;
@@ -39,16 +38,9 @@ class AddMagazineOptionsForm extends Component {
           </FormLabel>
 
           <FormInputGroup
-            type={inputTypes.ROOT_FOLDER_SELECT}
+            type={inputTypes.SELECT}
             name="rootFolderPath"
-            valueOptions={{
-              authorFolder: folder,
-              isWindows
-            }}
-            selectedValueOptions={{
-              authorFolder: folder,
-              isWindows
-            }}
+            values={rootFolderValues}
             helpText="Choose the root folder where the magazine should be stored."
             onChange={onInputChange}
             {...rootFolderPath}
@@ -116,12 +108,11 @@ class AddMagazineOptionsForm extends Component {
 
 AddMagazineOptionsForm.propTypes = {
   rootFolderPath: PropTypes.object,
+  rootFolderValues: PropTypes.arrayOf(PropTypes.object).isRequired,
   monitor: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,
   metadataProfileId: PropTypes.object,
   tags: PropTypes.object.isRequired,
-  folder: PropTypes.string.isRequired,
-  isWindows: PropTypes.bool.isRequired,
   onInputChange: PropTypes.func.isRequired
 };
 

@@ -9,6 +9,7 @@ using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.DecisionEngine.Specifications;
 using NzbDrone.Core.Download.Aggregation;
 using NzbDrone.Core.IndexerSearch.Definitions;
+using NzbDrone.Core.Magazines.Parser;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Qualities;
@@ -19,6 +20,7 @@ namespace NzbDrone.Core.DecisionEngine
     {
         List<DownloadDecision> GetRssDecision(List<ReleaseInfo> reports, bool pushedRelease = false);
         List<DownloadDecision> GetSearchDecision(List<ReleaseInfo> reports, SearchCriteriaBase searchCriteriaBase);
+        List<DownloadDecision> GetMagazineSearchDecision(List<ReleaseInfo> reports, MagazineIssueSearchCriteria searchCriteria);
     }
 
     public class DownloadDecisionMaker : IMakeDownloadDecision
@@ -26,17 +28,23 @@ namespace NzbDrone.Core.DecisionEngine
         private readonly IEnumerable<IDecisionEngineSpecification> _specifications;
         private readonly ICustomFormatCalculationService _formatCalculator;
         private readonly IParsingService _parsingService;
+        private readonly IMagazineParsingService _magazineParsingService;
+        private readonly IMagazineFilenameParser _magazineFilenameParser;
         private readonly IRemoteBookAggregationService _aggregationService;
         private readonly Logger _logger;
 
         public DownloadDecisionMaker(IEnumerable<IDecisionEngineSpecification> specifications,
             IParsingService parsingService,
+            IMagazineParsingService magazineParsingService,
+            IMagazineFilenameParser magazineFilenameParser,
             ICustomFormatCalculationService formatService,
             IRemoteBookAggregationService aggregationService,
             Logger logger)
         {
             _specifications = specifications;
             _parsingService = parsingService;
+            _magazineParsingService = magazineParsingService;
+            _magazineFilenameParser = magazineFilenameParser;
             _formatCalculator = formatService;
             _aggregationService = aggregationService;
             _logger = logger;
@@ -50,6 +58,54 @@ namespace NzbDrone.Core.DecisionEngine
         public List<DownloadDecision> GetSearchDecision(List<ReleaseInfo> reports, SearchCriteriaBase searchCriteriaBase)
         {
             return GetBookDecisions(reports, false, searchCriteriaBase).ToList();
+        }
+
+        public List<DownloadDecision> GetMagazineSearchDecision(List<ReleaseInfo> reports, MagazineIssueSearchCriteria searchCriteria)
+        {
+            if (searchCriteria == null)
+            {
+                return new List<DownloadDecision>();
+            }
+
+            var result = new List<DownloadDecision>();
+
+            foreach (var report in reports)
+            {
+                var parsed = _magazineFilenameParser.ParseFilename(report.Title, searchCriteria.MagazineTitle);
+                var remoteIssue = _magazineParsingService.Map(parsed, searchCriteria);
+
+                if (remoteIssue == null)
+                {
+                    continue;
+                }
+
+                remoteIssue.Release = report;
+                remoteIssue.ReleaseSource = searchCriteria.InteractiveSearch
+                    ? ReleaseSourceType.InteractiveSearch
+                    : searchCriteria.UserInvokedSearch
+                        ? ReleaseSourceType.UserInvokedSearch
+                        : ReleaseSourceType.Search;
+                remoteIssue.DownloadAllowed = remoteIssue.Magazine != null && remoteIssue.Issue != null;
+
+                DownloadDecision decision;
+
+                if (remoteIssue.Magazine == null)
+                {
+                    decision = new DownloadDecision(remoteIssue, new Rejection("Unknown magazine"));
+                }
+                else if (remoteIssue.Issue == null)
+                {
+                    decision = new DownloadDecision(remoteIssue, new Rejection("Unable to match magazine issue from release name"));
+                }
+                else
+                {
+                    decision = GetMagazineDecisionForReport(remoteIssue, searchCriteria);
+                }
+
+                result.Add(decision);
+            }
+
+            return result;
         }
 
         private IEnumerable<DownloadDecision> GetBookDecisions(List<ReleaseInfo> reports, bool pushedRelease = false, SearchCriteriaBase searchCriteria = null)
@@ -182,29 +238,6 @@ namespace NzbDrone.Core.DecisionEngine
                             decision = new DownloadDecision(remoteBook, new Rejection("Unable to parse release"));
                         }
                     }
-
-                    if (searchCriteria != null)
-                    {
-                        if (parsedBookInfo == null)
-                        {
-                            parsedBookInfo = new ParsedBookInfo
-                            {
-                                Quality = QualityParser.ParseQuality(report.Title, null, report.Categories)
-                            };
-                        }
-
-                        if (parsedBookInfo.AuthorName.IsNullOrWhiteSpace())
-                        {
-                            parsedBookInfo.RejectionReason = "Unable to parse release from title";
-                            var remoteBook = new RemoteBook
-                            {
-                                Release = report,
-                                ParsedBookInfo = parsedBookInfo
-                            };
-
-                            decision = new DownloadDecision(remoteBook, new Rejection("Unable to parse release"));
-                        }
-                    }
                 }
                 catch (Exception e)
                 {
@@ -274,6 +307,36 @@ namespace NzbDrone.Core.DecisionEngine
             }
 
             return new DownloadDecision(remoteBook, reasons.ToArray());
+        }
+
+        private DownloadDecision GetMagazineDecisionForReport(RemoteMagazineIssue remoteIssue, MagazineIssueSearchCriteria searchCriteria)
+        {
+            var selectedSpecifications = _specifications
+                .Where(spec => spec is Specifications.BlockedIndexerSpecification ||
+                               spec is Specifications.MaximumSizeSpecification ||
+                               spec is Specifications.MinimumAgeSpecification ||
+                               spec is Specifications.NotSampleSpecification ||
+                               spec is Specifications.RawDiskSpecification ||
+                               spec is Specifications.RssSync.MonitoredMagazineIssueSpecification)
+                .GroupBy(spec => spec.Priority)
+                .OrderBy(spec => spec.Key);
+
+            var reasons = new List<Rejection>();
+
+            foreach (var specificationGroup in selectedSpecifications)
+            {
+                reasons = specificationGroup
+                    .Select(spec => EvaluateSpec(spec, remoteIssue, searchCriteria))
+                    .Where(rejection => rejection != null)
+                    .ToList();
+
+                if (reasons.Any())
+                {
+                    break;
+                }
+            }
+
+            return new DownloadDecision(remoteIssue, reasons.ToArray());
         }
 
         private Rejection EvaluateSpec(IDecisionEngineSpecification spec, RemoteBook remoteBook, SearchCriteriaBase searchCriteriaBase = null)

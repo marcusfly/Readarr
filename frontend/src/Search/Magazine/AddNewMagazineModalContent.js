@@ -131,6 +131,7 @@ AddNewMagazineModalContent.propTypes = {
   issn: PropTypes.string,
   publisher: PropTypes.string,
   rootFolderPath: PropTypes.object,
+  rootFolderValues: PropTypes.arrayOf(PropTypes.object),
   fallbackRootFolderPath: PropTypes.string,
   isAdding: PropTypes.bool.isRequired,
   isSmallScreen: PropTypes.bool.isRequired,

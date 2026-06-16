@@ -66,6 +66,8 @@ services:
       - "${BOOKS_DIR:-./books}:/books"
       # Mount your audiobook library separately so ebook managers like Calibre only own /books
       - "${AUDIOBOOKS_DIR:-./audiobooks}:/audiobooks"
+      # Mount your magazine library here for magazine add/import/scan workflows
+      - "${MAGAZINES_DIR:-./magazines}:/magazines"
 
     # Run as UID:GID 1000:1000 (the built-in 'readarr' account).
     # Change to match your host user if bind-mount permissions require it.

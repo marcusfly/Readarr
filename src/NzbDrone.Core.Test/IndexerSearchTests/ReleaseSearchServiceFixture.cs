@@ -38,6 +38,10 @@ namespace NzbDrone.Core.Test.IndexerSearchTests
                 .Setup(s => s.GetSearchDecision(It.IsAny<List<Parser.Model.ReleaseInfo>>(), It.IsAny<SearchCriteriaBase>()))
                 .Returns(new List<DownloadDecision>());
 
+            Mocker.GetMock<IMakeDownloadDecision>()
+                .Setup(s => s.GetMagazineSearchDecision(It.IsAny<List<Parser.Model.ReleaseInfo>>(), It.IsAny<MagazineIssueSearchCriteria>()))
+                .Returns(new List<DownloadDecision>());
+
             _author = Builder<Author>.CreateNew()
                 .With(v => v.Monitored = true)
                 .Build();

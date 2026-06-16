@@ -6,6 +6,7 @@ import { addMagazine, setMagazineAddDefault } from 'Store/Actions/searchActions'
 import createDimensionsSelector from 'Store/Selectors/createDimensionsSelector';
 import createSystemStatusSelector from 'Store/Selectors/createSystemStatusSelector';
 import selectSettings from 'Store/Selectors/selectSettings';
+import monitorOptions from 'Utilities/Magazine/monitorOptions';
 import AddNewMagazineModalContent from './AddNewMagazineModalContent';
 
 function createMapStateToProps() {
@@ -13,7 +14,7 @@ function createMapStateToProps() {
     (state) => state.search,
     (state) => state.settings.metadataProfiles,
     (state) => state.settings.qualityProfiles.items,
-    (state) => state.settings.rootFolders.items,
+    (state) => state.magazineRootFolders.items,
     createDimensionsSelector(),
     createSystemStatusSelector(),
     (searchState, metadataProfiles, qualityProfileItems, rootFolderItems, dimensions, systemStatus) => {
@@ -29,17 +30,40 @@ function createMapStateToProps() {
         validationWarnings
       } = selectSettings(magazineDefaults, {}, addError);
 
-      const fallbackRootFolderPath = rootFolderItems[0] ? rootFolderItems[0].path : '';
-      const fallbackQualityProfileId = qualityProfileItems[0] ? qualityProfileItems[0].id : 0;
-      const fallbackMetadataProfileId = metadataProfiles.items[0] ? metadataProfiles.items[0].id : 0;
+      const fallbackRootFolder = rootFolderItems[0] || null;
+      const rootFolderValues = rootFolderItems.length ? rootFolderItems.map((item) => {
+        return {
+          key: item.path,
+          value: item.name ? `${item.name} (${item.path})` : item.path
+        };
+      }) : [{
+        key: '',
+        value: 'No magazine root folders configured',
+        isDisabled: true
+      }];
+
+      const fallbackRootFolderPath = fallbackRootFolder ? fallbackRootFolder.path : '';
+      const fallbackQualityProfileId =
+        (fallbackRootFolder && fallbackRootFolder.defaultQualityProfileId) ||
+        (qualityProfileItems[0] ? qualityProfileItems[0].id : 0);
+      const fallbackMetadataProfileId =
+        (fallbackRootFolder && fallbackRootFolder.defaultMetadataProfileId) ||
+        (metadataProfiles.items[0] ? metadataProfiles.items[0].id : 0);
 
       const selectedQualityProfileId = parseInt(settings.qualityProfileId.value);
       const selectedMetadataProfileId = parseInt(settings.metadataProfileId.value);
       const selectedRootFolderPath = settings.rootFolderPath.value || '';
+      const selectedRootFolder = rootFolderItems.find((item) => item.path === selectedRootFolderPath) || fallbackRootFolder;
+      const fallbackMonitor = (selectedRootFolder && selectedRootFolder.defaultMonitorOption) || monitorOptions[0].key;
 
       const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
-      const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
-      const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
+      const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ?
+        ((selectedRootFolder && selectedRootFolder.defaultQualityProfileId) || fallbackQualityProfileId) :
+        selectedQualityProfileId;
+      const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ?
+        ((selectedRootFolder && selectedRootFolder.defaultMetadataProfileId) || fallbackMetadataProfileId) :
+        selectedMetadataProfileId;
+      const normalizedMonitor = settings.monitor.value || fallbackMonitor;
 
       return {
         isAdding,
@@ -52,7 +76,25 @@ function createMapStateToProps() {
         fallbackRootFolderPath,
         fallbackQualityProfileId,
         fallbackMetadataProfileId,
-        ...settings
+        rootFolders: rootFolderItems,
+        ...settings,
+        rootFolderValues,
+        rootFolderPath: {
+          ...settings.rootFolderPath,
+          value: normalizedRootFolderPath
+        },
+        qualityProfileId: {
+          ...settings.qualityProfileId,
+          value: normalizedQualityProfileId
+        },
+        metadataProfileId: {
+          ...settings.metadataProfileId,
+          value: normalizedMetadataProfileId
+        },
+        monitor: {
+          ...settings.monitor,
+          value: normalizedMonitor
+        }
       };
     }
   );
@@ -77,6 +119,7 @@ class AddNewMagazineModalContentConnector extends Component {
       qualityProfileId,
       metadataProfileId,
       tags,
+      rootFolders,
       fallbackRootFolderPath,
       fallbackQualityProfileId,
       fallbackMetadataProfileId
@@ -85,10 +128,15 @@ class AddNewMagazineModalContentConnector extends Component {
     const selectedRootFolderPath = rootFolderPath ? rootFolderPath.value : '';
     const selectedQualityProfileId = parseInt(qualityProfileId.value);
     const selectedMetadataProfileId = parseInt(metadataProfileId.value);
+    const selectedRootFolder = rootFolders.find((item) => item.path === selectedRootFolderPath);
 
     const normalizedRootFolderPath = selectedRootFolderPath || fallbackRootFolderPath;
-    const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ? fallbackQualityProfileId : selectedQualityProfileId;
-    const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ? fallbackMetadataProfileId : selectedMetadataProfileId;
+    const normalizedQualityProfileId = (!selectedQualityProfileId || selectedQualityProfileId < 0) ?
+      ((selectedRootFolder && selectedRootFolder.defaultQualityProfileId) || fallbackQualityProfileId) :
+      selectedQualityProfileId;
+    const normalizedMetadataProfileId = (!selectedMetadataProfileId || selectedMetadataProfileId < 0) ?
+      ((selectedRootFolder && selectedRootFolder.defaultMetadataProfileId) || fallbackMetadataProfileId) :
+      selectedMetadataProfileId;
 
     if (!normalizedRootFolderPath || !normalizedQualityProfileId || !normalizedMetadataProfileId) {
       return;
@@ -119,6 +167,8 @@ class AddNewMagazineModalContentConnector extends Component {
 AddNewMagazineModalContentConnector.propTypes = {
   foreignId: PropTypes.string.isRequired,
   rootFolderPath: PropTypes.object,
+  rootFolderValues: PropTypes.arrayOf(PropTypes.object).isRequired,
+  rootFolders: PropTypes.arrayOf(PropTypes.object).isRequired,
   monitor: PropTypes.object.isRequired,
   qualityProfileId: PropTypes.object,
   metadataProfileId: PropTypes.object,

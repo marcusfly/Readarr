@@ -12,6 +12,8 @@ import BookshelfConnector from 'Bookshelf/BookshelfConnector';
 import CalendarPageConnector from 'Calendar/CalendarPageConnector';
 import NotFound from 'Components/NotFound';
 import Switch from 'Components/Router/Switch';
+import MagazineDetailsConnector from 'Magazine/Details/MagazineDetailsConnector';
+import MagazineIndexConnector from 'Magazine/Index/MagazineIndexConnector';
 import AddNewItemConnector from 'Search/AddNewItemConnector';
 import CustomFormatSettingsConnector from 'Settings/CustomFormats/CustomFormatSettingsConnector';
 import DevelopmentSettingsConnector from 'Settings/Development/DevelopmentSettingsConnector';
@@ -95,6 +97,18 @@ function AppRoutes(props) {
       />
 
       <Route
+        exact={true}
+        path="/magazine"
+        component={MagazineIndexConnector}
+      />
+
+      <Route
+        exact={true}
+        path="/magazines"
+        component={MagazineIndexConnector}
+      />
+
+      <Route
         path="/unmapped"
         component={UnmappedFilesTableConnector}
       />
@@ -107,6 +121,11 @@ function AppRoutes(props) {
       <Route
         path="/book/:titleSlug"
         component={BookDetailsPageConnector}
+      />
+
+      <Route
+        path="/magazine/:id"
+        component={MagazineDetailsConnector}
       />
 
       {/*

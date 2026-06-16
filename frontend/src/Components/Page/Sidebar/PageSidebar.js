@@ -34,6 +34,10 @@ const links = [
         to: '/books'
       },
       {
+        title: () => 'Magazines',
+        to: '/magazine'
+      },
+      {
         title: () => translate('AddNew'),
         to: '/add/search'
       },

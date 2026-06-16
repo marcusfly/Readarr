@@ -7,6 +7,7 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.IndexerSearch;
 using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Magazines.Commands;
+using NzbDrone.Core.Magazines.MediaFiles;
 using NzbDrone.Core.Magazines.Services;
 using NzbDrone.Core.Test.Framework;
 
@@ -24,7 +25,8 @@ namespace NzbDrone.Core.Test.Magazines.Services
             _magazine = new Magazine
             {
                 Id = 1,
-                Title = "The New Yorker"
+                Title = "The New Yorker",
+                Path = "/magazines/the-new-yorker"
             };
 
             _issue = new MagazineIssue
@@ -63,6 +65,9 @@ namespace NzbDrone.Core.Test.Magazines.Services
                 MagazineIds = new List<int> { _magazine.Id },
                 AddNewIssues = false
             });
+
+            Mocker.GetMock<IMagazineDiskScanService>()
+                .Verify(v => v.Scan(It.Is<List<string>>(paths => paths.Count == 1 && paths[0] == "/magazines")), Times.Once());
 
             Mocker.GetMock<ISearchForReleases>()
                 .Verify(v => v.MagazineIssueSearch(_issue.Id, false, false), Times.Once());

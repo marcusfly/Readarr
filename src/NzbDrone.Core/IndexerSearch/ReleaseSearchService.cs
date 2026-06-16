@@ -207,6 +207,11 @@ namespace NzbDrone.Core.IndexerSearch
                 }
             }
 
+            if (criteriaBase is MagazineIssueSearchCriteria magazineCriteria)
+            {
+                return _makeDownloadDecision.GetMagazineSearchDecision(reports, magazineCriteria).ToList();
+            }
+
             return _makeDownloadDecision.GetSearchDecision(reports, criteriaBase).ToList();
         }
 

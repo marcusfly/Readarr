@@ -116,6 +116,7 @@ COPY --from=assemble /app /app
 VOLUME /config
 VOLUME /books
 VOLUME /audiobooks
+VOLUME /magazines
 
 # Default environment variables (can be overridden at runtime)
 ENV READARR__APP__DATADIR=/config \
