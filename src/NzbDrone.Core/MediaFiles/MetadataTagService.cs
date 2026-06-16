@@ -4,6 +4,7 @@ using System.IO.Abstractions;
 using NLog;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.MediaFiles.Commands;
+using NzbDrone.Core.MediaFiles.TagExtraction;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Parser.Model;
 
@@ -22,14 +23,17 @@ namespace NzbDrone.Core.MediaFiles
         IExecute<RetagFilesCommand>,
         IExecute<RetagAuthorCommand>
     {
+        private readonly ITagExtractionService _tagExtractionService;
         private readonly IAudioTagService _audioTagService;
         private readonly IEBookTagService _eBookTagService;
         private readonly Logger _logger;
 
-        public MetadataTagService(IAudioTagService audioTagService,
+        public MetadataTagService(ITagExtractionService tagExtractionService,
+            IAudioTagService audioTagService,
             IEBookTagService eBookTagService,
             Logger logger)
         {
+            _tagExtractionService = tagExtractionService;
             _audioTagService = audioTagService;
             _eBookTagService = eBookTagService;
 
@@ -38,14 +42,7 @@ namespace NzbDrone.Core.MediaFiles
 
         public ParsedTrackInfo ReadTags(IFileInfo file)
         {
-            if (MediaFileExtensions.AudioExtensions.Contains(file.Extension))
-            {
-                return _audioTagService.ReadTags(file.FullName);
-            }
-            else
-            {
-                return _eBookTagService.ReadTags(file);
-            }
+            return _tagExtractionService.GetTags(file.FullName).ParsedTrackInfo;
         }
 
         public void WriteTags(BookFile bookFile, bool newDownload, bool force = false)
