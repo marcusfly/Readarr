@@ -13,6 +13,7 @@ using NzbDrone.Core.Housekeeping;
 using NzbDrone.Core.ImportLists;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.MediaCover.Commands;
 using NzbDrone.Core.MediaFiles.Commands;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
@@ -118,6 +119,12 @@ namespace NzbDrone.Core.Jobs
                     {
                         Interval = 5,
                         TypeName = typeof(ImportListSyncCommand).FullName
+                    },
+
+                    new ScheduledTask
+                    {
+                        Interval = 2,
+                        TypeName = typeof(ProcessDeferredCoversCommand).FullName
                     },
 
                     new ScheduledTask

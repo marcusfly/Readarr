@@ -154,15 +154,11 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.AlreadyExists(It.IsAny<DateTime?>(), It.IsAny<long?>(), It.IsAny<string>()))
                   .Returns(false);
 
-            Mocker.GetMock<IBookService>()
-                  .Setup(v => v.GetBooksByAuthor(It.IsAny<int>()))
-                  .Returns(new List<Book> { _book });
-
             Mocker.GetMock<IDiskProvider>()
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(true);
 
-            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+            Subject.DownloadAuthorCoverIfNeeded(_author, _author.Metadata.Value.Images.Single());
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -175,15 +171,11 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.AlreadyExists(It.IsAny<DateTime?>(), It.IsAny<long?>(), It.IsAny<string>()))
                   .Returns(true);
 
-            Mocker.GetMock<IBookService>()
-                  .Setup(v => v.GetBooksByAuthor(It.IsAny<int>()))
-                  .Returns(new List<Book> { _book });
-
             Mocker.GetMock<IDiskProvider>()
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(false);
 
-            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+            Subject.DownloadAuthorCoverIfNeeded(_author, _author.Metadata.Value.Images.Single());
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -200,15 +192,11 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(true);
 
-            Mocker.GetMock<IBookService>()
-                  .Setup(v => v.GetBooksByAuthor(It.IsAny<int>()))
-                  .Returns(new List<Book> { _book });
-
             Mocker.GetMock<IDiskProvider>()
                   .Setup(v => v.GetFileSize(It.IsAny<string>()))
                   .Returns(1000);
 
-            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+            Subject.DownloadAuthorCoverIfNeeded(_author, _author.Metadata.Value.Images.Single());
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Never());
@@ -225,15 +213,11 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(true);
 
-            Mocker.GetMock<IBookService>()
-                  .Setup(v => v.GetBooksByAuthor(It.IsAny<int>()))
-                  .Returns(new List<Book> { _book });
-
             Mocker.GetMock<IDiskProvider>()
                   .Setup(v => v.GetFileSize(It.IsAny<string>()))
                   .Returns(0);
 
-            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+            Subject.DownloadAuthorCoverIfNeeded(_author, _author.Metadata.Value.Images.Single());
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
@@ -250,18 +234,27 @@ namespace NzbDrone.Core.Test.MediaCoverTests
                   .Setup(v => v.FileExists(It.IsAny<string>()))
                   .Returns(false);
 
-            Mocker.GetMock<IBookService>()
-                  .Setup(v => v.GetBooksByAuthor(It.IsAny<int>()))
-                  .Returns(new List<Book> { _book });
-
             Mocker.GetMock<IImageResizer>()
                   .Setup(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
                   .Throws<ApplicationException>();
 
-            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+            Subject.DownloadAuthorCoverIfNeeded(_author, _author.Metadata.Value.Images.Single());
 
             Mocker.GetMock<IImageResizer>()
                   .Verify(v => v.Resize(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public void handle_async_should_enqueue_author_and_book_covers()
+        {
+            Mocker.GetMock<IBookService>()
+                  .Setup(v => v.GetBooksByAuthor(_author.Id))
+                  .Returns(new List<Book> { _book });
+
+            Subject.HandleAsync(new AuthorRefreshCompleteEvent(_author));
+
+            Mocker.GetMock<IDeferredCoverService>()
+                  .Verify(v => v.EnqueueAll(_author.Id, It.Is<IEnumerable<(MediaCoverTypes, string)>>(covers => covers.Count() == 1)), Times.Exactly(2));
         }
     }
 }
