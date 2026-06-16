@@ -37,10 +37,11 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
                 .First()
                 .First();
 
-            var authors = GetAuthorVariants(fileAuthors);
+            var authors = FtsNormalization.NormalizeValues(GetAuthorVariants(fileAuthors)).ToList();
+            var normalizedAuthor = FtsNormalization.Normalize(edition.Book.Value.AuthorMetadata.Value.Name);
 
-            dist.AddString("author", authors, edition.Book.Value.AuthorMetadata.Value.Name);
-            Logger.Trace("author: '{0}' vs '{1}'; {2}", authors.ConcatToString("' or '"), edition.Book.Value.AuthorMetadata.Value.Name, dist.NormalizedDistance());
+            dist.AddString("author", authors, normalizedAuthor);
+            Logger.Trace("author: '{0}' vs '{1}'; {2}", authors.ConcatToString("' or '"), normalizedAuthor, dist.NormalizedDistance());
 
             var title = localTracks.MostCommon(x => x.FileTrackInfo.BookTitle) ?? "";
             var titleOptions = new List<string> { edition.Title };
@@ -69,7 +70,8 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
                 }
             }
 
-            var fileTitles = new[] { title, CleanTitleCruft.Replace(title) }.Distinct().ToList();
+            var fileTitles = FtsNormalization.NormalizeValues(new[] { title, CleanTitleCruft.Replace(title) }).Distinct().ToList();
+            titleOptions = FtsNormalization.NormalizeValues(titleOptions).Distinct().ToList();
 
             dist.AddString("book", fileTitles, titleOptions);
             Logger.Trace("book: '{0}' vs '{1}'; {2}", fileTitles.ConcatToString("' or '"), titleOptions.ConcatToString("' or '"), dist.NormalizedDistance());
@@ -128,8 +130,8 @@ namespace NzbDrone.Core.MediaFiles.BookImport.Identification
             }
 
             // Publisher - only if set for both the local book and remote edition
-            var localPublisher = localTracks.MostCommon(x => x.FileTrackInfo.Publisher);
-            var editionPublisher = edition.Publisher;
+            var localPublisher = FtsNormalization.Normalize(localTracks.MostCommon(x => x.FileTrackInfo.Publisher));
+            var editionPublisher = FtsNormalization.Normalize(edition.Publisher);
             if (localPublisher.IsNotNullOrWhiteSpace() && editionPublisher.IsNotNullOrWhiteSpace())
             {
                 dist.AddString("publisher", localPublisher, editionPublisher);

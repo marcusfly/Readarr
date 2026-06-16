@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using NzbDrone.Common.Extensions;
+using NzbDrone.Core.Parser;
 
 namespace NzbDrone.Core.Magazines
 {
@@ -16,12 +16,12 @@ namespace NzbDrone.Core.Magazines
                 return string.Empty;
             }
 
-            var normalized = rawTitle.Trim().ToLowerInvariant();
+            var normalized = FtsNormalization.Normalize(rawTitle);
             normalized = LeadingTheRegex.Replace(normalized, string.Empty);
             normalized = PunctuationRegex.Replace(normalized, string.Empty);
             normalized = WhitespaceRegex.Replace(normalized, " ");
 
-            return normalized.Trim().RemoveAccent();
+            return normalized.Trim();
         }
     }
 
