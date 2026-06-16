@@ -23,6 +23,7 @@ import InteractiveSearchFilterMenuConnector from 'InteractiveSearch/InteractiveS
 import InteractiveSearchTable from 'InteractiveSearch/InteractiveSearchTable';
 import OrganizePreviewModalConnector from 'Organize/OrganizePreviewModalConnector';
 import RetagPreviewModalConnector from 'Retag/RetagPreviewModalConnector';
+import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
 import translate from 'Utilities/String/translate';
 import getSelectedIds from 'Utilities/Table/getSelectedIds';
 import selectAll from 'Utilities/Table/selectAll';
@@ -544,7 +545,7 @@ class AuthorDetails extends Component {
             {translate('TooManyBooks')}
             <Link to='/settings/profiles'> {translate('MetadataProfile')} </Link>
             or manually
-            <Link to={`/add/search?term=${encodeURIComponent(authorName)}`}> {translate('Search')} </Link>
+            <Link to={buildAddNewSearchPath(searchScopes.BOOKS, authorName)}> {translate('Search')} </Link>
             for new items!
           </div>
 

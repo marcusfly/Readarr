@@ -1,6 +1,7 @@
 import { push } from 'connected-react-router';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
+import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
 import createAllAuthorSelector from 'Store/Selectors/createAllAuthorsSelector';
 import createDeepEqualSelector from 'Store/Selectors/createDeepEqualSelector';
 import createTagsSelector from 'Store/Selectors/createTagsSelector';
@@ -94,7 +95,7 @@ function createMapDispatchToProps(dispatch, props) {
     },
 
     onGoToAddNewAuthor(query) {
-      dispatch(push(`${window.Readarr.urlBase}/add/search?term=${encodeURIComponent(query)}`));
+      dispatch(push(`${window.Readarr.urlBase}${buildAddNewSearchPath(searchScopes.ALL, query)}`));
     }
   };
 }

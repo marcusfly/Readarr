@@ -1,8 +1,9 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import Icon from 'Components/Icon';
+import Label from 'Components/Label';
 import Link from 'Components/Link/Link';
-import { icons } from 'Helpers/Props';
+import { icons, sizes } from 'Helpers/Props';
 import translate from 'Utilities/String/translate';
 import AddNewMagazineModal from './AddNewMagazineModal';
 import styles from '../Author/AddNewAuthorSearchResult.css';
@@ -37,6 +38,7 @@ class AddNewMagazineSearchResult extends Component {
 
   render() {
     const {
+      id,
       foreignId,
       title,
       cleanTitle,
@@ -55,7 +57,7 @@ class AddNewMagazineSearchResult extends Component {
       `https://www.wikidata.org/wiki/${wikidataId}` :
       `https://www.wikidata.org/wiki/Special:Search?search=${encodeURIComponent(title)}`;
 
-    const linkProps = isExistingMagazine ? { to: externalUrl } : { onPress: this.onPress };
+    const linkProps = isExistingMagazine ? { to: `/magazine/${id}` } : { onPress: this.onPress };
 
     return (
       <div className={styles.searchResult}>
@@ -107,6 +109,15 @@ class AddNewMagazineSearchResult extends Component {
                 null
             }
 
+            <div className={styles.metadataRow}>
+              <Label
+                className={styles.mediaTypeLabel}
+                size={sizes.LARGE}
+              >
+                Magazine
+              </Label>
+            </div>
+
             {
               publisher ?
                 <div className={styles.overview}>
@@ -141,6 +152,7 @@ class AddNewMagazineSearchResult extends Component {
 }
 
 AddNewMagazineSearchResult.propTypes = {
+  id: PropTypes.number.isRequired,
   foreignId: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   cleanTitle: PropTypes.string,

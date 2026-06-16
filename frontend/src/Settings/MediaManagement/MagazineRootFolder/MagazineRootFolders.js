@@ -6,16 +6,11 @@ import Icon from 'Components/Icon';
 import PageSectionContent from 'Components/Page/PageSectionContent';
 import { icons } from 'Helpers/Props';
 import sortByName from 'Utilities/Array/sortByName';
-import translate from 'Utilities/String/translate';
-import EditRootFolderModalConnector from './EditRootFolderModalConnector';
-import RootFolder from './RootFolder';
-import styles from './RootFolders.css';
+import EditMagazineRootFolderModal from './EditMagazineRootFolderModal';
+import MagazineRootFolder from './MagazineRootFolder';
+import styles from '../RootFolder/RootFolders.css';
 
-class RootFolders extends Component {
-
-  //
-  // Lifecycle
-
+class MagazineRootFolders extends Component {
   constructor(props, context) {
     super(props, context);
 
@@ -23,9 +18,6 @@ class RootFolders extends Component {
       isAddRootFolderModalOpen: false
     };
   }
-
-  //
-  // Listeners
 
   onAddRootFolderPress = () => {
     this.setState({ isAddRootFolderModalOpen: true });
@@ -35,39 +27,28 @@ class RootFolders extends Component {
     this.setState({ isAddRootFolderModalOpen: false });
   };
 
-  //
-  // Render
-
   render() {
     const {
       items,
-      qualityProfiles,
-      metadataProfiles,
       onConfirmDeleteRootFolder,
       ...otherProps
     } = this.props;
 
     return (
-      <FieldSet legend="Book Root Folders">
+      <FieldSet legend="Magazine Root Folders">
         <PageSectionContent
-          errorMessage={translate('UnableToLoadRootFolders')}
+          errorMessage="Unable to load magazine root folders"
           {...otherProps}
         >
           <div className={styles.rootFolders}>
             {
-              items.sort(sortByName).map((item) => {
-                const qualityProfile = qualityProfiles.find((profile) => profile.id === item.defaultQualityProfileId);
-                const metadataProfile = metadataProfiles.find((profile) => profile.id === item.defaultMetadataProfileId);
-                return (
-                  <RootFolder
-                    key={item.id}
-                    {...item}
-                    qualityProfile={qualityProfile}
-                    metadataProfile={metadataProfile}
-                    onConfirmDeleteRootFolder={onConfirmDeleteRootFolder}
-                  />
-                );
-              })
+              items.sort(sortByName).map((item) => (
+                <MagazineRootFolder
+                  key={item.id}
+                  {...item}
+                  onConfirmDeleteRootFolder={onConfirmDeleteRootFolder}
+                />
+              ))
             }
 
             <Card
@@ -83,7 +64,7 @@ class RootFolders extends Component {
             </Card>
           </div>
 
-          <EditRootFolderModalConnector
+          <EditMagazineRootFolderModal
             isOpen={this.state.isAddRootFolderModalOpen}
             onModalClose={this.onAddRootFolderModalClose}
           />
@@ -93,14 +74,12 @@ class RootFolders extends Component {
   }
 }
 
-RootFolders.propTypes = {
+MagazineRootFolders.propTypes = {
   isFetching: PropTypes.bool.isRequired,
   isPopulated: PropTypes.bool.isRequired,
   error: PropTypes.object,
   items: PropTypes.arrayOf(PropTypes.object).isRequired,
-  qualityProfiles: PropTypes.arrayOf(PropTypes.object).isRequired,
-  metadataProfiles: PropTypes.arrayOf(PropTypes.object).isRequired,
   onConfirmDeleteRootFolder: PropTypes.func.isRequired
 };
 
-export default RootFolders;
+export default MagazineRootFolders;

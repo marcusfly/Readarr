@@ -13,6 +13,7 @@ import { inputTypes, kinds, sizes } from 'Helpers/Props';
 import RemotePathMappingsConnector from 'Settings/DownloadClients/RemotePathMappings/RemotePathMappingsConnector';
 import SettingsToolbarConnector from 'Settings/SettingsToolbarConnector';
 import translate from 'Utilities/String/translate';
+import MagazineRootFoldersConnector from './MagazineRootFolder/MagazineRootFoldersConnector';
 import NamingConnector from './Naming/NamingConnector';
 import RootFoldersConnector from './RootFolder/RootFoldersConnector';
 
@@ -67,6 +68,7 @@ class MediaManagement extends Component {
 
         <PageContentBody>
           <RootFoldersConnector />
+          <MagazineRootFoldersConnector />
           <RemotePathMappingsConnector />
           <NamingConnector />
 

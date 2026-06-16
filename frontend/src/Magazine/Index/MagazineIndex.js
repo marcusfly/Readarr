@@ -1,7 +1,19 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { Link } from 'react-router-dom';
-import monitorOptions from 'Utilities/Magazine/monitorOptions';
+import Button from 'Components/Link/Button';
+import LoadingIndicator from 'Components/Loading/LoadingIndicator';
+import PageContent from 'Components/Page/PageContent';
+import PageContentBody from 'Components/Page/PageContentBody';
+import PageToolbar from 'Components/Page/Toolbar/PageToolbar';
+import PageToolbarButton from 'Components/Page/Toolbar/PageToolbarButton';
+import PageToolbarSection from 'Components/Page/Toolbar/PageToolbarSection';
+import PageToolbarSeparator from 'Components/Page/Toolbar/PageToolbarSeparator';
+import { align, icons } from 'Helpers/Props';
+import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
+import getErrorMessage from 'Utilities/Object/getErrorMessage';
+import NoMagazine from './NoMagazine';
+import styles from './MagazineIndex.css';
 
 const PAGE_SIZE = 20;
 
@@ -23,9 +35,7 @@ class MagazineIndex extends Component {
       monitoredFilter: 'all',
       sortKey: 'title',
       sortDirection: 'asc',
-      currentPage: 1,
-      rootFolderName: '',
-      rootFolderPath: ''
+      currentPage: 1
     };
   }
 
@@ -62,41 +72,6 @@ class MagazineIndex extends Component {
       return {
         currentPage: Math.max(prevState.currentPage + direction, 1)
       };
-    });
-  };
-
-  onRootFolderFieldChange = (event) => {
-    const { name, value } = event.target;
-
-    this.setState({
-      [name]: value
-    });
-  };
-
-  onAddRootFolder = (event) => {
-    event.preventDefault();
-
-    const {
-      rootFolderName,
-      rootFolderPath
-    } = this.state;
-
-    if (!rootFolderPath.trim()) {
-      return;
-    }
-
-    this.props.saveMagazineRootFolder({
-      name: rootFolderName.trim(),
-      path: rootFolderPath.trim(),
-      defaultQualityProfileId: this.props.defaultQualityProfileId,
-      defaultMetadataProfileId: this.props.defaultMetadataProfileId,
-      defaultMonitorOption: monitorOptions[0].key,
-      defaultTags: []
-    });
-
-    this.setState({
-      rootFolderName: '',
-      rootFolderPath: ''
     });
   };
 
@@ -140,7 +115,7 @@ class MagazineIndex extends Component {
       return true;
     });
 
-    const sortedItems = [...filteredItems].sort((left, right) => {
+    return [...filteredItems].sort((left, right) => {
       const leftStatistics = left.statistics || {};
       const rightStatistics = right.statistics || {};
       let comparison = 0;
@@ -165,15 +140,15 @@ class MagazineIndex extends Component {
 
       return sortDirection === 'desc' ? comparison * -1 : comparison;
     });
-
-    return sortedItems;
   }
 
   render() {
     const {
+      error,
       isFetching,
-      rootFolders = [],
-      deleteMagazineRootFolder
+      isPopulated,
+      items = [],
+      onRefreshPress
     } = this.props;
 
     const {
@@ -181,172 +156,205 @@ class MagazineIndex extends Component {
       monitoredFilter,
       sortKey,
       sortDirection,
-      currentPage,
-      rootFolderName,
-      rootFolderPath
+      currentPage
     } = this.state;
 
     const filteredItems = this.getFilteredItems();
+    const totalItems = items.length;
     const totalPages = Math.max(Math.ceil(filteredItems.length / PAGE_SIZE), 1);
     const safePage = Math.min(currentPage, totalPages);
     const startIndex = (safePage - 1) * PAGE_SIZE;
     const pageItems = filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
-
-    if (isFetching && !filteredItems.length) {
-      return <div>Loading magazines...</div>;
-    }
+    const hasNoMagazines = !totalItems;
 
     return (
-      <div className="page-content">
-        <h2>Magazines</h2>
-
-        <section style={{ marginBottom: '2rem' }}>
-          <h3>Magazine Root Folders</h3>
-
-          <form onSubmit={this.onAddRootFolder} style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              name="rootFolderName"
-              placeholder="Display name"
-              value={rootFolderName}
-              onChange={this.onRootFolderFieldChange}
-              style={{ marginRight: '0.5rem' }}
+      <PageContent title="Magazines">
+        <PageToolbar>
+          <PageToolbarSection>
+            <PageToolbarButton
+              label="Update All"
+              iconName={icons.REFRESH}
+              spinningName={icons.REFRESH}
+              isSpinning={isFetching}
+              onPress={onRefreshPress}
             />
 
-            <input
-              type="text"
-              name="rootFolderPath"
-              placeholder="/magazines"
-              value={rootFolderPath}
-              onChange={this.onRootFolderFieldChange}
-              style={{ marginRight: '0.5rem', minWidth: '18rem' }}
+            <PageToolbarSeparator />
+
+            <PageToolbarButton
+              label="Add Root Folder"
+              iconName={icons.FOLDER_OPEN}
+              to="/settings/mediamanagement"
             />
 
-            <button type="submit" disabled={!rootFolderPath.trim()}>
-              Add Root Folder
-            </button>
-          </form>
+            <PageToolbarButton
+              label="Add New Magazine"
+              iconName={icons.ADD}
+              to={buildAddNewSearchPath(searchScopes.MAGAZINES)}
+            />
+          </PageToolbarSection>
 
-          {
-            rootFolders.length ?
-              <ul>
-                {
-                  rootFolders.map((rootFolder) => {
-                    return (
-                      <li key={rootFolder.id} style={{ marginBottom: '0.5rem' }}>
-                        <strong>{rootFolder.name || 'Magazine Root'}</strong> {rootFolder.path}
-                        {' '}
-                        <button type="button" onClick={() => deleteMagazineRootFolder({ id: rootFolder.id })}>
-                          Remove
-                        </button>
-                      </li>
-                    );
-                  })
-                }
-              </ul> :
-              <p>No magazine root folders have been configured yet.</p>
-          }
-        </section>
+          <PageToolbarSection alignContent={align.RIGHT}>
+            <PageToolbarButton
+              label="Root Folders"
+              iconName={icons.FOLDER}
+              to="/settings/mediamanagement"
+            />
+          </PageToolbarSection>
+        </PageToolbar>
 
-        <section style={{ marginBottom: '1rem' }}>
-          <input
-            type="text"
-            placeholder="Filter by title or publisher"
-            value={filterText}
-            onChange={this.onFilterTextChange}
-            style={{ marginRight: '0.5rem' }}
-          />
-
-          <select value={monitoredFilter} onChange={this.onMonitoredFilterChange}
-            style={{ marginRight: '0.5rem' }}
+        <div className={styles.pageContentBodyWrapper}>
+          <PageContentBody
+            className={styles.contentBody}
+            innerClassName={styles.innerContentBody}
           >
-            <option value="all">All magazines</option>
-            <option value="monitored">Monitored only</option>
-            <option value="unmonitored">Unmonitored only</option>
-            <option value="missing">Missing issues</option>
-          </select>
+            {
+              isFetching && !isPopulated &&
+                <LoadingIndicator />
+            }
 
-          <select value={sortKey} onChange={this.onSortKeyChange}
-            style={{ marginRight: '0.5rem' }}
-          >
-            <option value="title">Sort by title</option>
-            <option value="publisher">Sort by publisher</option>
-            <option value="monitored">Sort by monitored</option>
-            <option value="issueCount">Sort by issue count</option>
-            <option value="issueFileCount">Sort by file count</option>
-          </select>
+            {
+              !isFetching && !!error &&
+                <div className={styles.errorMessage}>
+                  {getErrorMessage(error, 'Failed to load magazines from API')}
+                </div>
+            }
 
-          <select value={sortDirection} onChange={this.onSortDirectionChange}>
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </section>
+            {
+              !error && isPopulated && !!totalItems &&
+                <div className={styles.contentBodyContainer}>
+                  <div className={styles.filters}>
+                    <input
+                      className={styles.textInput}
+                      type="text"
+                      placeholder="Filter by title or publisher"
+                      value={filterText}
+                      onChange={this.onFilterTextChange}
+                    />
 
-        {
-          filteredItems.length ?
-            <React.Fragment>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Publisher</th>
-                    <th>Monitored</th>
-                    <th>Issues</th>
-                    <th>Files</th>
-                  </tr>
-                </thead>
-                <tbody>
+                    <select
+                      className={styles.selectInput}
+                      value={monitoredFilter}
+                      onChange={this.onMonitoredFilterChange}
+                    >
+                      <option value="all">All magazines</option>
+                      <option value="monitored">Monitored only</option>
+                      <option value="unmonitored">Unmonitored only</option>
+                      <option value="missing">Missing issues</option>
+                    </select>
+
+                    <select
+                      className={styles.selectInput}
+                      value={sortKey}
+                      onChange={this.onSortKeyChange}
+                    >
+                      <option value="title">Sort by title</option>
+                      <option value="publisher">Sort by publisher</option>
+                      <option value="monitored">Sort by monitored</option>
+                      <option value="issueCount">Sort by issue count</option>
+                      <option value="issueFileCount">Sort by file count</option>
+                    </select>
+
+                    <select
+                      className={styles.selectInput}
+                      value={sortDirection}
+                      onChange={this.onSortDirectionChange}
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+
                   {
-                    pageItems.map((magazine) => {
-                      const statistics = magazine.statistics || {};
+                    pageItems.length ?
+                      <div className={styles.tableWrapper}>
+                        <table className={styles.table}>
+                          <thead>
+                            <tr>
+                              <th>Title</th>
+                              <th>Publisher</th>
+                              <th>Monitored</th>
+                              <th>Issues</th>
+                              <th>Files</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {
+                              pageItems.map((magazine) => {
+                                const statistics = magazine.statistics || {};
 
-                      return (
-                        <tr key={magazine.id}>
-                          <td>
-                            <Link to={`/magazine/${magazine.id}`}>{magazine.title}</Link>
-                          </td>
-                          <td>{magazine.publisher || 'Unknown'}</td>
-                          <td>{magazine.monitored ? 'Yes' : 'No'}</td>
-                          <td>{statistics.issueCount || 0}</td>
-                          <td>{statistics.issueFileCount || 0}</td>
-                        </tr>
-                      );
-                    })
+                                return (
+                                  <tr key={magazine.id}>
+                                    <td>
+                                      <Link className={styles.tableLink} to={`/magazine/${magazine.id}`}>
+                                        {magazine.title}
+                                      </Link>
+                                    </td>
+                                    <td>{magazine.publisher || 'Unknown'}</td>
+                                    <td>{magazine.monitored ? 'Yes' : 'No'}</td>
+                                    <td>{statistics.issueCount || 0}</td>
+                                    <td>{statistics.issueFileCount || 0}</td>
+                                  </tr>
+                                );
+                              })
+                            }
+                          </tbody>
+                        </table>
+                      </div> :
+                      <NoMagazine totalItems={totalItems} />
                   }
-                </tbody>
-              </table>
 
-              <div style={{ marginTop: '1rem' }}>
-                <button type="button" onClick={() => this.onPageChange(-1)}
-                  disabled={safePage <= 1}
-                >
-                  Previous
-                </button>
-                {' '}
-                <span>Page {safePage} of {totalPages}</span>
-                {' '}
-                <button type="button" onClick={() => this.onPageChange(1)}
-                  disabled={safePage >= totalPages}
-                >
-                  Next
-                </button>
-              </div>
-            </React.Fragment> :
-            <p>No magazines match the current filters.</p>
-        }
-      </div>
+                  {
+                    pageItems.length ?
+                      <div className={styles.pagination}>
+                        <Button
+                          isDisabled={safePage <= 1}
+                          onPress={() => this.onPageChange(-1)}
+                        >
+                          Previous
+                        </Button>
+
+                        <div className={styles.pageIndicator}>
+                          Page {safePage} of {totalPages}
+                        </div>
+
+                        <Button
+                          isDisabled={safePage >= totalPages}
+                          onPress={() => this.onPageChange(1)}
+                        >
+                          Next
+                        </Button>
+                      </div> :
+                      null
+                  }
+                </div>
+            }
+
+            {
+              !error && isPopulated && hasNoMagazines &&
+                <div className={styles.contentBodyContainer}>
+                  <NoMagazine totalItems={totalItems} />
+                </div>
+            }
+          </PageContentBody>
+        </div>
+      </PageContent>
     );
   }
 }
 
 MagazineIndex.propTypes = {
+  error: PropTypes.object,
   isFetching: PropTypes.bool,
+  isPopulated: PropTypes.bool.isRequired,
   items: PropTypes.arrayOf(PropTypes.object),
-  rootFolders: PropTypes.arrayOf(PropTypes.object),
-  defaultQualityProfileId: PropTypes.number.isRequired,
-  defaultMetadataProfileId: PropTypes.number.isRequired,
-  saveMagazineRootFolder: PropTypes.func.isRequired,
-  deleteMagazineRootFolder: PropTypes.func.isRequired
+  onRefreshPress: PropTypes.func.isRequired
+};
+
+MagazineIndex.defaultProps = {
+  isFetching: false,
+  items: [],
+  error: null
 };
 
 export default MagazineIndex;

@@ -96,6 +96,18 @@
   text-align: justify;
 }
 
+.metadataRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.mediaTypeLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 @media only screen and (max-width: $breakpointMedium) {
   .titleRow {
     justify-content: space-between;

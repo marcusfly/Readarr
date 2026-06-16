@@ -5,11 +5,9 @@ import AddNewMagazineSearchResult from './AddNewMagazineSearchResult';
 
 function createMapStateToProps() {
   return createSelector(
-    (state, props) => props.id,
     createDimensionsSelector(),
-    (id, dimensions) => {
+    (dimensions) => {
       return {
-        isExistingMagazine: id !== 0,
         isSmallScreen: dimensions.isSmallScreen
       };
     }

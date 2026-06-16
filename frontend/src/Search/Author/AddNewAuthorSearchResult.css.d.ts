@@ -6,6 +6,8 @@ interface CssExports {
   'icons': string;
   'mbLink': string;
   'mbLinkIcon': string;
+  'mediaTypeLabel': string;
+  'metadataRow': string;
   'name': string;
   'nameContainer': string;
   'nameRow': string;

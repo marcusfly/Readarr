@@ -23,7 +23,7 @@ namespace NzbDrone.Core.MetadataSource.Contracts
 
         List<Book> SearchByAsin(string asin);
 
-        List<object> SearchForNewEntity(string title);
+        List<object> SearchForNewEntity(string title, NewItemSearchScope scope = NewItemSearchScope.All);
 
         HashSet<string> GetChangedAuthors(DateTime startTime);
     }

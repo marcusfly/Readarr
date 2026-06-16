@@ -14,7 +14,10 @@ import translate from 'Utilities/String/translate';
 import AddNewAuthorSearchResultConnector from './Author/AddNewAuthorSearchResultConnector';
 import AddNewBookSearchResultConnector from './Book/AddNewBookSearchResultConnector';
 import AddNewMagazineSearchResultConnector from './Magazine/AddNewMagazineSearchResultConnector';
+import { searchScopeOptions, searchScopes } from './searchScopes';
 import styles from './AddNewItem.css';
+
+const MIN_LOADING_INDICATOR_MS = 350;
 
 class AddNewItem extends Component {
 
@@ -24,8 +27,12 @@ class AddNewItem extends Component {
   constructor(props, context) {
     super(props, context);
 
+    this._loadingIndicatorTimeout = null;
+    this._fetchStartedAt = null;
+
     this.state = {
       term: props.term || '',
+      searchScope: props.initialSearchScope,
       isFetching: false,
       hasSearched: false
     };
@@ -36,7 +43,8 @@ class AddNewItem extends Component {
 
     if (term) {
       this.setState({ hasSearched: true, isFetching: true }, () => {
-        this.props.onSearchChange(term);
+        this._fetchStartedAt = Date.now();
+        this.props.onSearchChange(term, this.state.searchScope);
       });
     }
   }
@@ -44,22 +52,66 @@ class AddNewItem extends Component {
   componentDidUpdate(prevProps) {
     const {
       term,
+      initialSearchScope,
       isFetching
     } = this.props;
 
-    if (term && term !== prevProps.term) {
+    if (term && (term !== prevProps.term || initialSearchScope !== prevProps.initialSearchScope)) {
       this.setState({
         term,
+        searchScope: initialSearchScope,
         isFetching: true,
         hasSearched: true
+      }, () => {
+        this._fetchStartedAt = Date.now();
+        this.props.onSearchChange(term, initialSearchScope);
       });
-      this.props.onSearchChange(term);
-    } else if (isFetching !== prevProps.isFetching) {
+    } else if (initialSearchScope !== prevProps.initialSearchScope) {
       this.setState({
-        isFetching
+        searchScope: initialSearchScope
       });
+    } else if (isFetching !== prevProps.isFetching) {
+      if (isFetching) {
+        this._clearLoadingIndicatorTimeout();
+        this._fetchStartedAt = Date.now();
+
+        this.setState({
+          isFetching: true
+        });
+      } else {
+        const elapsed = this._fetchStartedAt ? Date.now() - this._fetchStartedAt : MIN_LOADING_INDICATOR_MS;
+        const remaining = Math.max(MIN_LOADING_INDICATOR_MS - elapsed, 0);
+
+        if (remaining > 0) {
+          this._loadingIndicatorTimeout = setTimeout(() => {
+            this._loadingIndicatorTimeout = null;
+            this._fetchStartedAt = null;
+
+            this.setState({
+              isFetching: false
+            });
+          }, remaining);
+        } else {
+          this._fetchStartedAt = null;
+
+          this.setState({
+            isFetching: false
+          });
+        }
+      }
     }
   }
+
+  componentWillUnmount() {
+    this._clearLoadingIndicatorTimeout();
+  }
+
+  _clearLoadingIndicatorTimeout = () => {
+    if (this._loadingIndicatorTimeout) {
+      clearTimeout(this._loadingIndicatorTimeout);
+      this._loadingIndicatorTimeout = null;
+    }
+  };
 
   onSearch = (term) => {
     const trimmedTerm = term.trim();
@@ -71,7 +123,9 @@ class AddNewItem extends Component {
     }
 
     this.setState({ isFetching: true, hasSearched: true }, () => {
-      this.props.onSearchChange(trimmedTerm);
+      this._clearLoadingIndicatorTimeout();
+      this._fetchStartedAt = Date.now();
+      this.props.onSearchChange(trimmedTerm, this.state.searchScope);
     });
   };
 
@@ -110,6 +164,21 @@ class AddNewItem extends Component {
     this.onSearch(term);
   };
 
+  onSearchScopeChange = (event) => {
+    const searchScope = event.target.value;
+    const term = this.state.term.trim();
+
+    this.setState({
+      searchScope
+    }, () => {
+      if (term) {
+        this.onSearch(term);
+      } else {
+        this.props.onClearSearch();
+      }
+    });
+  };
+
   onClearSearchPress = () => {
     this.setState({
       term: '',
@@ -130,18 +199,45 @@ class AddNewItem extends Component {
     } = this.props;
 
     const term = this.state.term;
+    const searchScope = this.state.searchScope;
     const isFetching = this.state.isFetching;
     const hasSearched = this.state.hasSearched;
+    const isComicsScope = searchScope === searchScopes.COMICS;
 
     return (
       <PageContent title={translate('AddNewItem')}>
         <PageContentBody>
           <div className={styles.searchContainer}>
+            <select
+              className={styles.searchScopeSelect}
+              value={searchScope}
+              onChange={this.onSearchScopeChange}
+            >
+              {
+                searchScopeOptions.map((option) => (
+                  <option
+                    key={option.key}
+                    value={option.key}
+                  >
+                    {option.value}
+                  </option>
+                ))
+              }
+            </select>
+
             <div className={styles.searchIconContainer}>
-              <Icon
-                name={icons.SEARCH}
-                size={20}
-              />
+              {
+                isFetching ?
+                  <LoadingIndicator
+                    className={styles.searchLoadingIndicator}
+                    rippleClassName={styles.searchLoadingRipple}
+                    size={20}
+                  /> :
+                  <Icon
+                    name={icons.SEARCH}
+                    size={20}
+                  />
+              }
             </div>
 
             <TextInput
@@ -232,9 +328,15 @@ class AddNewItem extends Component {
                 <div className={styles.noResults}>
                   {translate('CouldntFindAnyResultsForTerm', [term])}
                 </div>
-                <div>
-                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), or search by ISBN (e.g. isbn:9780439554930)
-                </div>
+                {
+                  isComicsScope ?
+                    <div>
+                      Comic metadata search is not available yet.
+                    </div> :
+                    <div>
+                      You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), or search by ISBN (e.g. isbn:9780439554930)
+                    </div>
+                }
               </div>
           }
 
@@ -245,9 +347,15 @@ class AddNewItem extends Component {
                 <div className={styles.helpText}>
                   It's easy to add a new author, book, or magazine. Just start typing the name of the item you want to add.
                 </div>
-                <div>
-                  You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), search by ISBN (e.g. isbn:9780439554930), or search by Wikidata id (e.g. Q123456).
-                </div>
+                {
+                  isComicsScope ?
+                    <div>
+                      Comic metadata search is reserved for the future comics pipeline and is not available yet.
+                    </div> :
+                    <div>
+                      You can also search using an Open Library ID for an author (e.g. author:OL23919A), work (e.g. work:OL45883W), or edition (e.g. edition:OL7353617M), search by ISBN (e.g. isbn:9780439554930), or search by Wikidata id (e.g. Q123456).
+                    </div>
+                }
               </div>
           }
 
@@ -278,6 +386,7 @@ class AddNewItem extends Component {
 
 AddNewItem.propTypes = {
   term: PropTypes.string,
+  initialSearchScope: PropTypes.string.isRequired,
   isFetching: PropTypes.bool.isRequired,
   error: PropTypes.object,
   isAdding: PropTypes.bool.isRequired,

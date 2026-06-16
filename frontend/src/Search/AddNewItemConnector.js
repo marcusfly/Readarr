@@ -7,6 +7,7 @@ import { clearSearchResults, getSearchResults } from 'Store/Actions/searchAction
 import { fetchRootFolders } from 'Store/Actions/settingsActions';
 import parseUrl from 'Utilities/String/parseUrl';
 import AddNewItem from './AddNewItem';
+import { normalizeSearchScope } from './searchScopes';
 
 function createMapStateToProps() {
   return createSelector(
@@ -20,6 +21,7 @@ function createMapStateToProps() {
       return {
         ...search,
         term: params.term,
+        initialSearchScope: normalizeSearchScope(params.scope),
         searchWhileTyping: uiSettings.searchWhileTyping === true,
         hasExistingAuthors: existingAuthorsCount > 0
       };
@@ -50,11 +52,11 @@ class AddNewItemConnector extends Component {
   //
   // Listeners
 
-  onSearchChange = (term) => {
+  onSearchChange = (term, scope) => {
     if (term === '') {
       this.props.clearSearchResults();
     } else {
-      this.props.getSearchResults({ term });
+      this.props.getSearchResults({ term, scope });
     }
   };
 
@@ -84,6 +86,7 @@ class AddNewItemConnector extends Component {
 
 AddNewItemConnector.propTypes = {
   term: PropTypes.string,
+  initialSearchScope: PropTypes.string.isRequired,
   searchWhileTyping: PropTypes.bool,
   getSearchResults: PropTypes.func.isRequired,
   clearSearchResults: PropTypes.func.isRequired,

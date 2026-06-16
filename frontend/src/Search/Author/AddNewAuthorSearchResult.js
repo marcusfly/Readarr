@@ -160,7 +160,14 @@ class AddNewAuthorSearchResult extends Component {
               </div>
             </div>
 
-            <div>
+            <div className={styles.metadataRow}>
+              <Label
+                className={styles.mediaTypeLabel}
+                size={sizes.LARGE}
+              >
+                Author
+              </Label>
+
               {
                 ratings.votes > 0 ?
                   <Label size={sizes.LARGE}>

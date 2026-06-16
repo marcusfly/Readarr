@@ -1,0 +1,88 @@
+.pageContentBodyWrapper {
+  display: flex;
+  min-height: 0;
+}
+
+.contentBody {
+  display: flex;
+}
+
+.innerContentBody {
+  width: 100%;
+}
+
+.contentBodyContainer {
+  padding: 30px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.textInput,
+.selectInput {
+  padding: 10px 12px;
+  min-height: 40px;
+  border: 1px solid var(--borderColor);
+  border-radius: 4px;
+  background: var(--inputBackgroundColor);
+  color: var(--defaultColor);
+}
+
+.textInput {
+  width: 320px;
+}
+
+.selectInput {
+  min-width: 180px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--borderColor);
+  text-align: left;
+}
+
+.table th {
+  color: var(--disabledColor);
+  font-weight: 600;
+}
+
+.tableLink {
+  color: var(--linkColor);
+  text-decoration: none;
+}
+
+.tableLink:hover {
+  text-decoration: underline;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.pageIndicator {
+  color: var(--disabledColor);
+}
+
+.errorMessage {
+  padding: 30px;
+  color: var(--dangerColor);
+}

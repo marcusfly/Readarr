@@ -81,7 +81,20 @@ namespace NzbDrone.Core.MetadataSource
                 provider => provider.SearchForNewAuthor(title));
         }
 
-        public List<object> SearchForNewEntity(string title)
+        public List<object> SearchForNewEntity(string title, NewItemSearchScope scope = NewItemSearchScope.All)
+        {
+            return scope switch
+            {
+                NewItemSearchScope.Books => SearchForNewBooksAndAuthors(title),
+                NewItemSearchScope.Magazines => SearchForNewMagazine(title).Cast<object>().ToList(),
+                NewItemSearchScope.Comics => new List<object>(),
+                _ => SearchForNewBooksAndAuthors(title)
+                    .Concat(SearchForNewMagazine(title).Cast<object>())
+                    .ToList()
+            };
+        }
+
+        private List<object> SearchForNewBooksAndAuthors(string title)
         {
             var books = SearchForNewBook(title, null, false);
             var result = new List<object>();
@@ -95,11 +108,6 @@ namespace NzbDrone.Core.MetadataSource
                 }
 
                 result.Add(book);
-            }
-
-            foreach (var magazine in SearchForNewMagazine(title))
-            {
-                result.Add(magazine);
             }
 
             return result;

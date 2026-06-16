@@ -9,22 +9,11 @@ import magazineMonitorOptions from 'Utilities/Magazine/monitorOptions';
 import translate from 'Utilities/String/translate';
 
 class AddMagazineOptionsForm extends Component {
-
-  onQualityProfileIdChange = ({ value }) => {
-    this.props.onInputChange({ name: 'qualityProfileId', value: parseInt(value) });
-  };
-
-  onMetadataProfileIdChange = ({ value }) => {
-    this.props.onInputChange({ name: 'metadataProfileId', value: parseInt(value) });
-  };
-
   render() {
     const {
       rootFolderPath,
       rootFolderValues,
       monitor,
-      qualityProfileId,
-      metadataProfileId,
       tags,
       onInputChange,
       ...otherProps
@@ -64,33 +53,6 @@ class AddMagazineOptionsForm extends Component {
 
         <FormGroup>
           <FormLabel>
-            {translate('QualityProfile')}
-          </FormLabel>
-
-          <FormInputGroup
-            type={inputTypes.QUALITY_PROFILE_SELECT}
-            name="qualityProfileId"
-            onChange={this.onQualityProfileIdChange}
-            {...qualityProfileId}
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <FormLabel>
-            {translate('MetadataProfile')}
-          </FormLabel>
-
-          <FormInputGroup
-            type={inputTypes.METADATA_PROFILE_SELECT}
-            name="metadataProfileId"
-            includeNone={false}
-            onChange={this.onMetadataProfileIdChange}
-            {...metadataProfileId}
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <FormLabel>
             {translate('Tags')}
           </FormLabel>
 
@@ -110,8 +72,6 @@ AddMagazineOptionsForm.propTypes = {
   rootFolderPath: PropTypes.object,
   rootFolderValues: PropTypes.arrayOf(PropTypes.object).isRequired,
   monitor: PropTypes.object.isRequired,
-  qualityProfileId: PropTypes.object,
-  metadataProfileId: PropTypes.object,
   tags: PropTypes.object.isRequired,
   onInputChange: PropTypes.func.isRequired
 };

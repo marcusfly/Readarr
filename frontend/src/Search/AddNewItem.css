@@ -3,7 +3,20 @@
   margin-bottom: 10px;
 }
 
+.searchScopeSelect {
+  width: 150px;
+  margin-right: 12px;
+  border: 1px solid var(--inputBorderColor);
+  border-radius: 4px;
+  background: var(--inputBackgroundColor);
+  color: var(--defaultColor);
+  font-size: 16px;
+}
+
 .searchIconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 58px;
   height: 46px;
   border: 1px solid var(--inputBorderColor);
@@ -16,9 +29,19 @@
   line-height: 46px;
 }
 
+.searchLoadingIndicator {
+  margin-top: 0;
+  line-height: 1;
+}
+
+.searchLoadingRipple {
+  border-color: var(--themeDarkColor);
+}
+
 .searchInput {
   composes: input from '~Components/Form/TextInput.css';
 
+  flex: 1 1 auto;
   height: 46px;
   border-radius: 0;
   font-size: 18px;

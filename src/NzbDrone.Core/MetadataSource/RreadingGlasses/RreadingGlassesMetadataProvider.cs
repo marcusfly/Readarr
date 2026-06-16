@@ -196,8 +196,13 @@ namespace NzbDrone.Core.MetadataSource.RreadingGlasses
             return SearchByLookup($"book/asin/{normalized}", null);
         }
 
-        public List<object> SearchForNewEntity(string title)
+        public List<object> SearchForNewEntity(string title, NewItemSearchScope scope = NewItemSearchScope.All)
         {
+            if (scope == NewItemSearchScope.Magazines || scope == NewItemSearchScope.Comics)
+            {
+                return new List<object>();
+            }
+
             var books = SearchForNewBook(title, null, false);
             var result = new List<object>();
 

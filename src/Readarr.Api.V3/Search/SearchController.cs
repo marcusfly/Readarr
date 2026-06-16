@@ -28,9 +28,9 @@ namespace Readarr.Api.V3.Search
         }
 
         [HttpGet]
-        public object Search([FromQuery] string term)
+        public object Search([FromQuery] string term, [FromQuery] NewItemSearchScope scope = NewItemSearchScope.All)
         {
-            var searchResults = _searchProxy.SearchForNewEntity(term);
+            var searchResults = _searchProxy.SearchForNewEntity(term, scope);
             return MapToResource(searchResults).ToList();
         }
 

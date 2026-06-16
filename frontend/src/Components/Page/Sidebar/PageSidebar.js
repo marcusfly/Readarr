@@ -8,6 +8,7 @@ import OverlayScroller from 'Components/Scroller/OverlayScroller';
 import Scroller from 'Components/Scroller/Scroller';
 import { icons } from 'Helpers/Props';
 import locationShape from 'Helpers/Props/Shapes/locationShape';
+import { buildAddNewSearchPath, getDefaultSearchScopeFromPath } from 'Search/searchScopes';
 import dimensions from 'Styles/Variables/dimensions';
 import HealthStatusConnector from 'System/Status/Health/HealthStatusConnector';
 import translate from 'Utilities/String/translate';
@@ -218,6 +219,14 @@ function getActiveParent(pathname) {
   });
 
   return activeParent;
+}
+
+function getSidebarLinkTarget(link, pathname) {
+  if (link.to !== '/add/search') {
+    return link.to;
+  }
+
+  return buildAddNewSearchPath(getDefaultSearchScopeFromPath(pathname));
 }
 
 function hasActiveChildLink(link, pathname) {
@@ -495,7 +504,7 @@ class PageSidebar extends Component {
                     key={link.to}
                     iconName={link.iconName}
                     title={link.title}
-                    to={link.to}
+                    to={getSidebarLinkTarget(link, pathname)}
                     statusComponent={isActiveParent || !childStatusComponent ? link.statusComponent : childStatusComponent}
                     isActive={pathname === link.to && !hasActiveChild}
                     isActiveParent={isActiveParent}
@@ -509,7 +518,7 @@ class PageSidebar extends Component {
                             <PageSidebarItem
                               key={child.to}
                               title={child.title}
-                              to={child.to}
+                              to={getSidebarLinkTarget(child, pathname)}
                               isActive={pathname.startsWith(child.to)}
                               isParentItem={false}
                               isChildItem={true}

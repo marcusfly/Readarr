@@ -162,7 +162,14 @@ class AddNewBookSearchResult extends Component {
                 </div>
             }
 
-            <div>
+            <div className={styles.metadataRow}>
+              <Label
+                className={styles.mediaTypeLabel}
+                size={sizes.LARGE}
+              >
+                Book
+              </Label>
+
               <Label size={sizes.LARGE}>
                 <HeartRating
                   rating={ratings.value}

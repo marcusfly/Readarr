@@ -1,22 +1,21 @@
 import PropTypes from 'prop-types';
 import React from 'react';
+import styles from 'Author/NoAuthor.css';
 import Button from 'Components/Link/Button';
 import { kinds } from 'Helpers/Props';
 import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
 import translate from 'Utilities/String/translate';
-import styles from './NoAuthor.css';
 
-function NoAuthor(props) {
+function NoMagazine(props) {
   const {
-    totalItems,
-    itemType
+    totalItems
   } = props;
 
   if (totalItems > 0) {
     return (
       <div>
         <div className={styles.message}>
-          {`All ${itemType} are hidden due to the applied filter.`}
+          All magazines are hidden due to the applied filter.
         </div>
       </div>
     );
@@ -25,7 +24,7 @@ function NoAuthor(props) {
   return (
     <div>
       <div className={styles.message}>
-        {`No ${itemType} found, to get started you'll want to add a new author or book or add an existing library location (Root Folder) and update.`}
+        No magazines found, to get started you'll want to add a new magazine or add an existing library location (Root Folder) and update.
       </div>
 
       <div className={styles.buttonContainer}>
@@ -39,23 +38,18 @@ function NoAuthor(props) {
 
       <div className={styles.buttonContainer}>
         <Button
-          to={buildAddNewSearchPath(searchScopes.BOOKS)}
+          to={buildAddNewSearchPath(searchScopes.MAGAZINES)}
           kind={kinds.PRIMARY}
         >
-          {translate('AddNewAuthor')}
+          Add New Magazine
         </Button>
       </div>
     </div>
   );
 }
 
-NoAuthor.propTypes = {
-  totalItems: PropTypes.number.isRequired,
-  itemType: PropTypes.string.isRequired
+NoMagazine.propTypes = {
+  totalItems: PropTypes.number.isRequired
 };
 
-NoAuthor.defaultProps = {
-  itemType: 'authors'
-};
-
-export default NoAuthor;
+export default NoMagazine;

@@ -55,6 +55,10 @@ All configuration can be provided via:
 |------------------------------|----------------|----------------------------------------|
 | `READARR__APP__DATADIR`      | `/config`      | Path to config, database, and logs     |
 | `READARR__SERVER__PORT`      | `8787`         | HTTP listening port                    |
+| `READARR__SERVER__ENABLESSL` | `false`        | Enable HTTPS listener                  |
+| `READARR__SERVER__SSLPORT`   | `8788`         | HTTPS listening port                   |
+| `READARR__SERVER__SSLCERTPATH` | _(empty)_    | Path to a mounted `.pfx` certificate   |
+| `READARR__SERVER__SSLCERTPASSWORD` | _(empty)_ | Password for the mounted `.pfx` cert |
 | `READARR__POSTGRES__HOST`    | _(empty)_      | PostgreSQL host (leave empty for SQLite)|
 | `READARR__POSTGRES__PORT`    | `5432`         | PostgreSQL port                        |
 | `READARR__POSTGRES__USER`    | _(empty)_      | PostgreSQL username                    |
@@ -69,6 +73,18 @@ an absolute path. The directory contains:
 - `readarr.db` — SQLite main database (if not using PostgreSQL)
 - `readarr.db-wal`, `readarr.db-shm` — SQLite WAL files (normal; safe to keep)
 - `logs/` — rotating log files
+
+### HTTPS in containers
+
+Docker and Compose runs default to HTTP only unless you explicitly enable SSL.
+If you set `READARR__SERVER__ENABLESSL=true`, you must also mount a valid PKCS#12
+certificate file and provide matching values for:
+
+- `READARR__SERVER__SSLCERTPATH`
+- `READARR__SERVER__SSLCERTPASSWORD`
+
+If the certificate path is missing or the password is wrong, Readarr will fail
+startup during certificate validation.
 
 ### Book library
 
