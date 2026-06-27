@@ -69,7 +69,10 @@ namespace NzbDrone.Core.Magazines.Metadata
 
             if (_cache.Value.TryGetValue(normalized, out var cached))
             {
-                return cached;
+                if (!NeedsRefresh(cached))
+                {
+                    return cached;
+                }
             }
 
             try
@@ -80,18 +83,10 @@ namespace NzbDrone.Core.Magazines.Metadata
                 var item = searchResponse?.Search?.FirstOrDefault();
                 if (item == null)
                 {
-                    return null;
+                    return cached;
                 }
 
-                var canonicalTitle = item.Label.IsNotNullOrWhiteSpace() ? item.Label : rawTitle.Trim();
-                var result = new MagazineAuthorityResult
-                {
-                    CanonicalTitle = canonicalTitle,
-                    NormalizedTitle = MagazineTitleNormalizer.Normalize(canonicalTitle),
-                    WikidataId = item.Id,
-                    Aliases = item.Aliases?.ToList(),
-                    Publisher = item.Description
-                };
+                var result = CreateSearchResult(item, rawTitle);
 
                 var details = await GetDetailsAsync(item.Id, ct);
                 if (details != null)
@@ -101,6 +96,9 @@ namespace NzbDrone.Core.Magazines.Metadata
                     result.Publisher = details.Publisher ?? result.Publisher;
                     result.Country = details.Country;
                     result.Language = details.Language;
+                    result.ImageUrl = NormalizeMediaUrl(details.ImageUrl);
+                    result.LogoUrl = NormalizeMediaUrl(details.LogoUrl);
+                    result.OfficialWebsite = details.OfficialWebsite;
                 }
 
                 if (result.Issn.IsNotNullOrWhiteSpace())
@@ -121,8 +119,35 @@ namespace NzbDrone.Core.Magazines.Metadata
             catch (Exception ex)
             {
                 _logger.Debug(ex, "Magazine title authority lookup failed for {0}", rawTitle);
-                return null;
+                return cached;
             }
+        }
+
+        private static bool NeedsRefresh(MagazineAuthorityResult cached)
+        {
+            if (cached == null)
+            {
+                return true;
+            }
+
+            return cached.ImageUrl.IsNullOrWhiteSpace() &&
+                   cached.LogoUrl.IsNullOrWhiteSpace() &&
+                   cached.OfficialWebsite.IsNullOrWhiteSpace();
+        }
+
+        private static MagazineAuthorityResult CreateSearchResult(WikidataSearchItem item, string rawTitle)
+        {
+            var canonicalTitle = item.Label.IsNotNullOrWhiteSpace() ? item.Label : rawTitle.Trim();
+
+            return new MagazineAuthorityResult
+            {
+                CanonicalTitle = canonicalTitle,
+                NormalizedTitle = MagazineTitleNormalizer.Normalize(canonicalTitle),
+                WikidataId = item.Id,
+                Aliases = item.Aliases?.ToList(),
+                Publisher = item.Description,
+                Description = item.Description
+            };
         }
 
         private Task<WikidataSearchResponse> GetSearchResponseAsync(string rawTitle, CancellationToken ct)
@@ -156,13 +181,16 @@ namespace NzbDrone.Core.Magazines.Metadata
             (_rateLimitService.WaitAndPulseAsync(GetType().FullName, "sparql", TimeSpan.FromSeconds(1)) ?? Task.CompletedTask).GetAwaiter().GetResult();
 
             var query = $@"
-SELECT ?issn ?issnL ?publisherLabel ?countryLabel ?languageLabel WHERE {{
+SELECT ?issn ?issnL ?publisherLabel ?countryLabel ?languageLabel ?image ?logo ?officialWebsite WHERE {{
   VALUES ?item {{ wd:{wikidataId} }}
   OPTIONAL {{ ?item wdt:P236 ?issn. }}
   OPTIONAL {{ ?item wdt:P7363 ?issnL. }}
   OPTIONAL {{ ?item wdt:P123 ?publisher. }}
   OPTIONAL {{ ?item wdt:P17 ?country. }}
   OPTIONAL {{ ?item wdt:P407 ?language. }}
+  OPTIONAL {{ ?item wdt:P18 ?image. }}
+  OPTIONAL {{ ?item wdt:P154 ?logo. }}
+  OPTIONAL {{ ?item wdt:P856 ?officialWebsite. }}
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language ""en"". }}
 }} LIMIT 1";
 
@@ -192,8 +220,26 @@ SELECT ?issn ?issnL ?publisherLabel ?countryLabel ?languageLabel WHERE {{
                 IssnL = binding.IssnL?.Value,
                 Publisher = binding.PublisherLabel?.Value,
                 Country = binding.CountryLabel?.Value,
-                Language = binding.LanguageLabel?.Value
+                Language = binding.LanguageLabel?.Value,
+                ImageUrl = binding.Image?.Value,
+                LogoUrl = binding.Logo?.Value,
+                OfficialWebsite = binding.OfficialWebsite?.Value
             });
+        }
+
+        private static string NormalizeMediaUrl(string url)
+        {
+            if (url.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                return "https://" + url.Substring("http://".Length);
+            }
+
+            return url;
         }
 
         private ConcurrentDictionary<string, MagazineAuthorityResult> LoadCache()
@@ -305,6 +351,9 @@ SELECT ?issn ?issnL ?publisherLabel ?countryLabel ?languageLabel WHERE {{
             public WikidataSparqlValue PublisherLabel { get; set; }
             public WikidataSparqlValue CountryLabel { get; set; }
             public WikidataSparqlValue LanguageLabel { get; set; }
+            public WikidataSparqlValue Image { get; set; }
+            public WikidataSparqlValue Logo { get; set; }
+            public WikidataSparqlValue OfficialWebsite { get; set; }
         }
 
         private class WikidataSparqlValue
@@ -320,6 +369,9 @@ SELECT ?issn ?issnL ?publisherLabel ?countryLabel ?languageLabel WHERE {{
             public string Publisher { get; set; }
             public string Country { get; set; }
             public string Language { get; set; }
+            public string ImageUrl { get; set; }
+            public string LogoUrl { get; set; }
+            public string OfficialWebsite { get; set; }
         }
     }
 }

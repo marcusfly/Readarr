@@ -10,6 +10,11 @@ namespace NzbDrone.Core.Magazines
 {
     public class Magazine : Entity<Magazine>
     {
+        public Magazine()
+        {
+            Tags = new HashSet<int>();
+        }
+
         public string Title { get; set; }
         public string CleanTitle { get; set; }
         public string NormalizedTitle { get; set; }
@@ -39,5 +44,16 @@ namespace NzbDrone.Core.Magazines
 
         [MemberwiseEqualityIgnore]
         public LazyLoaded<List<MagazineIssue>> Issues { get; set; }
+
+        public override void ApplyChanges(Magazine other)
+        {
+            Monitored = other.Monitored;
+            QualityProfileId = other.QualityProfileId;
+            QualityProfile = other.QualityProfile;
+            MetadataProfileId = other.MetadataProfileId;
+            MetadataProfile = other.MetadataProfile;
+            Tags = other.Tags;
+            AddOptions = other.AddOptions;
+        }
     }
 }

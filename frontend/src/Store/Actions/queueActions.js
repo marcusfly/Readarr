@@ -67,13 +67,13 @@ export const defaultState = {
       },
       {
         name: 'authorMetadata.sortName',
-        label: () => translate('Author'),
+        label: () => 'Author / Magazine',
         isSortable: true,
         isVisible: true
       },
       {
         name: 'books.title',
-        label: () => translate('BookTitle'),
+        label: () => 'Book / Issue',
         isSortable: true,
         isVisible: true
       },

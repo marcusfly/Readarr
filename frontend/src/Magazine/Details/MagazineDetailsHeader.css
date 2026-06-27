@@ -1,0 +1,136 @@
+.header {
+  width: 100%;
+  min-height: 310px;
+  background: linear-gradient(135deg, rgba(24, 24, 24, 0.96), rgba(8, 8, 8, 0.98));
+}
+
+.headerContent {
+  display: flex;
+  padding: 30px;
+  width: 100%;
+  min-height: 310px;
+  color: var(--white);
+}
+
+.coverContainer {
+  flex-shrink: 0;
+  margin-right: 35px;
+}
+
+.cover {
+  display: block;
+  width: 170px;
+  height: 250px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.coverPlaceholder {
+  width: 170px;
+  height: 250px;
+}
+
+.info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.titleRow {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.titleContainer {
+  display: flex;
+  align-items: flex-start;
+}
+
+.toggleMonitoredContainer {
+  align-self: center;
+}
+
+.monitorToggleButton {
+  composes: toggleButton from '~Components/MonitorToggleButton.css';
+
+  width: 40px;
+
+  &:hover {
+    color: var(--iconButtonHoverLightColor);
+  }
+}
+
+.titleBlock {
+  margin-left: 20px;
+}
+
+.title {
+  font-weight: 300;
+  font-size: 50px;
+  line-height: 60px;
+}
+
+.subtitle {
+  margin-top: 6px;
+  font-weight: 300;
+  font-size: 28px;
+  line-height: 32px;
+}
+
+.detailsLabels {
+  margin-top: 20px;
+}
+
+.detailsLabel {
+  composes: label from '~Components/Label.css';
+
+  margin: 5px 10px 5px 0;
+}
+
+.labelText {
+  margin-left: 8px;
+  font-weight: 300;
+  font-size: 17px;
+}
+
+.externalLink {
+  text-decoration: none;
+}
+
+.overview {
+  margin-top: 20px;
+  max-width: 900px;
+  font-size: $intermediateFontSize;
+  line-height: 1.5;
+}
+
+@media only screen and (max-width: $breakpointSmall) {
+  .headerContent {
+    padding: 15px;
+  }
+
+  .title {
+    font-size: 30px;
+    line-height: 34px;
+  }
+
+  .subtitle {
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .labelText {
+    font-size: 15px;
+  }
+}
+
+@media only screen and (max-width: $breakpointLarge) {
+  .coverContainer {
+    display: none;
+  }
+
+  .titleBlock {
+    margin-left: 15px;
+  }
+}

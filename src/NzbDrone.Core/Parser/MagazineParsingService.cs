@@ -1,3 +1,4 @@
+using NzbDrone.Common.Extensions;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Parser.Model;
@@ -47,6 +48,23 @@ namespace NzbDrone.Core.Parser
                                             .Find(x => x.IssueYear == parsedInfo.IssueYear &&
                                                        x.IssueMonth == parsedInfo.IssueMonth &&
                                                        x.IssueDay == parsedInfo.IssueDay);
+
+                if (issue == null &&
+                    searchCriteria is MagazineIssueSearchCriteria searchCriteriaWithMagazine &&
+                    (searchCriteriaWithMagazine.UserInvokedSearch || searchCriteriaWithMagazine.InteractiveSearch))
+                {
+                    issue = new MagazineIssue
+                    {
+                        MagazineId = magazine.Id,
+                        IssueYear = parsedInfo.IssueYear,
+                        IssueMonth = parsedInfo.IssueMonth,
+                        IssueDay = parsedInfo.IssueDay,
+                        Volume = parsedInfo.Volume,
+                        IssueNumber = parsedInfo.IssueNumber,
+                        ReleaseTitle = BuildReleaseTitle(magazine, parsedInfo),
+                        Monitored = true
+                    };
+                }
             }
 
             return new RemoteMagazineIssue
@@ -56,6 +74,22 @@ namespace NzbDrone.Core.Parser
                 ParsedMagazineIssueInfo = parsedInfo,
                 ParsedBookInfo = ToParsedBookInfo(parsedInfo)
             };
+        }
+
+        private static string BuildReleaseTitle(Magazine magazine, ParsedMagazineIssueInfo parsedInfo)
+        {
+            if (parsedInfo.ReleaseTitle.IsNotNullOrWhiteSpace())
+            {
+                return parsedInfo.ReleaseTitle;
+            }
+
+            if (magazine?.Title.IsNullOrWhiteSpace() != false || parsedInfo.IssueYear <= 0 || parsedInfo.IssueMonth <= 0)
+            {
+                return parsedInfo.ReleaseTitle;
+            }
+
+            var suffix = $"{parsedInfo.IssueYear:D4}-{parsedInfo.IssueMonth:D2}{(parsedInfo.IssueDay.HasValue ? $"-{parsedInfo.IssueDay.Value:D2}" : string.Empty)}";
+            return $"{magazine.Title} {suffix}";
         }
 
         private static ParsedBookInfo ToParsedBookInfo(ParsedMagazineIssueInfo parsedInfo)

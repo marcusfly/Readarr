@@ -24,7 +24,7 @@ namespace NzbDrone.Core.Magazines
 
                 if (magazine.AddOptions.SearchForMissingIssues)
                 {
-                    _commandQueueManager.Push(new NzbDrone.Core.Magazines.Commands.MissingMagazineIssueSearchCommand(magazine.Id));
+                    _commandQueueManager.Push(new NzbDrone.Core.Magazines.Commands.MagazineSearchCommand(magazine.Id));
                 }
             }
         }

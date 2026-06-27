@@ -8,6 +8,8 @@ using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Common.Http;
+using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.MediaCover;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -24,20 +26,27 @@ namespace NzbDrone.Core.Magazines
 
     public class MagazineCoverService : IMagazineCoverService
     {
+        private const string AuthoritySourceFileName = "cover.url";
         private static readonly string[] ArchiveImageExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp" };
         private readonly IDiskProvider _diskProvider;
         private readonly IAppFolderInfo _appFolderInfo;
         private readonly IMapCoversToLocal _coverMapper;
+        private readonly IMagazineTitleAuthorityProvider _titleAuthorityProvider;
+        private readonly IHttpClient _httpClient;
         private readonly Logger _logger;
 
         public MagazineCoverService(IDiskProvider diskProvider,
                                     IAppFolderInfo appFolderInfo,
                                     IMapCoversToLocal coverMapper,
+                                    IMagazineTitleAuthorityProvider titleAuthorityProvider,
+                                    IHttpClient httpClient,
                                     Logger logger)
         {
             _diskProvider = diskProvider;
             _appFolderInfo = appFolderInfo;
             _coverMapper = coverMapper;
+            _titleAuthorityProvider = titleAuthorityProvider;
+            _httpClient = httpClient;
             _logger = logger;
         }
 
@@ -54,12 +63,10 @@ namespace NzbDrone.Core.Magazines
                 .OrderByDescending(file => file.DateAdded)
                 .ToList() ?? new List<MagazineIssueFile>();
 
-            if (!issueFiles.Any())
-            {
-                return new List<MediaCoverModel>();
-            }
+            var cover = issueFiles.Any()
+                ? EnsureCover(magazine, issueFiles)
+                : EnsureAuthorityCover(magazine);
 
-            var cover = EnsureCover(magazine, issueFiles);
             if (cover == null)
             {
                 return new List<MediaCoverModel>();
@@ -133,6 +140,114 @@ namespace NzbDrone.Core.Magazines
             {
                 _logger.Debug(ex, "Unable to generate magazine cover from {0}", sourceFile.Path);
                 return null;
+            }
+        }
+
+        private MediaCoverModel EnsureAuthorityCover(Magazine magazine)
+        {
+            try
+            {
+                var authority = _titleAuthorityProvider.LookupByTitleAsync(magazine.Title).GetAwaiter().GetResult();
+                var remoteUrl = authority?.ImageUrl ?? authority?.LogoUrl;
+                if (remoteUrl.IsNullOrWhiteSpace())
+                {
+                    return FindExistingMagazineCover(magazine.Id);
+                }
+
+                var extension = GetRemoteExtension(remoteUrl);
+                var coverPath = _coverMapper.GetCoverPath(magazine.Id, MediaCoverEntity.Magazine, MediaCoverTypes.Cover, extension, null);
+                var sourcePath = GetAuthoritySourcePath(coverPath);
+                var coverDirectory = Path.GetDirectoryName(coverPath);
+
+                if (!coverDirectory.IsNullOrWhiteSpace())
+                {
+                    _diskProvider.CreateFolder(coverDirectory);
+                }
+
+                var shouldRefresh = !_diskProvider.FileExists(coverPath) ||
+                                    _diskProvider.GetFileSize(coverPath) == 0 ||
+                                    !AuthoritySourceMatches(sourcePath, remoteUrl);
+
+                if (shouldRefresh)
+                {
+                    _logger.Info("Downloading authority cover for magazine {0} from {1}", magazine.Title, remoteUrl);
+                    _httpClient.DownloadFile(remoteUrl, coverPath);
+                    _diskProvider.WriteAllText(sourcePath, remoteUrl);
+                    DeleteStaleMagazineCovers(magazine.Id, extension);
+                }
+
+                return new MediaCoverModel(MediaCoverTypes.Cover, remoteUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Unable to download authority cover for magazine {0}", magazine.Title);
+                return FindExistingMagazineCover(magazine.Id);
+            }
+        }
+
+        private MediaCoverModel FindExistingMagazineCover(int magazineId)
+        {
+            foreach (var extension in ArchiveImageExtensions.Concat(new[] { ".svg" }).Distinct())
+            {
+                var coverPath = _coverMapper.GetCoverPath(magazineId, MediaCoverEntity.Magazine, MediaCoverTypes.Cover, extension, null);
+                if (_diskProvider.FileExists(coverPath) && _diskProvider.GetFileSize(coverPath) > 0)
+                {
+                    return new MediaCoverModel(MediaCoverTypes.Cover, "cover" + extension);
+                }
+            }
+
+            return null;
+        }
+
+        private static string GetRemoteExtension(string remoteUrl)
+        {
+            try
+            {
+                var path = Uri.UnescapeDataString(new Uri(remoteUrl).AbsolutePath);
+                var extension = Path.GetExtension(path);
+
+                if (extension.IsNotNullOrWhiteSpace())
+                {
+                    return extension.ToLowerInvariant();
+                }
+            }
+            catch
+            {
+            }
+
+            return ".jpg";
+        }
+
+        private static string GetAuthoritySourcePath(string coverPath)
+        {
+            var directory = Path.GetDirectoryName(coverPath) ?? string.Empty;
+            return Path.Combine(directory, AuthoritySourceFileName);
+        }
+
+        private bool AuthoritySourceMatches(string sourcePath, string remoteUrl)
+        {
+            if (!_diskProvider.FileExists(sourcePath))
+            {
+                return false;
+            }
+
+            return _diskProvider.ReadAllText(sourcePath).Trim().Equals(remoteUrl, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void DeleteStaleMagazineCovers(int magazineId, string keepExtension)
+        {
+            foreach (var extension in ArchiveImageExtensions.Concat(new[] { ".svg" }).Distinct())
+            {
+                if (extension.Equals(keepExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var coverPath = _coverMapper.GetCoverPath(magazineId, MediaCoverEntity.Magazine, MediaCoverTypes.Cover, extension, null);
+                if (_diskProvider.FileExists(coverPath))
+                {
+                    _diskProvider.DeleteFile(coverPath);
+                }
             }
         }
 

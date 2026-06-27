@@ -65,8 +65,15 @@ namespace NzbDrone.Core.Download
 
         private async Task DownloadReport(RemoteBook remoteBook, IDownloadClient downloadClient)
         {
-            Ensure.That(remoteBook.Author, () => remoteBook.Author).IsNotNull();
-            Ensure.That(remoteBook.Books, () => remoteBook.Books).HasItems();
+            var isMagazineRelease = remoteBook is RemoteMagazineIssue remoteMagazineIssue &&
+                                    remoteMagazineIssue.Magazine != null &&
+                                    remoteMagazineIssue.Issue != null;
+
+            if (!isMagazineRelease)
+            {
+                Ensure.That(remoteBook.Author, () => remoteBook.Author).IsNotNull();
+                Ensure.That(remoteBook.Books, () => remoteBook.Books).HasItems();
+            }
 
             var downloadTitle = remoteBook.Release.Title;
 
@@ -128,18 +135,22 @@ namespace NzbDrone.Core.Download
                 throw;
             }
 
-            var bookGrabbedEvent = new BookGrabbedEvent(remoteBook);
-            bookGrabbedEvent.DownloadClient = downloadClient.Name;
-            bookGrabbedEvent.DownloadClientId = downloadClient.Definition.Id;
-            bookGrabbedEvent.DownloadClientName = downloadClient.Definition.Name;
-
-            if (downloadClientId.IsNotNullOrWhiteSpace())
-            {
-                bookGrabbedEvent.DownloadId = downloadClientId;
-            }
-
             _logger.ProgressInfo("Report sent to {0} from indexer {1}. {2}", downloadClient.Definition.Name, remoteBook.Release.Indexer, downloadTitle);
-            _eventAggregator.PublishEvent(bookGrabbedEvent);
+
+            if (!isMagazineRelease)
+            {
+                var bookGrabbedEvent = new BookGrabbedEvent(remoteBook);
+                bookGrabbedEvent.DownloadClient = downloadClient.Name;
+                bookGrabbedEvent.DownloadClientId = downloadClient.Definition.Id;
+                bookGrabbedEvent.DownloadClientName = downloadClient.Definition.Name;
+
+                if (downloadClientId.IsNotNullOrWhiteSpace())
+                {
+                    bookGrabbedEvent.DownloadId = downloadClientId;
+                }
+
+                _eventAggregator.PublishEvent(bookGrabbedEvent);
+            }
         }
     }
 }

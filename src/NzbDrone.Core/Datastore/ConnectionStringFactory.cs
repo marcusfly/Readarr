@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Data.SQLite;
+using System.IO;
+using System.Linq;
 using Npgsql;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Extensions;
@@ -46,12 +48,14 @@ namespace NzbDrone.Core.Datastore
 
         private static DatabaseConnectionInfo GetConnectionString(string dbPath)
         {
+            var useTruncateJournal = ShouldUseTruncateJournal(dbPath);
+
             var connectionBuilder = new SQLiteConnectionStringBuilder
             {
                 DataSource = dbPath,
                 CacheSize = -20000,
                 DateTimeKind = DateTimeKind.Utc,
-                JournalMode = OsInfo.IsOsx ? SQLiteJournalModeEnum.Truncate : SQLiteJournalModeEnum.Wal,
+                JournalMode = useTruncateJournal ? SQLiteJournalModeEnum.Truncate : SQLiteJournalModeEnum.Wal,
                 Pooling = true,
                 Version = 3,
                 BusyTimeout = 100
@@ -63,6 +67,47 @@ namespace NzbDrone.Core.Datastore
             }
 
             return new DatabaseConnectionInfo(DatabaseType.SQLite, connectionBuilder.ConnectionString);
+        }
+
+        private static bool ShouldUseTruncateJournal(string dbPath)
+        {
+            if (OsInfo.IsOsx)
+            {
+                return true;
+            }
+
+            if (!OsInfo.IsLinux || string.IsNullOrWhiteSpace(dbPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                var fullPath = Path.GetFullPath(dbPath);
+                var mountEntry = File.ReadLines("/proc/mounts")
+                    .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    .Where(parts => parts.Length >= 3)
+                    .OrderByDescending(parts => parts[1].Length)
+                    .FirstOrDefault(parts => fullPath.StartsWith(parts[1], StringComparison.Ordinal));
+
+                if (mountEntry == null)
+                {
+                    return false;
+                }
+
+                var source = mountEntry[0];
+                var fileSystemType = mountEntry[2];
+
+                return source.StartsWith("/run/host_mark/", StringComparison.OrdinalIgnoreCase) ||
+                       fileSystemType.Equals("fakeowner", StringComparison.OrdinalIgnoreCase) ||
+                       fileSystemType.Equals("osxfs", StringComparison.OrdinalIgnoreCase) ||
+                       fileSystemType.Equals("virtiofs", StringComparison.OrdinalIgnoreCase) ||
+                       fileSystemType.Equals("fuse.osxfs", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private DatabaseConnectionInfo GetPostgresConnectionString(string dbName)

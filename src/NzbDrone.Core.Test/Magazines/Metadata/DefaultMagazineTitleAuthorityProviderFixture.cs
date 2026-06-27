@@ -34,7 +34,9 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
         ""issnL"": { ""type"": ""literal"", ""value"": ""09510281"" },
         ""publisherLabel"": { ""type"": ""literal"", ""value"": ""Future Publishing"" },
         ""countryLabel"": { ""type"": ""literal"", ""value"": ""United Kingdom"" },
-        ""languageLabel"": { ""type"": ""literal"", ""value"": ""English"" }
+        ""languageLabel"": { ""type"": ""literal"", ""value"": ""English"" },
+        ""image"": { ""type"": ""uri"", ""value"": ""http://commons.wikimedia.org/wiki/Special:FilePath/Imaginary%20Weekly%20cover.jpg"" },
+        ""officialWebsite"": { ""type"": ""uri"", ""value"": ""https://example.com/imaginary-weekly"" }
       }
     ]
   }
@@ -114,6 +116,31 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
         }
 
         [Test]
+        public async Task should_enrich_seed_cache_match_with_wikidata_when_artwork_is_missing()
+        {
+            Mocker.GetMock<IHttpClient>()
+                .Setup(x => x.Get(It.IsAny<HttpRequest>()))
+                .Returns<HttpRequest>(request =>
+                {
+                    if (request.Url.FullUri.Contains("wikidata.org/w/api.php"))
+                    {
+                        return new HttpResponse(request, new HttpHeader { ContentType = "application/json" }, WikidataPayload);
+                    }
+
+                    return new HttpResponse(request, new HttpHeader { ContentType = "application/json" }, WikidataDetailsPayload);
+                });
+
+            var result = await Subject.LookupByTitleAsync("Motor Trend");
+
+            result.Should().NotBeNull();
+            result.CanonicalTitle.Should().Be("MotorTrend");
+            result.Aliases.Should().Contain("motor trend");
+            result.ImageUrl.Should().Be("https://commons.wikimedia.org/wiki/Special:FilePath/Imaginary%20Weekly%20cover.jpg");
+            result.OfficialWebsite.Should().Be("https://example.com/imaginary-weekly");
+            Mocker.GetMock<IHttpClient>().Verify(x => x.Get(It.IsAny<HttpRequest>()), Times.Exactly(2));
+        }
+
+        [Test]
         public async Task should_skip_lookup_when_wikidata_is_disabled()
         {
             Mocker.GetMock<IConfigService>()
@@ -161,6 +188,9 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
             result.Language.Should().Be("English");
             result.Aliases.Should().Equal("Imaginary Weekly", "Weekly Imaginary");
             result.Publisher.Should().Be("Future Publishing");
+            result.Description.Should().Be("Test magazine.");
+            result.ImageUrl.Should().Be("https://commons.wikimedia.org/wiki/Special:FilePath/Imaginary%20Weekly%20cover.jpg");
+            result.OfficialWebsite.Should().Be("https://example.com/imaginary-weekly");
             Mocker.GetMock<IHttpClient>().Verify(x => x.Get(It.IsAny<HttpRequest>()), Times.Exactly(2));
         }
     }

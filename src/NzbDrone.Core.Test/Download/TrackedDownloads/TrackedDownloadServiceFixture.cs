@@ -9,6 +9,8 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Parser;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Test.Framework;
@@ -247,6 +249,82 @@ namespace NzbDrone.Core.Test.Download.TrackedDownloads
             var trackedDownloads = Subject.GetTrackedDownloads();
             trackedDownloads.Should().HaveCount(1);
             trackedDownloads.First().RemoteBook.Should().BeNull();
+        }
+
+        [Test]
+        public void should_track_magazine_downloads_using_magazine_parser_when_book_mapping_fails()
+        {
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            var issue = new MagazineIssue
+            {
+                Id = 42,
+                MagazineId = magazine.Id,
+                IssueYear = 2025,
+                IssueMonth = 2,
+                ReleaseTitle = "Playboy 2025-02"
+            };
+
+            var parsed = new ParsedMagazineIssueInfo
+            {
+                MagazineTitle = magazine.Title,
+                NormalizedMagazineTitle = "playboy",
+                IssueYear = 2025,
+                IssueMonth = 2,
+                ReleaseTitle = "Playboy February 2025",
+                Confidence = 0.6f
+            };
+
+            Mocker.GetMock<IMagazineService>()
+                .Setup(s => s.GetAllMagazines())
+                .Returns(new List<Magazine> { magazine });
+
+            Mocker.GetMock<IMagazineFilenameParser>()
+                .Setup(s => s.ParseFilename("Playboy.February.2025.HYBRID.MAGAZINE", magazine.Title))
+                .Returns(parsed);
+
+            Mocker.GetMock<IMagazineParsingService>()
+                .Setup(s => s.Map(parsed, It.IsAny<NzbDrone.Core.IndexerSearch.Definitions.SearchCriteriaBase>()))
+                .Returns(new RemoteMagazineIssue
+                {
+                    Magazine = magazine,
+                    Issue = issue,
+                    ParsedMagazineIssueInfo = parsed,
+                    ParsedBookInfo = new ParsedBookInfo { BookTitle = "2025-02", AuthorName = magazine.Title }
+                });
+
+            Mocker.GetMock<IHistoryService>()
+                .Setup(s => s.FindByDownloadId(It.IsAny<string>()))
+                .Returns(new List<EntityHistory>());
+
+            var client = new DownloadClientDefinition
+            {
+                Id = 1,
+                Protocol = DownloadProtocol.Usenet
+            };
+
+            var item = new DownloadClientItem
+            {
+                Title = "Playboy.February.2025.HYBRID.MAGAZINE",
+                DownloadId = "mag-1",
+                DownloadClientInfo = new DownloadClientItemClientInfo
+                {
+                    Id = 1,
+                    Protocol = DownloadProtocol.Usenet,
+                    Name = "sab"
+                }
+            };
+
+            var trackedDownload = Subject.TrackDownload(client, item);
+
+            trackedDownload.Should().NotBeNull();
+            trackedDownload.RemoteBook.Should().BeOfType<RemoteMagazineIssue>();
+            trackedDownload.RemoteBook.Should().BeAssignableTo<RemoteMagazineIssue>()
+                .Which.Issue.Id.Should().Be(issue.Id);
         }
     }
 }

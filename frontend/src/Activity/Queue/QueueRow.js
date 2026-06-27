@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
+import { Link } from 'react-router-dom';
 import ProtocolLabel from 'Activity/Queue/ProtocolLabel';
 import AuthorNameLink from 'Author/AuthorNameLink';
 import BookFormats from 'Book/BookFormats';
@@ -91,6 +92,8 @@ class QueueRow extends Component {
       errorMessage,
       author,
       book,
+      magazine,
+      magazineIssue,
       quality,
       customFormats,
       customFormatScore,
@@ -159,32 +162,48 @@ class QueueRow extends Component {
             }
 
             if (name === 'authorMetadata.sortName') {
+              let authorCell = title;
+
+              if (author) {
+                authorCell = (
+                  <AuthorNameLink
+                    titleSlug={author.titleSlug}
+                    authorName={author.authorName}
+                  />
+                );
+              } else if (magazine) {
+                authorCell = (
+                  <Link to={`/magazine/${magazine.id}`}>
+                    {magazine.title}
+                  </Link>
+                );
+              }
+
               return (
                 <TableRowCell key={name}>
-                  {
-                    author ?
-                      <AuthorNameLink
-                        titleSlug={author.titleSlug}
-                        authorName={author.authorName}
-                      /> :
-                      title
-                  }
+                  {authorCell}
                 </TableRowCell>
               );
             }
 
             if (name === 'books.title') {
+              let bookCell = '-';
+
+              if (book) {
+                bookCell = (
+                  <BookTitleLink
+                    titleSlug={book.titleSlug}
+                    title={book.title}
+                    disambiguation={book.disambiguation}
+                  />
+                );
+              } else if (magazineIssue) {
+                bookCell = magazineIssue.releaseTitle || `${magazineIssue.issueYear}-${String(magazineIssue.issueMonth).padStart(2, '0')}`;
+              }
+
               return (
                 <TableRowCell key={name}>
-                  {
-                    book ?
-                      <BookTitleLink
-                        titleSlug={book.titleSlug}
-                        title={book.title}
-                        disambiguation={book.disambiguation}
-                      /> :
-                      '-'
-                  }
+                  {bookCell}
                 </TableRowCell>
               );
             }
@@ -195,6 +214,17 @@ class QueueRow extends Component {
                   <RelativeDateCellConnector
                     key={name}
                     date={book.releaseDate}
+                  />
+                );
+              }
+
+              if (magazineIssue) {
+                const issueDate = `${magazineIssue.issueYear}-${String(magazineIssue.issueMonth).padStart(2, '0')}-${String(magazineIssue.issueDay || 1).padStart(2, '0')}`;
+
+                return (
+                  <RelativeDateCellConnector
+                    key={name}
+                    date={issueDate}
                   />
                 );
               }
@@ -391,7 +421,7 @@ class QueueRow extends Component {
           isOpen={isRemoveQueueItemModalOpen}
           sourceTitle={title}
           canChangeCategory={!!downloadClientHasPostImportCategory}
-          canIgnore={!!author}
+          canIgnore={!!author || !!magazine}
           isPending={isPending}
           onRemovePress={this.onRemoveQueueItemModalConfirmed}
           onModalClose={this.onRemoveQueueItemModalClose}
@@ -413,6 +443,8 @@ QueueRow.propTypes = {
   errorMessage: PropTypes.string,
   author: PropTypes.object,
   book: PropTypes.object,
+  magazine: PropTypes.object,
+  magazineIssue: PropTypes.object,
   quality: PropTypes.object.isRequired,
   customFormats: PropTypes.arrayOf(PropTypes.object),
   customFormatScore: PropTypes.number.isRequired,

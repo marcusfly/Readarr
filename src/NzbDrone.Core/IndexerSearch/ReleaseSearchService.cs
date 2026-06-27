@@ -19,6 +19,7 @@ namespace NzbDrone.Core.IndexerSearch
         Task<List<DownloadDecision>> BookSearch(int bookId, bool missingOnly, bool userInvokedSearch, bool interactiveSearch);
         Task<List<DownloadDecision>> AuthorSearch(int authorId, bool missingOnly, bool userInvokedSearch, bool interactiveSearch);
         Task<List<DownloadDecision>> MagazineIssueSearch(int magazineIssueId, bool userInvokedSearch, bool interactiveSearch);
+        Task<List<DownloadDecision>> MagazineSearch(int magazineId, bool userInvokedSearch, bool interactiveSearch);
     }
 
     public class ReleaseSearchService : ISearchForReleases
@@ -26,6 +27,7 @@ namespace NzbDrone.Core.IndexerSearch
         private readonly IIndexerFactory _indexerFactory;
         private readonly IBookService _bookService;
         private readonly IAuthorService _authorService;
+        private readonly IMagazineService _magazineService;
         private readonly IMagazineIssueService _magazineIssueService;
         private readonly IMakeDownloadDecision _makeDownloadDecision;
         private readonly Logger _logger;
@@ -33,6 +35,7 @@ namespace NzbDrone.Core.IndexerSearch
         public ReleaseSearchService(IIndexerFactory indexerFactory,
                                 IBookService bookService,
                                 IAuthorService authorService,
+                                IMagazineService magazineService,
                                 IMagazineIssueService magazineIssueService,
                                 IMakeDownloadDecision makeDownloadDecision,
                                 Logger logger)
@@ -40,6 +43,7 @@ namespace NzbDrone.Core.IndexerSearch
             _indexerFactory = indexerFactory;
             _bookService = bookService;
             _authorService = authorService;
+            _magazineService = magazineService;
             _magazineIssueService = magazineIssueService;
             _makeDownloadDecision = makeDownloadDecision;
             _logger = logger;
@@ -96,6 +100,26 @@ namespace NzbDrone.Core.IndexerSearch
             downloadDecisions.AddRange(decisions);
 
             return DeDupeDecisions(downloadDecisions);
+        }
+
+        public async Task<List<DownloadDecision>> MagazineSearch(int magazineId, bool userInvokedSearch, bool interactiveSearch)
+        {
+            var magazine = _magazineService.GetMagazine(magazineId);
+            if (magazine == null)
+            {
+                _logger.Warn("Unable to find magazine {0} for search.", magazineId);
+                return new List<DownloadDecision>();
+            }
+
+            var searchSpec = new MagazineIssueSearchCriteria
+            {
+                Magazine = magazine,
+                MagazineTitle = magazine.Title,
+                UserInvokedSearch = userInvokedSearch,
+                InteractiveSearch = interactiveSearch
+            };
+
+            return await Dispatch(indexer => indexer.Fetch(searchSpec), searchSpec);
         }
 
         public async Task<List<DownloadDecision>> MagazineIssueSearch(MagazineIssue issue, bool userInvokedSearch, bool interactiveSearch)
@@ -197,8 +221,11 @@ namespace NzbDrone.Core.IndexerSearch
 
                 if (criteriaBase is MagazineIssueSearchCriteria magazineIssueSearchCriteria)
                 {
-                    magazineIssueSearchCriteria.Issue.LastSearchTime = lastSearchTime;
-                    _magazineIssueService.UpsertIssue(magazineIssueSearchCriteria.Issue);
+                    if (magazineIssueSearchCriteria.Issue != null)
+                    {
+                        magazineIssueSearchCriteria.Issue.LastSearchTime = lastSearchTime;
+                        _magazineIssueService.UpsertIssue(magazineIssueSearchCriteria.Issue);
+                    }
                 }
                 else
                 {

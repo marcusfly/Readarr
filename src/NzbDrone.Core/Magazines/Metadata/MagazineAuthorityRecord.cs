@@ -15,6 +15,10 @@ namespace NzbDrone.Core.Magazines.Metadata
         public string Language { get; set; }
         public List<string> Aliases { get; set; }
         public string Publisher { get; set; }
+        public string ImageUrl { get; set; }
+        public string OfficialWebsite { get; set; }
+        public string LogoUrl { get; set; }
+        public string Description { get; set; }
 
         public MagazineAuthorityResult ToResult(string fallbackTitle = null)
         {
@@ -41,7 +45,11 @@ namespace NzbDrone.Core.Magazines.Metadata
                 Country = Country,
                 Language = Language,
                 Aliases = Aliases,
-                Publisher = Publisher
+                Publisher = Publisher,
+                ImageUrl = ImageUrl,
+                OfficialWebsite = OfficialWebsite,
+                LogoUrl = LogoUrl,
+                Description = Description
             };
         }
     }
