@@ -11,23 +11,14 @@ import { icons } from 'Helpers/Props';
 import DeleteMagazineModal from 'Magazine/Delete/DeleteMagazineModal';
 import EditMagazineModal from 'Magazine/Edit/EditMagazineModal';
 import translate from 'Utilities/String/translate';
+import {
+  createMagazineIssueYearGroups,
+  getDefaultExpandedYearState,
+  getMagazineIssueSortValue
+} from './createMagazineIssueYearGroups';
 import MagazineDetailsHeader from './MagazineDetailsHeader';
-import MagazineIssueGraphic from './MagazineIssueGraphic';
+import MagazineIssueYearGroup from './MagazineIssueYearGroup';
 import styles from './MagazineDetails.css';
-
-function getIssueSortValue(issue) {
-  return Date.UTC(
-    issue.issueYear || 0,
-    Math.max((issue.issueMonth || 1) - 1, 0),
-    issue.issueDay || 1
-  );
-}
-
-function formatIssue(issue) {
-  const month = `${issue.issueMonth}`.padStart(2, '0');
-  const day = issue.issueDay == null ? '' : `-${`${issue.issueDay}`.padStart(2, '0')}`;
-  return `${issue.issueYear}-${month}${day}`;
-}
 
 class MagazineDetails extends Component {
   constructor(props, context) {
@@ -35,8 +26,50 @@ class MagazineDetails extends Component {
 
     this.state = {
       isEditMagazineModalOpen: false,
-      isDeleteMagazineModalOpen: false
+      isDeleteMagazineModalOpen: false,
+      expandedYears: {}
     };
+  }
+
+  componentDidMount() {
+    this.setExpandedYears(this.props.issues || []);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.issues !== this.props.issues) {
+      this.setExpandedYears(this.props.issues || []);
+    }
+  }
+
+  setExpandedYears(issues) {
+    const groupedIssues = createMagazineIssueYearGroups(issues);
+
+    this.setState((state) => {
+      const nextExpandedYears = {};
+      let hasExistingExpandedYear = false;
+
+      groupedIssues.forEach((group) => {
+        const existingValue = state.expandedYears[group.year];
+
+        if (typeof existingValue === 'boolean') {
+          nextExpandedYears[group.year] = existingValue;
+          hasExistingExpandedYear = hasExistingExpandedYear || existingValue;
+          return;
+        }
+
+        nextExpandedYears[group.year] = false;
+      });
+
+      if (!hasExistingExpandedYear && groupedIssues.length) {
+        return {
+          expandedYears: getDefaultExpandedYearState(groupedIssues)
+        };
+      }
+
+      return {
+        expandedYears: nextExpandedYears
+      };
+    });
   }
 
   onEditMagazinePress = () => {
@@ -56,6 +89,29 @@ class MagazineDetails extends Component {
 
   onDeleteMagazineModalClose = () => {
     this.setState({ isDeleteMagazineModalOpen: false });
+  };
+
+  onYearExpandPress = (yearKey, nextExpanded) => {
+    this.setState((state) => ({
+      expandedYears: {
+        ...state.expandedYears,
+        [yearKey]: typeof nextExpanded === 'boolean' ? nextExpanded : !state.expandedYears[yearKey]
+      }
+    }));
+  };
+
+  onExpandAllPress = () => {
+    this.setState((state) => {
+      const yearKeys = Object.keys(state.expandedYears);
+      const areAllExpanded = yearKeys.every((key) => state.expandedYears[key]);
+      const expandedYears = {};
+
+      yearKeys.forEach((key) => {
+        expandedYears[key] = !areAllExpanded;
+      });
+
+      return { expandedYears };
+    });
   };
 
   render() {
@@ -93,11 +149,14 @@ class MagazineDetails extends Component {
       );
     }
 
-    const sortedIssues = [...issues].sort((left, right) => getIssueSortValue(right) - getIssueSortValue(left));
+    const sortedIssues = [...issues].sort((left, right) => getMagazineIssueSortValue(right) - getMagazineIssueSortValue(left));
+    const groupedIssues = createMagazineIssueYearGroups(sortedIssues);
     const latestIssue = sortedIssues[0] || null;
     const monitoredIssueCount = sortedIssues.filter((issue) => issue.monitored).length;
     const fileIssueCount = sortedIssues.filter((issue) => issue.hasFile).length;
     const statistics = magazine.statistics || {};
+    const expandedYearCount = groupedIssues.filter((group) => this.state.expandedYears[group.year]).length;
+    const areAllYearsExpanded = groupedIssues.length > 0 && expandedYearCount === groupedIssues.length;
 
     return (
       <PageContent title={magazine.title}>
@@ -179,7 +238,20 @@ class MagazineDetails extends Component {
             </div>
 
             <div className={styles.tableSection}>
-              <div className={styles.sectionTitle}>Issues</div>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionTitle}>Issues</div>
+
+                {
+                  !!groupedIssues.length &&
+                    <button
+                      className={styles.expandAllButton}
+                      type="button"
+                      onClick={this.onExpandAllPress}
+                    >
+                      {areAllYearsExpanded ? 'Collapse All' : 'Expand All'}
+                    </button>
+                }
+              </div>
 
               {
                 !sortedIssues.length &&
@@ -190,40 +262,19 @@ class MagazineDetails extends Component {
 
               {
                 !!sortedIssues.length &&
-                  <table className={styles.issuesTable}>
-                    <thead>
-                      <tr>
-                        <th className={styles.thumbnailColumn}>Cover</th>
-                        <th>Issue</th>
-                        <th>Title</th>
-                        <th>Monitored</th>
-                        <th>Has File</th>
-                        <th>Quality</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        sortedIssues.map((issue) => (
-                          <tr key={issue.id}>
-                            <td className={styles.thumbnailColumn}>
-                              <MagazineIssueGraphic images={issue.images} />
-                            </td>
-                            <td>{formatIssue(issue)}</td>
-                            <td>{issue.releaseTitle || issue.issueNumber || '-'}</td>
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={issue.monitored}
-                                onChange={(event) => onMonitorChange(issue.id, event.target.checked)}
-                              />
-                            </td>
-                            <td>{issue.hasFile ? 'Yes' : 'No'}</td>
-                            <td>{issue.quality?.quality?.name || issue.quality?.quality?.id || '-'}</td>
-                          </tr>
-                        ))
-                      }
-                    </tbody>
-                  </table>
+                  <div className={styles.yearGroups}>
+                    {
+                      groupedIssues.map((group) => (
+                        <MagazineIssueYearGroup
+                          key={group.year}
+                          group={group}
+                          isExpanded={!!this.state.expandedYears[group.year]}
+                          onExpandPress={this.onYearExpandPress}
+                          onMonitorChange={onMonitorChange}
+                        />
+                      ))
+                    }
+                  </div>
               }
             </div>
           </div>
