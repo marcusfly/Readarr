@@ -15,10 +15,13 @@ namespace NzbDrone.Core.RootFolders
     {
         private const string DEFAULT_ROOT_FOLDER_PATH = "/books";
         private const string DEFAULT_AUDIOBOOK_ROOT_FOLDER_PATH = "/audiobooks";
+        private const string DEFAULT_MAGAZINE_ROOT_FOLDER_PATH = "/magazines";
         private const string ROOT_FOLDER_NAME = "Books";
         private const string AUDIOBOOK_ROOT_FOLDER_NAME = "Audiobooks";
+        private const string MAGAZINE_ROOT_FOLDER_NAME = "Magazines";
         private const string ROOT_FOLDER_PATH_ENV_KEY = "READARR__ROOTFOLDER__PATH";
         private const string AUDIOBOOK_ROOT_FOLDER_PATH_ENV_KEY = "READARR__ROOTFOLDER__AUDIOBOOKPATH";
+        private const string MAGAZINE_ROOT_FOLDER_PATH_ENV_KEY = "READARR__ROOTFOLDER__MAGAZINEPATH";
         private const int DEFAULT_PROFILE_ID = 1;
 
         private readonly IRootFolderService _rootFolderService;
@@ -70,7 +73,8 @@ namespace NzbDrone.Core.RootFolders
             return new[]
             {
                 GetDefaultRootFolder(GetConfiguredPath(ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_ROOT_FOLDER_PATH), ROOT_FOLDER_NAME),
-                GetDefaultRootFolder(GetConfiguredPath(AUDIOBOOK_ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_AUDIOBOOK_ROOT_FOLDER_PATH), AUDIOBOOK_ROOT_FOLDER_NAME)
+                GetDefaultRootFolder(GetConfiguredPath(AUDIOBOOK_ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_AUDIOBOOK_ROOT_FOLDER_PATH), AUDIOBOOK_ROOT_FOLDER_NAME),
+                GetDefaultRootFolder(GetConfiguredPath(MAGAZINE_ROOT_FOLDER_PATH_ENV_KEY, DEFAULT_MAGAZINE_ROOT_FOLDER_PATH), MAGAZINE_ROOT_FOLDER_NAME)
             }
             .Where(x => x.Path.IsNotNullOrWhiteSpace())
             .GroupBy(x => x.Path, PathEqualityComparer.Instance)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -221,6 +222,59 @@ namespace NzbDrone.Core.Test.Magazines.Services
         }
 
         [Test]
+        public void should_fallback_to_authority_cover_when_local_magazine_cover_generation_fails()
+        {
+            var archivePath = Path.Combine(TempFolder, "broken.cbz");
+            File.WriteAllText(archivePath, "not a zip archive");
+
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            var issue = new MagazineIssue
+            {
+                MagazineId = 7,
+                IssueFiles = new LazyLoaded<List<MagazineIssueFile>>(new List<MagazineIssueFile>
+                {
+                    new MagazineIssueFile
+                    {
+                        MagazineId = 7,
+                        Path = archivePath,
+                        DateAdded = DateTime.UtcNow
+                    }
+                })
+            };
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Playboy", default))
+                .Returns(Task.FromResult(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Playboy",
+                    ImageUrl = "https://images.example/playboy-cover.jpg"
+                }));
+
+            Mocker.GetMock<IHttpClient>()
+                .Setup(x => x.DownloadFile("https://images.example/playboy-cover.jpg", _coverPath, null))
+                .Callback(() =>
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
+                    using var image = new Image<Rgba32>(300, 500, new Rgba32(80, 80, 80));
+                    image.SaveAsJpeg(_coverPath);
+                });
+
+            var result = Subject.GetImages(magazine, new[] { issue });
+
+            result.Should().HaveCount(1);
+            result[0].Url.Should().Be("/MediaCover/Magazines/7/cover.jpg");
+            result[0].RemoteUrl.Should().Be("https://images.example/playboy-cover.jpg");
+            File.Exists(_coverPath).Should().BeTrue();
+            Mocker.GetMock<IHttpClient>()
+                .Verify(x => x.DownloadFile("https://images.example/playboy-cover.jpg", _coverPath, null), Times.Once());
+        }
+
+        [Test]
         public void should_refresh_existing_magazine_cover_when_authority_source_differs()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
@@ -289,6 +343,81 @@ namespace NzbDrone.Core.Test.Magazines.Services
             result[0].Url.Should().StartWith("/MediaCover/Magazines/7/cover.jpg");
             Mocker.GetMock<IMagazineTitleAuthorityProvider>()
                 .Verify(x => x.LookupByTitleAsync("Existing Cover", default), Times.Once());
+        }
+
+        [Test]
+        public void should_reuse_existing_magazine_cover_when_local_generation_fails_and_authority_cover_is_unavailable()
+        {
+            var archivePath = Path.Combine(TempFolder, "broken.cbz");
+            File.WriteAllText(archivePath, "not a zip archive");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
+
+            using (var image = new Image<Rgba32>(300, 500, new Rgba32(40, 40, 40)))
+            {
+                image.SaveAsJpeg(_coverPath);
+            }
+
+            File.SetLastWriteTimeUtc(_coverPath, DateTime.UtcNow.AddMinutes(-5));
+
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Existing Cover"
+            };
+
+            var issue = new MagazineIssue
+            {
+                MagazineId = 7,
+                IssueFiles = new LazyLoaded<List<MagazineIssueFile>>(new List<MagazineIssueFile>
+                {
+                    new MagazineIssueFile
+                    {
+                        MagazineId = 7,
+                        Path = archivePath,
+                        DateAdded = DateTime.UtcNow
+                    }
+                })
+            };
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Existing Cover", default))
+                .Returns(Task.FromResult(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Existing Cover"
+                }));
+
+            var result = Subject.GetImages(magazine, new[] { issue });
+
+            result.Should().HaveCount(1);
+            result[0].Url.Should().StartWith("/MediaCover/Magazines/7/cover.jpg");
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Verify(x => x.LookupByTitleAsync("Existing Cover", default), Times.Once());
+        }
+
+        [Test]
+        public void should_log_clear_warning_when_pdftoppm_is_not_available()
+        {
+            var pdfPath = Path.Combine(TempFolder, "missing-tool.pdf");
+            File.WriteAllText(pdfPath, "%PDF-1.4");
+            var destinationPath = Path.Combine(TempFolder, "missing-tool.jpg");
+            var originalPath = Environment.GetEnvironmentVariable("PATH");
+            var generateCover = typeof(MagazineCoverService).GetMethod("GenerateCover", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            try
+            {
+                Environment.SetEnvironmentVariable("PATH", TempFolder);
+
+                var act = () => generateCover.Invoke(Subject, new object[] { pdfPath, destinationPath });
+
+                var exception = act.Should().Throw<TargetInvocationException>().Which;
+                exception.InnerException.Should().NotBeNull();
+                exception.InnerException.Message.Should().Be("pdftoppm is not available. Install poppler-utils and ensure 'pdftoppm' is on PATH.");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PATH", originalPath);
+            }
         }
     }
 }

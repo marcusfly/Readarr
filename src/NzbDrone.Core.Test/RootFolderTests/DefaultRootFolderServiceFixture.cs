@@ -25,6 +25,7 @@ namespace NzbDrone.Core.Test.RootFolderTests
 
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__PATH", null);
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__AUDIOBOOKPATH", null);
+            Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__MAGAZINEPATH", null);
 
             Mocker.GetMock<IRootFolderService>()
                 .Setup(s => s.All())
@@ -58,41 +59,58 @@ namespace NzbDrone.Core.Test.RootFolderTests
         {
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__PATH", null);
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__AUDIOBOOKPATH", null);
+            Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__MAGAZINEPATH", null);
         }
 
         [Test]
-        public void should_add_default_book_and_audiobook_root_folders_on_startup()
+        public void should_add_default_book_audiobook_and_magazine_root_folders_on_startup()
         {
             Subject.Handle(new ApplicationStartedEvent());
 
-            _addedRootFolders.Should().HaveCount(2);
+            _addedRootFolders.Should().HaveCount(3);
             _addedRootFolders.Should().Contain(x => x.Path == "/books" && x.Name == "books");
             _addedRootFolders.Should().Contain(x => x.Path == "/audiobooks" && x.Name == "audiobooks");
+            _addedRootFolders.Should().Contain(x => x.Path == "/magazines" && x.Name == "magazines");
             _addedRootFolders.Should().OnlyContain(x => x.DefaultMetadataProfileId == 2 && x.DefaultQualityProfileId == 3);
         }
 
         [Test]
-        public void should_add_missing_audiobook_root_folder_when_book_root_folder_already_exists()
+        public void should_add_missing_audiobook_and_magazine_root_folders_when_book_root_folder_already_exists()
         {
             _existingRootFolders.Add(new RootFolder { Path = "/books" });
 
             Subject.Handle(new ApplicationStartedEvent());
 
-            _addedRootFolders.Should().ContainSingle();
+            _addedRootFolders.Should().HaveCount(2);
             _addedRootFolders.Should().Contain(x => x.Path == "/audiobooks");
+            _addedRootFolders.Should().Contain(x => x.Path == "/magazines");
         }
 
         [Test]
-        public void should_use_configured_book_and_audiobook_root_folder_paths()
+        public void should_use_configured_book_audiobook_and_magazine_root_folder_paths()
         {
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__PATH", "/library/books");
             Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__AUDIOBOOKPATH", "/library/audiobooks");
+            Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__MAGAZINEPATH", "/library/magazines");
+
+            Subject.Handle(new ApplicationStartedEvent());
+
+            _addedRootFolders.Should().HaveCount(3);
+            _addedRootFolders.Should().Contain(x => x.Path == "/library/books");
+            _addedRootFolders.Should().Contain(x => x.Path == "/library/audiobooks");
+            _addedRootFolders.Should().Contain(x => x.Path == "/library/magazines");
+        }
+
+        [Test]
+        public void should_skip_duplicate_magazine_root_folder_when_configured_to_match_existing_root()
+        {
+            Environment.SetEnvironmentVariable("READARR__ROOTFOLDER__MAGAZINEPATH", "/books");
 
             Subject.Handle(new ApplicationStartedEvent());
 
             _addedRootFolders.Should().HaveCount(2);
-            _addedRootFolders.Should().Contain(x => x.Path == "/library/books");
-            _addedRootFolders.Should().Contain(x => x.Path == "/library/audiobooks");
+            _addedRootFolders.Should().Contain(x => x.Path == "/books");
+            _addedRootFolders.Should().Contain(x => x.Path == "/audiobooks");
         }
     }
 }

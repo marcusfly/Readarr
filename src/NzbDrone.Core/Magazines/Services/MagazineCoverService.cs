@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -64,7 +65,7 @@ namespace NzbDrone.Core.Magazines
                 .ToList() ?? new List<MagazineIssueFile>();
 
             var cover = issueFiles.Any()
-                ? EnsureCover(magazine, issueFiles)
+                ? EnsureCover(magazine, issueFiles) ?? EnsureAuthorityCover(magazine)
                 : EnsureAuthorityCover(magazine);
 
             if (cover == null)
@@ -138,7 +139,7 @@ namespace NzbDrone.Core.Magazines
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Unable to generate magazine cover from {0}", sourceFile.Path);
+                LogCoverGenerationFailure("magazine", sourceFile.Path, ex);
                 return null;
             }
         }
@@ -282,9 +283,20 @@ namespace NzbDrone.Core.Magazines
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Unable to generate magazine issue cover from {0}", sourceFile.Path);
+                LogCoverGenerationFailure("magazine issue", sourceFile.Path, ex);
                 return null;
             }
+        }
+
+        private void LogCoverGenerationFailure(string coverType, string sourcePath, Exception ex)
+        {
+            if (ex is ExternalCoverToolException)
+            {
+                _logger.Warn("Unable to generate {0} cover from {1}: {2}", coverType, sourcePath, ex.Message);
+                return;
+            }
+
+            _logger.Debug(ex, "Unable to generate {0} cover from {1}", coverType, sourcePath);
         }
 
         private void GenerateCover(string sourcePath, string destinationPath)
@@ -379,10 +391,11 @@ namespace NzbDrone.Core.Magazines
         {
             var tempBase = Path.Combine(_appFolderInfo.TempFolder, $"readarr-magazine-cover-{Guid.NewGuid():N}");
             var renderedPath = tempBase + ".jpg";
+            Process process = null;
 
             try
             {
-                var process = Process.Start(new ProcessStartInfo
+                process = Process.Start(new ProcessStartInfo
                 {
                     FileName = "pdftoppm",
                     Arguments = $"-jpeg -singlefile -f 1 -l 1 \"{sourcePath}\" \"{tempBase}\"",
@@ -392,23 +405,86 @@ namespace NzbDrone.Core.Magazines
                     CreateNoWindow = true
                 });
 
-                process?.WaitForExit();
-
-                if (process == null || process.ExitCode != 0 || !_diskProvider.FileExists(renderedPath))
+                if (process == null)
                 {
-                    var error = process?.StandardError.ReadToEnd();
-                    throw new InvalidOperationException($"pdftoppm failed to render magazine cover. {error}");
+                    throw new ExternalCoverToolException("pdftoppm did not start.");
+                }
+
+                process.WaitForExit();
+
+                var standardError = NormalizeToolOutput(process.StandardError.ReadToEnd());
+                var standardOutput = NormalizeToolOutput(process.StandardOutput.ReadToEnd());
+
+                if (process.ExitCode != 0)
+                {
+                    throw new ExternalCoverToolException(BuildPdfFailureMessage($"pdftoppm exited with code {process.ExitCode}.", standardError, standardOutput));
+                }
+
+                if (!_diskProvider.FileExists(renderedPath))
+                {
+                    throw new ExternalCoverToolException(BuildPdfFailureMessage("pdftoppm did not produce an output image.", standardError, standardOutput));
                 }
 
                 using var renderedStream = _diskProvider.OpenReadStream(renderedPath);
                 SaveNormalizedCover(renderedStream, destinationPath);
             }
+            catch (Win32Exception ex)
+            {
+                throw new ExternalCoverToolException("pdftoppm is not available. Install poppler-utils and ensure 'pdftoppm' is on PATH.", ex);
+            }
             finally
             {
+                process?.Dispose();
+
                 if (_diskProvider.FileExists(renderedPath))
                 {
                     _diskProvider.DeleteFile(renderedPath);
                 }
+            }
+        }
+
+        private static string BuildPdfFailureMessage(string reason, string standardError, string standardOutput)
+        {
+            var details = new List<string> { reason };
+
+            if (standardError.IsNotNullOrWhiteSpace())
+            {
+                details.Add($"stderr: {standardError}");
+            }
+
+            if (standardOutput.IsNotNullOrWhiteSpace())
+            {
+                details.Add($"stdout: {standardOutput}");
+            }
+
+            return string.Join(" ", details);
+        }
+
+        private static string NormalizeToolOutput(string output)
+        {
+            if (output.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            var lines = output
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line.Trim())
+                .Where(line => line.IsNotNullOrWhiteSpace());
+
+            return string.Join(" ", lines);
+        }
+
+        private sealed class ExternalCoverToolException : Exception
+        {
+            public ExternalCoverToolException(string message)
+                : base(message)
+            {
+            }
+
+            public ExternalCoverToolException(string message, Exception innerException)
+                : base(message, innerException)
+            {
             }
         }
     }

@@ -72,7 +72,7 @@ namespace NzbDrone.Core.Parser
                 Magazine = magazine,
                 Issue = issue,
                 ParsedMagazineIssueInfo = parsedInfo,
-                ParsedBookInfo = ToParsedBookInfo(parsedInfo)
+                ParsedBookInfo = BuildCompatibilityParsedBookInfo(parsedInfo)
             };
         }
 
@@ -92,11 +92,12 @@ namespace NzbDrone.Core.Parser
             return $"{magazine.Title} {suffix}";
         }
 
-        private static ParsedBookInfo ToParsedBookInfo(ParsedMagazineIssueInfo parsedInfo)
+        private static ParsedBookInfo BuildCompatibilityParsedBookInfo(ParsedMagazineIssueInfo parsedInfo)
         {
-            var issueLabel = parsedInfo.IssueYear > 0 && parsedInfo.IssueMonth > 0
-                ? $"{parsedInfo.IssueYear:D4}-{parsedInfo.IssueMonth:D2}{(parsedInfo.IssueDay.HasValue ? $"-{parsedInfo.IssueDay.Value:D2}" : string.Empty)}"
-                : parsedInfo.ReleaseTitle;
+            // Magazine downloads still flow through shared RemoteBook/ParsedBookInfo-based
+            // downloader and queue contracts, so we build a compatibility shape here rather
+            // than treating the issue as a native book.
+            var issueLabel = BuildIssueLabel(parsedInfo);
 
             return new ParsedBookInfo
             {
@@ -106,6 +107,16 @@ namespace NzbDrone.Core.Parser
                 ReleaseTitle = parsedInfo.ReleaseTitle,
                 Confidence = parsedInfo.Confidence
             };
+        }
+
+        private static string BuildIssueLabel(ParsedMagazineIssueInfo parsedInfo)
+        {
+            if (parsedInfo.IssueYear > 0 && parsedInfo.IssueMonth > 0)
+            {
+                return $"{parsedInfo.IssueYear:D4}-{parsedInfo.IssueMonth:D2}{(parsedInfo.IssueDay.HasValue ? $"-{parsedInfo.IssueDay.Value:D2}" : string.Empty)}";
+            }
+
+            return parsedInfo.ReleaseTitle;
         }
     }
 }

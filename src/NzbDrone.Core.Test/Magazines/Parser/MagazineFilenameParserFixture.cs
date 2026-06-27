@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Magazines.Parser;
@@ -37,6 +38,18 @@ namespace NzbDrone.Core.Test.Magazines.Parser
             var result = Subject.ParseFilename("Playboy.No.02.2026.GERMAN.HYBRID.MAGAZINE.eBook-LORENZ-xpost", "Playboy");
 
             result.IssueYear.Should().Be(2026);
+            result.IssueMonth.Should().Be(0);
+            result.IssueDay.Should().BeNull();
+            result.IssueNumber.Should().Be("02");
+            result.Confidence.Should().Be(0.4f);
+        }
+
+        [Test]
+        public void should_only_apply_issue_number_as_month_when_explicit_month_name_exists()
+        {
+            var result = Subject.ParseFilename("Playboy.No.02.2026.February.2026.pdf", "Playboy");
+
+            result.IssueYear.Should().Be(2026);
             result.IssueMonth.Should().Be(2);
             result.IssueDay.Should().BeNull();
             result.IssueNumber.Should().Be("02");
@@ -67,6 +80,54 @@ namespace NzbDrone.Core.Test.Magazines.Parser
         {
             var result = Subject.ParseFilename("motortrend_special.pdf", "Motor Trend");
 
+            result.Confidence.Should().Be(0f);
+        }
+
+        [TestCase("Motor Trend - 2024-13-01.pdf")]
+        [TestCase("Motor Trend - 2024-02-30.pdf")]
+        [TestCase("motortrend_202413.pdf")]
+        public void should_reject_invalid_date_matches(string filename)
+        {
+            var result = Subject.ParseFilename(filename, "Motor Trend");
+
+            result.IssueYear.Should().Be(0);
+            result.IssueMonth.Should().Be(0);
+            result.IssueDay.Should().BeNull();
+            result.Confidence.Should().Be(0f);
+        }
+
+        [TestCase("Motor Trend - 1899-12-01.pdf")]
+        [TestCase("Motor Trend January 1899.pdf")]
+        public void should_reject_unrealistic_historical_years(string filename)
+        {
+            var result = Subject.ParseFilename(filename, "Motor Trend");
+
+            result.IssueYear.Should().Be(0);
+            result.IssueMonth.Should().Be(0);
+            result.IssueDay.Should().BeNull();
+            result.Confidence.Should().Be(0f);
+        }
+
+        [Test]
+        public void should_reject_unrealistic_future_years()
+        {
+            var futureYear = DateTime.UtcNow.Year + 2;
+            var result = Subject.ParseFilename($"Motor Trend - {futureYear}-03-01.pdf", "Motor Trend");
+
+            result.IssueYear.Should().Be(0);
+            result.IssueMonth.Should().Be(0);
+            result.IssueDay.Should().BeNull();
+            result.Confidence.Should().Be(0f);
+        }
+
+        [Test]
+        public void should_not_match_compact_date_embedded_in_longer_number()
+        {
+            var result = Subject.ParseFilename("Motor Trend 2024031.pdf", "Motor Trend");
+
+            result.IssueYear.Should().Be(0);
+            result.IssueMonth.Should().Be(0);
+            result.IssueDay.Should().BeNull();
             result.Confidence.Should().Be(0f);
         }
 

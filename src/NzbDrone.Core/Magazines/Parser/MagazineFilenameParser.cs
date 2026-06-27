@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using NzbDrone.Core.Parser.Model;
 
@@ -12,8 +13,8 @@ namespace NzbDrone.Core.Magazines.Parser
     public class MagazineFilenameParser : IMagazineFilenameParser
     {
         private static readonly Regex SeparatorRegex = new Regex(@"[\s]*(?:\x2D|\x2013|\x2014)[\s]*", RegexOptions.Compiled);
-        private static readonly Regex FullDateRegex = new Regex(@"(\d{4})-(\d{1,2})(?:-(\d{1,2}))?", RegexOptions.Compiled);
-        private static readonly Regex FallbackDateRegex = new Regex(@"(\d{4})[\W_]?(\d{2})", RegexOptions.Compiled);
+        private static readonly Regex FullDateRegex = new Regex(@"(?<!\d)(\d{4})-(\d{1,2})(?:-(\d{1,2}))?(?!\d)", RegexOptions.Compiled);
+        private static readonly Regex FallbackDateRegex = new Regex(@"(?<!\d)(\d{4})[\W_]?(\d{2})(?!\d)", RegexOptions.Compiled);
         private static readonly Regex IssueNumberYearRegex = new Regex(@"\b(?:no|nr|issue)\.?\s*(\d{1,2})[\W_]*(\d{4})\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex MonthYearRegex = new Regex(@"\b(january|february|march|april|may|june|july|august|september|october|november|december)[\W_]+(\d{4})\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex VideoReleaseRegex = new Regex(@"\bS\d{1,2}E\d{1,2}\b|\b(?:2160p|1080p|720p|WEB[-_. ]?DL|WEBRip|BluRay|x26[45]|H[ .]?26[45]|AMZN|NF|DDP?\d(?:[. ]\d)?)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -41,7 +42,12 @@ namespace NzbDrone.Core.Magazines.Parser
 
                 if (dateMatch.Success)
                 {
-                    ApplyDate(parsed, dateMatch, true);
+                    if (TryApplyDate(parsed, dateMatch, true))
+                    {
+                        return parsed;
+                    }
+
+                    parsed.Confidence = 0f;
                     return parsed;
                 }
             }
@@ -49,21 +55,32 @@ namespace NzbDrone.Core.Magazines.Parser
             var fullDateMatch = FullDateRegex.Match(baseName);
             if (fullDateMatch.Success)
             {
-                ApplyDate(parsed, fullDateMatch, true);
+                if (TryApplyDate(parsed, fullDateMatch, true))
+                {
+                    return parsed;
+                }
+
+                parsed.Confidence = 0f;
                 return parsed;
             }
 
             var fallbackMatch = FallbackDateRegex.Match(baseName);
             if (fallbackMatch.Success)
             {
-                ApplyDate(parsed, fallbackMatch, false);
+                if (TryApplyDate(parsed, fallbackMatch, false))
+                {
+                    return parsed;
+                }
+
+                parsed.Confidence = 0f;
                 return parsed;
             }
 
             var issueNumberYearMatch = IssueNumberYearRegex.Match(baseName);
             if (issueNumberYearMatch.Success)
             {
-                ApplyIssueNumberYear(parsed, issueNumberYearMatch);
+                var explicitMonthMatch = MonthYearRegex.Match(baseName);
+                ApplyIssueNumberYear(parsed, issueNumberYearMatch, explicitMonthMatch);
                 return parsed;
             }
 
@@ -90,34 +107,81 @@ namespace NzbDrone.Core.Magazines.Parser
             };
         }
 
-        private static void ApplyDate(ParsedMagazineIssueInfo parsed, Match match, bool explicitSeparator)
+        private static bool TryApplyDate(ParsedMagazineIssueInfo parsed, Match match, bool explicitSeparator)
         {
-            parsed.IssueYear = int.Parse(match.Groups[1].Value);
-            parsed.IssueMonth = int.Parse(match.Groups[2].Value);
-            parsed.IssueDay = match.Groups[3].Success ? int.Parse(match.Groups[3].Value) : null;
+            var year = int.Parse(match.Groups[1].Value);
+            var month = int.Parse(match.Groups[2].Value);
+            var day = match.Groups[3].Success ? (int?)int.Parse(match.Groups[3].Value) : null;
+
+            if (!IsSupportedIssueYear(year))
+            {
+                return false;
+            }
+
+            if (month is < 1 or > 12)
+            {
+                return false;
+            }
+
+            if (day.HasValue && (day.Value < 1 || day.Value > DateTime.DaysInMonth(year, month)))
+            {
+                return false;
+            }
+
+            parsed.IssueYear = year;
+            parsed.IssueMonth = month;
+            parsed.IssueDay = day;
             parsed.Confidence = parsed.IssueDay.HasValue ? 1.0f : (explicitSeparator ? 0.5f : 0.3f);
+            return true;
         }
 
-        private static void ApplyIssueNumberYear(ParsedMagazineIssueInfo parsed, Match match)
+        private static void ApplyIssueNumberYear(ParsedMagazineIssueInfo parsed, Match match, Match monthYearMatch)
         {
             var issueNumber = int.Parse(match.Groups[1].Value);
-            if (issueNumber is < 1 or > 12)
+            if (issueNumber < 1)
             {
                 parsed.Confidence = 0f;
                 return;
             }
 
-            parsed.IssueYear = int.Parse(match.Groups[2].Value);
-            parsed.IssueMonth = issueNumber;
+            var year = int.Parse(match.Groups[2].Value);
+            if (!IsSupportedIssueYear(year))
+            {
+                parsed.Confidence = 0f;
+                return;
+            }
+
+            parsed.IssueYear = year;
+            parsed.IssueMonth = monthYearMatch.Success ? GetMonth(monthYearMatch.Groups[1].Value) : 0;
             parsed.IssueDay = null;
             parsed.IssueNumber = issueNumber.ToString("D2");
-            parsed.Confidence = 0.7f;
+            parsed.Confidence = parsed.IssueMonth > 0 ? 0.7f : 0.4f;
         }
 
         private static void ApplyMonthYear(ParsedMagazineIssueInfo parsed, Match match)
         {
-            parsed.IssueYear = int.Parse(match.Groups[2].Value);
-            parsed.IssueMonth = match.Groups[1].Value.ToLowerInvariant() switch
+            var year = int.Parse(match.Groups[2].Value);
+            if (!IsSupportedIssueYear(year))
+            {
+                parsed.Confidence = 0f;
+                return;
+            }
+
+            parsed.IssueYear = year;
+            parsed.IssueMonth = GetMonth(match.Groups[1].Value);
+            parsed.IssueDay = null;
+            parsed.Confidence = parsed.IssueMonth > 0 ? 0.6f : 0f;
+        }
+
+        private static bool IsSupportedIssueYear(int year)
+        {
+            var maxYear = DateTime.UtcNow.Year + 1;
+            return year >= 1900 && year <= maxYear;
+        }
+
+        private static int GetMonth(string monthName)
+        {
+            return monthName.ToLowerInvariant() switch
             {
                 "january" => 1,
                 "february" => 2,
@@ -133,8 +197,6 @@ namespace NzbDrone.Core.Magazines.Parser
                 "december" => 12,
                 _ => 0
             };
-            parsed.IssueDay = null;
-            parsed.Confidence = parsed.IssueMonth > 0 ? 0.6f : 0f;
         }
 
         private static bool LooksLikeMagazineRelease(string baseName, string magazineFolderName)

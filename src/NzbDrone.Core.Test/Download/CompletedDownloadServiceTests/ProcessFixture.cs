@@ -8,6 +8,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Test.Framework;
@@ -64,6 +65,37 @@ namespace NzbDrone.Core.Test.Download.CompletedDownloadServiceTests
             {
                 Author = new Author(),
                 Books = new List<Book> { new Book { Id = 1 } }
+            };
+        }
+
+        private RemoteMagazineIssue BuildRemoteMagazineIssue()
+        {
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            var issue = new MagazineIssue
+            {
+                Id = 42,
+                MagazineId = magazine.Id,
+                IssueYear = 2025,
+                IssueMonth = 2,
+                ReleaseTitle = "Playboy 2025-02"
+            };
+
+            return new RemoteMagazineIssue
+            {
+                Magazine = magazine,
+                Issue = issue,
+                ParsedMagazineIssueInfo = new ParsedMagazineIssueInfo
+                {
+                    MagazineTitle = magazine.Title,
+                    IssueYear = issue.IssueYear,
+                    IssueMonth = issue.IssueMonth,
+                    ReleaseTitle = issue.ReleaseTitle
+                }
             };
         }
 
@@ -143,6 +175,28 @@ namespace NzbDrone.Core.Test.Download.CompletedDownloadServiceTests
             Subject.Check(_trackedDownload);
 
             AssertNotReadyToImport();
+        }
+
+        [Test]
+        public void should_process_completed_magazine_download_when_history_exists()
+        {
+            _trackedDownload.RemoteBook = BuildRemoteMagazineIssue();
+
+            Subject.Check(_trackedDownload);
+
+            AssertReadyToImport();
+        }
+
+        [Test]
+        public void should_process_completed_magazine_download_when_untracked_but_category_specified()
+        {
+            _trackedDownload.RemoteBook = BuildRemoteMagazineIssue();
+            _trackedDownload.DownloadItem.Category = "magazines";
+            GivenNoGrabbedHistory();
+
+            Subject.Check(_trackedDownload);
+
+            AssertReadyToImport();
         }
 
         [Test]

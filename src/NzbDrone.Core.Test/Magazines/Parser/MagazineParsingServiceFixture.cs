@@ -95,5 +95,21 @@ namespace NzbDrone.Core.Test.Magazines.Parser
             result.Magazine.Should().Be(_magazine);
             result.Issue.Should().Be(_issue);
         }
+
+        [Test]
+        public void should_not_match_existing_issue_when_only_issue_number_and_year_are_present()
+        {
+            var result = Subject.Map(new ParsedMagazineIssueInfo
+            {
+                MagazineTitle = _magazine.Title,
+                NormalizedMagazineTitle = _magazine.NormalizedTitle,
+                IssueYear = 2024,
+                IssueNumber = "03",
+                Confidence = 0.4f
+            });
+
+            result.Magazine.Should().Be(_magazine);
+            result.Issue.Should().BeNull();
+        }
     }
 }
