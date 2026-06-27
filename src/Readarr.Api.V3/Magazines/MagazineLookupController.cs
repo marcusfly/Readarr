@@ -80,8 +80,11 @@ namespace Readarr.Api.V3.Magazines
                             Title = canonical,
                             CleanTitle = canonical,
                             Issn = authorityResult.Issn,
+                            IssnL = authorityResult.IssnL,
                             WikidataId = authorityResult.WikidataId,
                             Publisher = authorityResult.Publisher,
+                            Country = authorityResult.Country,
+                            Language = authorityResult.Language,
                             AddOptions = new AddMagazineOptionsResource { Monitor = MonitorTypes.All, SearchForMissingIssues = false }
                         });
                     }
@@ -97,7 +100,10 @@ namespace Readarr.Api.V3.Magazines
                     CleanTitle = term,
                     Publisher = authorityResult.Publisher,
                     Issn = authorityResult.Issn,
+                    IssnL = authorityResult.IssnL,
                     WikidataId = authorityResult.WikidataId,
+                    Country = authorityResult.Country,
+                    Language = authorityResult.Language,
                     AddOptions = new AddMagazineOptionsResource { Monitor = MonitorTypes.All, SearchForMissingIssues = false }
                 });
             }

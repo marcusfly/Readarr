@@ -26,6 +26,7 @@ using NzbDrone.Common.Options;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore.Extensions;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.Messaging.Events;
 using PostgresOptions = NzbDrone.Core.Datastore.PostgresOptions;
 
@@ -94,8 +95,9 @@ namespace NzbDrone.Host
                                 c.AutoAddServices(Bootstrap.ASSEMBLIES)
                                     .AddNzbDroneLogger()
                                     .AddDatabase()
-                                    .AddStartupContext(startupContext)
-                                    .Resolve<UtilityModeRouter>()
+                                    .AddStartupContext(startupContext);
+                                c.Register<IMagazineTitleAuthorityProvider, DefaultMagazineTitleAuthorityProvider>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+                                c.Resolve<UtilityModeRouter>()
                                     .Route(appMode);
                             })
                             .ConfigureServices(services =>
@@ -159,8 +161,9 @@ namespace NzbDrone.Host
                     c.AutoAddServices(Bootstrap.ASSEMBLIES)
                         .AddNzbDroneLogger()
                         .AddDatabase()
-                        .AddStartupContext(context)
-                        .Resolve<IEventAggregator>().PublishEvent(new ApplicationStartingEvent());
+                        .AddStartupContext(context);
+                    c.Register<IMagazineTitleAuthorityProvider, DefaultMagazineTitleAuthorityProvider>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+                    c.Resolve<IEventAggregator>().PublishEvent(new ApplicationStartingEvent());
                 })
                 .ConfigureServices(services =>
                 {

@@ -22,7 +22,9 @@ namespace NzbDrone.Core.MediaCover
     public enum MediaCoverEntity
     {
         Author = 0,
-        Book = 1
+        Book = 1,
+        Magazine = 2,
+        MagazineIssue = 3
     }
 
     public class MediaCover : MemberwiseEquatable<MediaCover>, IEmbeddedDocument

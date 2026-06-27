@@ -17,6 +17,10 @@ if [ -d "$TEST_DIR/_tests" ]; then
   TEST_DIR="$TEST_DIR/_tests"
 fi
 
+if [ -d "$TEST_DIR/net10.0" ]; then
+  TEST_DIR="$TEST_DIR/net10.0"
+fi
+
 rm -f "$TEST_LOG_FILE"
 
 # Uncomment to log test output to a file instead of the console
@@ -28,7 +32,12 @@ if [ "$PLATFORM" = "Mac" ]; then
 
   export DYLD_FALLBACK_LIBRARY_PATH="$TEST_DIR:$MONOPREFIX/lib:/usr/local/lib:/lib:/usr/lib"
   echo $DYLD_FALLBACK_LIBRARY_PATH
-  mono --version
+
+  if command -v mono >/dev/null 2>&1; then
+    mono --version
+  else
+    echo "mono not found; continuing with dotnet-based tests only"
+  fi
 
   # To debug which libraries are being loaded:
   # export DYLD_PRINT_LIBRARIES=YES
@@ -73,9 +82,9 @@ else
   exit 3
 fi
 
-if [ "$EXIT_CODE" -ge 0 ]; then
-  echo "Failed tests: $EXIT_CODE"
+if [ "$EXIT_CODE" -eq 0 ]; then
   exit 0
 else
+  echo "Failed tests: $EXIT_CODE"
   exit $EXIT_CODE
 fi

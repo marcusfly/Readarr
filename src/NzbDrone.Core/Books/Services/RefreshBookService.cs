@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Books.Commands;
@@ -43,6 +44,7 @@ namespace NzbDrone.Core.Books
         private readonly IEventAggregator _eventAggregator;
         private readonly ICheckIfBookShouldBeRefreshed _checkIfBookShouldBeRefreshed;
         private readonly IMapCoversToLocal _mediaCoverService;
+        private readonly IDiskProvider _diskProvider;
         private readonly IJobProgressReporter _jobProgressReporter;
         private readonly Logger _logger;
 
@@ -60,6 +62,7 @@ namespace NzbDrone.Core.Books
                                   IEventAggregator eventAggregator,
                                   ICheckIfBookShouldBeRefreshed checkIfBookShouldBeRefreshed,
                                   IMapCoversToLocal mediaCoverService,
+                                  IDiskProvider diskProvider,
                                   IJobProgressReporter jobProgressReporter,
                                   Logger logger)
         : base(logger, authorMetadataService)
@@ -77,6 +80,7 @@ namespace NzbDrone.Core.Books
             _eventAggregator = eventAggregator;
             _checkIfBookShouldBeRefreshed = checkIfBookShouldBeRefreshed;
             _mediaCoverService = mediaCoverService;
+            _diskProvider = diskProvider;
             _jobProgressReporter = jobProgressReporter;
             _logger = logger;
         }
@@ -215,12 +219,19 @@ namespace NzbDrone.Core.Books
                 result = UpdateResult.None;
             }
 
-            // Force update and fetch covers if images have changed so that we can write them into tags
-            // if (remote.Images.Any() && !local.Images.SequenceEqual(remote.Images))
-            // {
-            //     _mediaCoverService.EnsureBookCovers(remote);
-            //     result = UpdateResult.UpdateTags;
-            // }
+            var remoteImages = remote.GetBestMonitoredEdition()?.Images ?? new List<NzbDrone.Core.MediaCover.MediaCover>();
+            var localImages = local.GetBestMonitoredEdition()?.Images ?? new List<NzbDrone.Core.MediaCover.MediaCover>();
+            var coverMetadataChanged = remoteImages.Any() && !localImages.SequenceEqual(remoteImages);
+            var missingPrimaryCover = remoteImages
+                .Where(image => image.CoverType == MediaCoverTypes.Cover)
+                .Any(image => !_diskProvider.FileExists(_mediaCoverService.GetCoverPath(local.Id, MediaCoverEntity.Book, image.CoverType, image.Extension, null)));
+
+            if (coverMetadataChanged || missingPrimaryCover)
+            {
+                _mediaCoverService.EnsureBookCovers(remote);
+                result = UpdateResult.UpdateTags;
+            }
+
             local.UseMetadataFrom(remote);
 
             local.AuthorMetadataId = remote.AuthorMetadata.Value.Id;

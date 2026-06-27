@@ -12,12 +12,15 @@ namespace Readarr.Api.V3.Magazines
     public class MagazineIssueController : RestControllerWithSignalR<MagazineIssueResource, NzbDrone.Core.Magazines.MagazineIssue>
     {
         private readonly IMagazineIssueService _magazineIssueService;
+        private readonly IMagazineCoverService _magazineCoverService;
 
         public MagazineIssueController(IMagazineIssueService magazineIssueService,
+                                     IMagazineCoverService magazineCoverService,
                                      NzbDrone.SignalR.IBroadcastSignalRMessage signalRBroadcaster)
             : base(signalRBroadcaster)
         {
             _magazineIssueService = magazineIssueService;
+            _magazineCoverService = magazineCoverService;
         }
 
         [HttpGet]
@@ -70,7 +73,8 @@ namespace Readarr.Api.V3.Magazines
 
         private MagazineIssueResource ToResource(MagazineIssue issue)
         {
-            return issue.ToResource();
+            var images = _magazineCoverService.GetIssueImages(issue);
+            return issue.ToResource(images);
         }
 
         private MagazineIssue ToModel(MagazineIssueResource resource, MagazineIssue existing)

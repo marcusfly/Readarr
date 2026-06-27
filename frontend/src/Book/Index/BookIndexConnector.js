@@ -18,6 +18,7 @@ function createMapStateToProps() {
     createBookClientSideCollectionItemsSelector('bookIndex'),
     createCommandExecutingSelector(commandNames.BULK_REFRESH_AUTHOR),
     createCommandExecutingSelector(commandNames.BULK_REFRESH_BOOK),
+    createCommandExecutingSelector(commandNames.RESCAN_FOLDERS),
     createCommandExecutingSelector(commandNames.RSS_SYNC),
     createCommandExecutingSelector(commandNames.CUTOFF_UNMET_BOOK_SEARCH),
     createCommandExecutingSelector(commandNames.MISSING_BOOK_SEARCH),
@@ -26,12 +27,13 @@ function createMapStateToProps() {
       book,
       isRefreshingAuthorCommand,
       isRefreshingBookCommand,
+      isRescanningFolders,
       isRssSyncExecuting,
       isCutoffBooksSearch,
       isMissingBooksSearch,
       dimensionsState
     ) => {
-      const isRefreshingBook = isRefreshingBookCommand || isRefreshingAuthorCommand;
+      const isRefreshingBook = isRefreshingBookCommand || isRefreshingAuthorCommand || isRescanningFolders;
       return {
         ...book,
         isRefreshingBook,
@@ -65,10 +67,22 @@ function createMapDispatchToProps(dispatch, props) {
       dispatch(saveBookEditor(payload));
     },
 
-    onRefreshBookPress(items) {
+    onRefreshBookPress({ bookIds, isAllBooks }) {
+      if (bookIds.length > 0) {
+        dispatch(executeCommand({
+          name: commandNames.BULK_REFRESH_BOOK,
+          bookIds
+        }));
+      }
+
+      if (!isAllBooks) {
+        return;
+      }
+
       dispatch(executeCommand({
-        name: commandNames.BULK_REFRESH_BOOK,
-        bookIds: items
+        name: commandNames.RESCAN_FOLDERS,
+        addNewAuthors: bookIds.length === 0,
+        filter: bookIds.length === 0 ? 'none' : 'matched'
       }));
     },
 
@@ -130,4 +144,3 @@ export default withScrollPosition(
   connect(createMapStateToProps, createMapDispatchToProps)(BookIndexConnector),
   'bookIndex'
 );
-

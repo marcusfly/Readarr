@@ -38,6 +38,7 @@ namespace NzbDrone.Core.Parser.Model
         {
             if (Edition != null)
             {
+                ExistingTracks ??= new List<LocalBook>();
                 LocalBooks = LocalBooks.Concat(ExistingTracks).DistinctBy(x => x.Path).ToList();
 
                 if (!keepAllEditions)
@@ -54,14 +55,22 @@ namespace NzbDrone.Core.Parser.Model
                     var book = new Book();
                     book.UseMetadataFrom(fullBook);
                     book.UseDbFieldsFrom(fullBook);
-                    book.Author.Value.UseMetadataFrom(fullBook.Author.Value);
-                    book.Author.Value.UseDbFieldsFrom(fullBook.Author.Value);
-                    book.Author.Value.Metadata = fullBook.AuthorMetadata.Value;
-                    book.AuthorMetadata = fullBook.AuthorMetadata.Value;
+                    if (fullBook.Author?.Value != null)
+                    {
+                        book.Author.Value.UseMetadataFrom(fullBook.Author.Value);
+                        book.Author.Value.UseDbFieldsFrom(fullBook.Author.Value);
+                    }
+
+                    if (fullBook.AuthorMetadata?.Value != null)
+                    {
+                        book.Author.Value.Metadata = fullBook.AuthorMetadata.Value;
+                        book.AuthorMetadata = fullBook.AuthorMetadata.Value;
+                    }
+
                     book.BookFiles = fullBook.BookFiles;
                     book.Editions = new List<Edition> { edition };
 
-                    if (fullBook.SeriesLinks.IsLoaded)
+                    if (fullBook.SeriesLinks?.IsLoaded == true)
                     {
                         book.SeriesLinks = fullBook.SeriesLinks.Value.Select(l => new SeriesBookLink
                         {

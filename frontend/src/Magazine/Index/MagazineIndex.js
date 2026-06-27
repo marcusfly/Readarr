@@ -12,6 +12,7 @@ import PageToolbarSeparator from 'Components/Page/Toolbar/PageToolbarSeparator';
 import { align, icons } from 'Helpers/Props';
 import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
+import MagazineGraphic from './MagazineGraphic';
 import NoMagazine from './NoMagazine';
 import styles from './MagazineIndex.css';
 
@@ -146,6 +147,7 @@ class MagazineIndex extends Component {
     const {
       error,
       isFetching,
+      isRefreshingMagazines,
       isPopulated,
       items = [],
       onRefreshPress
@@ -175,7 +177,7 @@ class MagazineIndex extends Component {
               label="Update All"
               iconName={icons.REFRESH}
               spinningName={icons.REFRESH}
-              isSpinning={isFetching}
+              isSpinning={isRefreshingMagazines}
               onPress={onRefreshPress}
             />
 
@@ -286,9 +288,13 @@ class MagazineIndex extends Component {
                                 return (
                                   <tr key={magazine.id}>
                                     <td>
-                                      <Link className={styles.tableLink} to={`/magazine/${magazine.id}`}>
-                                        {magazine.title}
-                                      </Link>
+                                      <div className={styles.titleCell}>
+                                        <MagazineGraphic title={magazine.title} images={magazine.images} />
+
+                                        <Link className={styles.tableLink} to={`/magazine/${magazine.id}`}>
+                                          {magazine.title}
+                                        </Link>
+                                      </div>
                                     </td>
                                     <td>{magazine.publisher || 'Unknown'}</td>
                                     <td>{magazine.monitored ? 'Yes' : 'No'}</td>
@@ -346,6 +352,7 @@ class MagazineIndex extends Component {
 MagazineIndex.propTypes = {
   error: PropTypes.object,
   isFetching: PropTypes.bool,
+  isRefreshingMagazines: PropTypes.bool,
   isPopulated: PropTypes.bool.isRequired,
   items: PropTypes.arrayOf(PropTypes.object),
   onRefreshPress: PropTypes.func.isRequired
@@ -353,6 +360,7 @@ MagazineIndex.propTypes = {
 
 MagazineIndex.defaultProps = {
   isFetching: false,
+  isRefreshingMagazines: false,
   items: [],
   error: null
 };

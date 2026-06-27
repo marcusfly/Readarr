@@ -10,6 +10,9 @@ namespace NzbDrone.Core.Magazines.Metadata
         public string NormalizedTitle { get; set; }
         public string WikidataId { get; set; }
         public string Issn { get; set; }
+        public string IssnL { get; set; }
+        public string Country { get; set; }
+        public string Language { get; set; }
         public List<string> Aliases { get; set; }
         public string Publisher { get; set; }
 
@@ -34,6 +37,9 @@ namespace NzbDrone.Core.Magazines.Metadata
                     : MagazineTitleNormalizer.Normalize(canonicalTitle),
                 WikidataId = WikidataId,
                 Issn = Issn,
+                IssnL = IssnL,
+                Country = Country,
+                Language = Language,
                 Aliases = Aliases,
                 Publisher = Publisher
             };

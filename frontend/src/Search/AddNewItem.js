@@ -301,6 +301,7 @@ class AddNewItem extends Component {
                       return (
                         <AddNewMagazineSearchResultConnector
                           key={item.id}
+                          searchResultId={item.id}
                           isExistingMagazine={'id' in magazine && magazine.id !== 0}
                           {...magazine}
                         />

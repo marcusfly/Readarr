@@ -175,8 +175,11 @@ A monitored publication title tracked by Readarr.
 | NormalizedTitle | TEXT | NO | |
 | Aliases | TEXT | NO | JSON array; default `[]` |
 | Issn | TEXT | YES | |
+| IssnL | TEXT | YES | |
 | WikidataId | TEXT | YES | |
 | Publisher | TEXT | YES | |
+| Country | TEXT | YES | |
+| Language | TEXT | YES | |
 | Monitored | INTEGER | NO | Boolean |
 | Path | TEXT | YES | Indexed |
 | RootFolderPath | TEXT | YES | |

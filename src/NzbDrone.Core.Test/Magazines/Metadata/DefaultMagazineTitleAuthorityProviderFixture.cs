@@ -26,6 +26,20 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
   ]
 }";
 
+        private const string WikidataDetailsPayload = @"{
+  ""results"": {
+    ""bindings"": [
+      {
+        ""issn"": { ""type"": ""literal"", ""value"": ""09510281"" },
+        ""issnL"": { ""type"": ""literal"", ""value"": ""09510281"" },
+        ""publisherLabel"": { ""type"": ""literal"", ""value"": ""Future Publishing"" },
+        ""countryLabel"": { ""type"": ""literal"", ""value"": ""United Kingdom"" },
+        ""languageLabel"": { ""type"": ""literal"", ""value"": ""English"" }
+      }
+    ]
+  }
+}";
+
         private string _appDataFolder;
 
         [SetUp]
@@ -119,12 +133,20 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
                 .Setup(x => x.Get(It.IsAny<HttpRequest>()))
                 .Returns<HttpRequest>(request =>
                 {
-                    request.Url.FullUri.Should().Contain("wikidata.org/w/api.php");
-                    request.Url.FullUri.Should().Contain("action=wbsearchentities");
-                    request.Url.FullUri.Should().Contain("search=ImaginaryWeekly");
+                    if (request.Url.FullUri.Contains("wikidata.org/w/api.php"))
+                    {
+                        request.Url.FullUri.Should().Contain("action=wbsearchentities");
+                        request.Url.FullUri.Should().Contain("search=ImaginaryWeekly");
+                        request.SuppressHttpError.Should().BeTrue();
+
+                        return new HttpResponse(request, new HttpHeader { ContentType = "application/json" }, WikidataPayload);
+                    }
+
+                    request.Url.FullUri.Should().Contain("query.wikidata.org/sparql");
+                    request.Url.FullUri.Should().Contain("format=json");
                     request.SuppressHttpError.Should().BeTrue();
 
-                    return new HttpResponse(request, new HttpHeader { ContentType = "application/json" }, WikidataPayload);
+                    return new HttpResponse(request, new HttpHeader { ContentType = "application/json" }, WikidataDetailsPayload);
                 });
 
             var result = await Subject.LookupByTitleAsync("  ImaginaryWeekly  ");
@@ -133,9 +155,13 @@ namespace NzbDrone.Core.Test.Magazines.Metadata
             result.CanonicalTitle.Should().Be("Imaginary Weekly");
             result.NormalizedTitle.Should().Be("imaginary weekly");
             result.WikidataId.Should().Be("Q99999");
+            result.Issn.Should().Be("0951-0281");
+            result.IssnL.Should().Be("0951-0281");
+            result.Country.Should().Be("United Kingdom");
+            result.Language.Should().Be("English");
             result.Aliases.Should().Equal("Imaginary Weekly", "Weekly Imaginary");
-            result.Publisher.Should().Be("Test magazine.");
-            Mocker.GetMock<IHttpClient>().Verify(x => x.Get(It.IsAny<HttpRequest>()), Times.Once());
+            result.Publisher.Should().Be("Future Publishing");
+            Mocker.GetMock<IHttpClient>().Verify(x => x.Get(It.IsAny<HttpRequest>()), Times.Exactly(2));
         }
     }
 }

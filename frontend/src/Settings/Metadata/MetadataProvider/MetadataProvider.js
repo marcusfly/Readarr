@@ -1,3 +1,5 @@
+/* eslint-disable no-bitwise */
+
 import PropTypes from 'prop-types';
 import React from 'react';
 import Alert from 'Components/Alert';

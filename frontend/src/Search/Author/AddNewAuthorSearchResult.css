@@ -44,6 +44,7 @@
 
 .nameContainer {
   display: flex;
+
   align-items: flex-end;
   flex: 0 1 auto;
 }
@@ -92,9 +93,9 @@
 
 .metadataRow {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  align-items: center;
 }
 
 .mediaTypeLabel {

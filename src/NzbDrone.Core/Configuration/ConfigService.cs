@@ -297,6 +297,20 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("MetadataRreadingGlassesSource", value); }
         }
 
+        public string IssnLTablePath
+        {
+            get { return GetValue("IssnLTablePath", ""); }
+
+            set { SetValue("IssnLTablePath", value); }
+        }
+
+        public bool EnableIssnPortalLookup
+        {
+            get { return GetValueBoolean("EnableIssnPortalLookup", false); }
+
+            set { SetValue("EnableIssnPortalLookup", value); }
+        }
+
         public bool DisableWikidataLookup
         {
             get { return GetValueBoolean("DisableWikidataLookup", false); }

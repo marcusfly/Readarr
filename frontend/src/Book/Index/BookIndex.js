@@ -246,9 +246,13 @@ class BookIndex extends Component {
 
   onRefreshBookPress = () => {
     const selectedIds = this.getSelectedIds();
-    const refreshIds = this.state.isEditorActive && selectedIds.length > 0 ? selectedIds : [];
+    const isSelectedRefresh = this.state.isEditorActive && selectedIds.length > 0;
+    const refreshIds = isSelectedRefresh ? selectedIds : this.props.items.map((item) => item.id);
 
-    this.props.onRefreshBookPress(refreshIds);
+    this.props.onRefreshBookPress({
+      bookIds: refreshIds,
+      isAllBooks: !isSelectedRefresh
+    });
   };
 
   onSearchConfirmed = () => {

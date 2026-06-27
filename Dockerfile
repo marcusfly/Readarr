@@ -45,6 +45,7 @@ COPY src/Directory.Build.props src/Directory.Build.targets src/Directory.Package
 # Copy all project files for restore
 COPY src/ src/
 COPY Logo/ Logo/
+COPY LICENSE.md ./
 
 RUN RID=$(cat /tmp/rid) && \
     if [ -n "$READARRVERSION" ] && [ "$READARRVERSION" != "0.0.0.0" ]; then \
@@ -71,6 +72,7 @@ RUN RID=$(cat /tmp/rid) && \
     mkdir -p /app && \
     cp -r /src/_output/net10.0/"$RID"/publish/. /app/ && \
     cp -r /src/_output/Readarr.Update/net10.0/"$RID"/publish /app/Readarr.Update && \
+    cp /src/LICENSE.md /app/LICENSE.md && \
     # Remove Windows-only helpers
     rm -f /app/ServiceInstall.* /app/ServiceUninstall.* /app/Readarr.Windows.* && \
     # Copy Mono posix helper for Linux
@@ -95,6 +97,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        poppler-utils \
         sqlite3 && \
     rm -rf /var/lib/apt/lists/*
 

@@ -24,6 +24,7 @@ namespace Readarr.Api.V3.Magazines
         private readonly IMagazineService _magazineService;
         private readonly IMagazineIssueService _magazineIssueService;
         private readonly IMagazineMonitoredService _magazineMonitoredService;
+        private readonly IMagazineCoverService _magazineCoverService;
         private readonly IManageCommandQueue _commandQueueManager;
 
         public MagazineController(IBroadcastSignalRMessage signalRBroadcaster,
@@ -31,6 +32,7 @@ namespace Readarr.Api.V3.Magazines
                                  IMagazineService magazineService,
                                  IMagazineIssueService magazineIssueService,
                                  IMagazineMonitoredService magazineMonitoredService,
+                                 IMagazineCoverService magazineCoverService,
                                  IManageCommandQueue commandQueueManager)
             : base(signalRBroadcaster)
         {
@@ -38,6 +40,7 @@ namespace Readarr.Api.V3.Magazines
             _magazineService = magazineService;
             _magazineIssueService = magazineIssueService;
             _magazineMonitoredService = magazineMonitoredService;
+            _magazineCoverService = magazineCoverService;
             _commandQueueManager = commandQueueManager;
         }
 
@@ -45,7 +48,7 @@ namespace Readarr.Api.V3.Magazines
         public List<MagazineResource> GetAll()
         {
             return _magazineService.GetAllMagazines()
-                .Select(x => x.ToResource(_magazineIssueService.GetIssuesByMagazine(x.Id)))
+                .Select(MapToResource)
                 .ToList();
         }
 
@@ -107,13 +110,20 @@ namespace Readarr.Api.V3.Magazines
         protected override MagazineResource GetResourceById(int id)
         {
             var magazine = _magazineService.GetMagazine(id);
-            var issues = _magazineIssueService.GetIssuesByMagazine(id);
-            return magazine.ToResource(issues);
+            return MapToResource(magazine);
         }
 
         protected override MagazineResource GetResourceByIdForBroadcast(int id)
         {
             return GetResourceById(id);
+        }
+
+        private MagazineResource MapToResource(NzbDrone.Core.Magazines.Magazine magazine)
+        {
+            var issues = _magazineIssueService.GetIssuesByMagazine(magazine.Id);
+            var images = _magazineCoverService.GetImages(magazine, issues);
+
+            return magazine.ToResource(issues, images);
         }
     }
 }

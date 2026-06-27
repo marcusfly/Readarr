@@ -1,42 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
 using NzbDrone.Common.Extensions;
-using NzbDrone.Common.Http;
 using NzbDrone.Core.Configuration;
 
 namespace NzbDrone.Core.Magazines.Metadata
 {
     public class DefaultMagazineTitleAuthorityProvider : IMagazineTitleAuthorityProvider
     {
-        private const string WikidataBaseUrl = "https://www.wikidata.org";
-        private static readonly JsonSerializerOptions SerializerSettings = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        };
-
         private readonly IConfigService _configService;
         private readonly IAppFolderInfo _appFolderInfo;
         private readonly IDiskProvider _diskProvider;
-        private readonly IHttpClient _httpClient;
+        private readonly IIssnLTableImporter _issnLTableImporter;
+        private readonly WikidataTitleAuthorityImporter _wikidataTitleAuthorityImporter;
         private readonly Logger _logger;
 
         public DefaultMagazineTitleAuthorityProvider(IConfigService configService,
                                                      IAppFolderInfo appFolderInfo,
                                                      IDiskProvider diskProvider,
-                                                     IHttpClient httpClient,
+                                                     IIssnLTableImporter issnLTableImporter,
+                                                     WikidataTitleAuthorityImporter wikidataTitleAuthorityImporter,
                                                      Logger logger)
         {
             _configService = configService;
             _appFolderInfo = appFolderInfo;
             _diskProvider = diskProvider;
-            _httpClient = httpClient;
+            _issnLTableImporter = issnLTableImporter;
+            _wikidataTitleAuthorityImporter = wikidataTitleAuthorityImporter;
             _logger = logger;
         }
 
@@ -51,14 +43,14 @@ namespace NzbDrone.Core.Magazines.Metadata
             if (manualAliasResult != null)
             {
                 _logger.Debug("Magazine title authority lookup matched manual alias for {0}", rawTitle);
-                return Task.FromResult(manualAliasResult);
+                return Task.FromResult(BackfillIssnL(manualAliasResult));
             }
 
             var seedCacheResult = MagazineSeedCache.Lookup(rawTitle);
             if (seedCacheResult != null)
             {
                 _logger.Debug("Magazine title authority lookup matched seed cache for {0}", rawTitle);
-                return Task.FromResult(seedCacheResult);
+                return Task.FromResult(BackfillIssnL(seedCacheResult));
             }
 
             if (_configService.DisableWikidataLookup)
@@ -67,68 +59,28 @@ namespace NzbDrone.Core.Magazines.Metadata
                 return Task.FromResult<MagazineAuthorityResult>(null);
             }
 
-            return LookupFromWikidata(rawTitle);
+            return BackfillIssnLAsync(rawTitle);
         }
 
-        private Task<MagazineAuthorityResult> LookupFromWikidata(string rawTitle)
+        private async Task<MagazineAuthorityResult> BackfillIssnLAsync(string rawTitle)
         {
-            var request = new HttpRequestBuilder(WikidataBaseUrl)
-                .Resource("/w/api.php")
-                .AddQueryParam("action", "wbsearchentities")
-                .AddQueryParam("search", rawTitle.Trim())
-                .AddQueryParam("language", "en")
-                .AddQueryParam("format", "json")
-                .AddQueryParam("limit", "5")
-                .Build();
+            var result = await _wikidataTitleAuthorityImporter.LookupByTitleAsync(rawTitle);
+            return BackfillIssnL(result);
+        }
 
-            request.SuppressHttpError = true;
-
-            try
+        private MagazineAuthorityResult BackfillIssnL(MagazineAuthorityResult result)
+        {
+            if (result == null)
             {
-                var response = _httpClient.Get(request);
-                if (response == null || response.HasHttpError || response.Content.IsNullOrWhiteSpace())
-                {
-                    _logger.Debug("Magazine title authority lookup returned no response for {0}", rawTitle);
-                    return Task.FromResult<MagazineAuthorityResult>(null);
-                }
-
-                var searchResult = JsonSerializer.Deserialize<WikidataSearchResponse>(response.Content, SerializerSettings);
-                var item = searchResult?.Search?.FirstOrDefault();
-                if (item == null)
-                {
-                    _logger.Debug("Magazine title authority lookup returned no matches for {0}", rawTitle);
-                    return Task.FromResult<MagazineAuthorityResult>(null);
-                }
-
-                var canonicalTitle = item.Label.IsNotNullOrWhiteSpace() ? item.Label : rawTitle.Trim();
-
-                return Task.FromResult(new MagazineAuthorityResult
-                {
-                    CanonicalTitle = canonicalTitle,
-                    NormalizedTitle = MagazineTitleNormalizer.Normalize(canonicalTitle),
-                    WikidataId = item.Id,
-                    Aliases = item.Aliases?.ToList(),
-                    Publisher = item.Description
-                });
+                return null;
             }
-            catch (Exception ex)
+
+            if (result.Issn.IsNotNullOrWhiteSpace() && result.IssnL.IsNullOrWhiteSpace())
             {
-                _logger.Debug(ex, "Magazine title authority lookup failed for {0}", rawTitle);
-                return Task.FromResult<MagazineAuthorityResult>(null);
+                result.IssnL = _issnLTableImporter?.GetIssnL(result.Issn);
             }
-        }
 
-        private class WikidataSearchResponse
-        {
-            public List<WikidataSearchItem> Search { get; set; }
-        }
-
-        private class WikidataSearchItem
-        {
-            public string Id { get; set; }
-            public string Label { get; set; }
-            public string Description { get; set; }
-            public List<string> Aliases { get; set; }
+            return result;
         }
     }
 }

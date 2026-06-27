@@ -3,10 +3,13 @@ import React, { Component } from 'react';
 import Form from 'Components/Form/Form';
 import FormGroup from 'Components/Form/FormGroup';
 import FormInputGroup from 'Components/Form/FormInputGroup';
+import FormInputHelpText from 'Components/Form/FormInputHelpText';
 import FormLabel from 'Components/Form/FormLabel';
+import SelectInput from 'Components/Form/SelectInput';
 import { inputTypes } from 'Helpers/Props';
 import magazineMonitorOptions from 'Utilities/Magazine/monitorOptions';
 import translate from 'Utilities/String/translate';
+import styles from './AddMagazineOptionsForm.css';
 
 class AddMagazineOptionsForm extends Component {
   render() {
@@ -18,6 +21,9 @@ class AddMagazineOptionsForm extends Component {
       onInputChange,
       ...otherProps
     } = this.props;
+    const rootFolderValue = rootFolderPath ? rootFolderPath.value : '';
+    const rootFolderErrors = rootFolderPath ? rootFolderPath.errors : [];
+    const rootFolderWarnings = rootFolderPath ? rootFolderPath.warnings : [];
 
     return (
       <Form {...otherProps}>
@@ -26,14 +32,22 @@ class AddMagazineOptionsForm extends Component {
             {translate('RootFolder')}
           </FormLabel>
 
-          <FormInputGroup
-            type={inputTypes.SELECT}
-            name="rootFolderPath"
-            values={rootFolderValues}
-            helpText="Choose the root folder where the magazine should be stored."
-            onChange={onInputChange}
-            {...rootFolderPath}
-          />
+          <div className={styles.rootFolderField}>
+            <SelectInput
+              name="rootFolderPath"
+              value={rootFolderValue}
+              values={rootFolderValues}
+              isDisabled={!rootFolderValues.length || rootFolderValues.every((option) => option.isDisabled)}
+              onChange={onInputChange}
+              hasError={!!rootFolderErrors.length}
+              hasWarning={!rootFolderErrors.length && !!rootFolderWarnings.length}
+            />
+
+            <FormInputHelpText
+              className={styles.rootFolderHelpText}
+              text="Choose the root folder where the magazine should be stored."
+            />
+          </div>
         </FormGroup>
 
         <FormGroup>

@@ -39,6 +39,7 @@ class AddNewMagazineSearchResult extends Component {
   render() {
     const {
       id,
+      searchResultId,
       foreignId,
       title,
       cleanTitle,
@@ -138,6 +139,7 @@ class AddNewMagazineSearchResult extends Component {
 
         <AddNewMagazineModal
           isOpen={isNewAddMagazineModalOpen && !isExistingMagazine}
+          searchResultId={searchResultId}
           foreignId={foreignId}
           title={title}
           cleanTitle={cleanTitle}
@@ -153,6 +155,7 @@ class AddNewMagazineSearchResult extends Component {
 
 AddNewMagazineSearchResult.propTypes = {
   id: PropTypes.number.isRequired,
+  searchResultId: PropTypes.number.isRequired,
   foreignId: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   cleanTitle: PropTypes.string,

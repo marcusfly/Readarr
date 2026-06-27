@@ -1,0 +1,9 @@
+.rootFolderField {
+  flex: 1;
+  min-width: 0;
+}
+
+.rootFolderHelpText {
+  margin-top: 8px;
+  max-width: 520px;
+}

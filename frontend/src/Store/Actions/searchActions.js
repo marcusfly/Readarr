@@ -232,17 +232,19 @@ export const actionHandlers = handleThunks({
     }).request;
 
     promise.done((data) => {
-      itemToAdd.magazine = data;
-      dispatch(batchActions([
-        updateItem({ section, ...itemToAdd }),
+      const updatedItem = {
+        ...itemToAdd,
+        magazine: data
+      };
 
-        set({
-          section,
-          isAdding: false,
-          isAdded: true,
-          addError: null
-        })
-      ]));
+      dispatch(set({
+        section,
+        isAdding: false,
+        isAdded: true,
+        addError: null
+      }));
+
+      dispatch(updateItem({ section, ...updatedItem }));
     });
 
     promise.fail((xhr) => {

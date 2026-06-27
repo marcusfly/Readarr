@@ -17,18 +17,21 @@ namespace NzbDrone.Core.MetadataSource
         private readonly IConfigService _configService;
         private readonly IMagazineService _magazineService;
         private readonly IMagazineTitleAuthorityProvider _magazineTitleAuthorityProvider;
+        private readonly IIssnLTableImporter _issnLTableImporter;
         private readonly IReadOnlyList<IMetadataProviderV1> _providers;
         private readonly Logger _logger;
 
         public MetadataProviderSelector(IConfigService configService,
                                         IMagazineService magazineService,
                                         IMagazineTitleAuthorityProvider magazineTitleAuthorityProvider,
+                                        IIssnLTableImporter issnLTableImporter,
                                         IEnumerable<IMetadataProviderV1> providers,
                                         Logger logger)
         {
             _configService = configService;
             _magazineService = magazineService;
             _magazineTitleAuthorityProvider = magazineTitleAuthorityProvider;
+            _issnLTableImporter = issnLTableImporter;
             _providers = providers
                 .OrderByDescending(x => x.Descriptor.Priority)
                 .ToList();
@@ -123,8 +126,10 @@ namespace NzbDrone.Core.MetadataSource
                 return results;
             }
 
-            AddMagazineCandidate(results, seen, _magazineService.FindByNormalizedTitle(MagazineTitleNormalizer.Normalize(title))
-                                               ?? _magazineService.FindByNormalizedTitle(title));
+            var existingMatch = _magazineService.FindByNormalizedTitle(MagazineTitleNormalizer.Normalize(title))
+                                ?? _magazineService.FindByNormalizedTitle(title);
+            BackfillIssnL(existingMatch);
+            AddMagazineCandidate(results, seen, existingMatch);
 
             MagazineAuthorityResult authorityResult;
             try
@@ -143,12 +148,18 @@ namespace NzbDrone.Core.MetadataSource
                 return results;
             }
 
+            if (authorityResult.Issn.IsNotNullOrWhiteSpace() && authorityResult.IssnL.IsNullOrWhiteSpace())
+            {
+                authorityResult.IssnL = _issnLTableImporter?.GetIssnL(authorityResult.Issn);
+            }
+
             var canonicalTitle = authorityResult.CanonicalTitle.IsNotNullOrWhiteSpace() ? authorityResult.CanonicalTitle : title;
             var canonicalNormalized = MagazineTitleNormalizer.Normalize(canonicalTitle);
             var knownCanonical = _magazineService.FindByNormalizedTitle(canonicalNormalized);
 
             if (knownCanonical != null)
             {
+                BackfillIssnL(knownCanonical);
                 AddMagazineCandidate(results, seen, knownCanonical);
                 return results;
             }
@@ -160,7 +171,10 @@ namespace NzbDrone.Core.MetadataSource
                 NormalizedTitle = authorityResult.NormalizedTitle.IsNotNullOrWhiteSpace() ? authorityResult.NormalizedTitle : canonicalNormalized,
                 WikidataId = authorityResult.WikidataId,
                 Issn = authorityResult.Issn,
+                IssnL = authorityResult.IssnL,
                 Publisher = authorityResult.Publisher,
+                Country = authorityResult.Country,
+                Language = authorityResult.Language,
                 AddOptions = new AddMagazineOptions
                 {
                     Monitor = MonitorTypes.All,
@@ -189,6 +203,16 @@ namespace NzbDrone.Core.MetadataSource
             {
                 results.Add(magazine);
             }
+        }
+
+        private void BackfillIssnL(Magazine magazine)
+        {
+            if (magazine == null || magazine.Issn.IsNullOrWhiteSpace() || magazine.IssnL.IsNotNullOrWhiteSpace())
+            {
+                return;
+            }
+
+            magazine.IssnL = _issnLTableImporter?.GetIssnL(magazine.Issn);
         }
 
         private static string GetMagazineIdentityKey(Magazine magazine)

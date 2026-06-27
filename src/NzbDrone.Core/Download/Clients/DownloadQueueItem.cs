@@ -16,6 +16,9 @@ namespace NzbDrone.Core.Download.Clients
         /// <summary>Item is actively being downloaded.</summary>
         Downloading,
 
+        /// <summary>Item has finished downloading and is being verified/moved/unpacked.</summary>
+        PostProcessing,
+
         /// <summary>Item has finished downloading and is now seeding (torrents).</summary>
         Seeding,
 
@@ -24,6 +27,9 @@ namespace NzbDrone.Core.Download.Clients
 
         /// <summary>Item has finished successfully and is ready for import.</summary>
         Completed,
+
+        /// <summary>An operation completed with warnings that may require user attention.</summary>
+        Warning,
 
         /// <summary>A non-recoverable error has occurred.</summary>
         Failed,

@@ -2,7 +2,9 @@ import createAjaxRequest from 'Utilities/createAjaxRequest';
 
 function getTranslations() {
   const apiRoot = window.Readarr?.apiRoot ?? '/api/v1';
-  const normalizedApiRoot = apiRoot.endsWith('/') ? apiRoot.slice(0, -1) : apiRoot;
+  const normalizedApiRoot = apiRoot.endsWith('/')
+    ? apiRoot.slice(0, -1)
+    : apiRoot;
 
   return createAjaxRequest({
     global: false,

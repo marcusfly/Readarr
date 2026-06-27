@@ -6,6 +6,7 @@ namespace NzbDrone.Core.Magazines.Commands
     public class RescanMagazineCommand : Command
     {
         public List<int> MagazineIds { get; set; }
+        public bool AddNewMagazines { get; set; }
         public bool AddNewIssues { get; set; }
 
         public override bool SendUpdatesToClient => true;

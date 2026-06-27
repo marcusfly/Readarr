@@ -4,8 +4,8 @@
 }
 
 .searchScopeSelect {
-  width: 150px;
   margin-right: 12px;
+  width: 150px;
   border: 1px solid var(--inputBorderColor);
   border-radius: 4px;
   background: var(--inputBackgroundColor);

@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using NzbDrone.Core.Magazines;
+using NzbDrone.Core.MediaCover;
 
 namespace Readarr.Api.V3.Magazines
 {
     public static class MagazineControllerExtensions
     {
-        public static MagazineIssueResource ToResource(this MagazineIssue issue)
+        public static MagazineIssueResource ToResource(this MagazineIssue issue, List<MediaCover> images = null)
         {
             if (issue == null)
             {
@@ -26,7 +27,8 @@ namespace Readarr.Api.V3.Magazines
                 Monitored = issue.Monitored,
                 HasFile = issue.IssueFiles?.Value != null && issue.IssueFiles.Value.Any(),
                 Added = issue.Added,
-                Quality = issue.IssueFiles?.Value?.FirstOrDefault()?.Quality
+                Quality = issue.IssueFiles?.Value?.FirstOrDefault()?.Quality,
+                Images = images ?? new List<MediaCover>()
             };
         }
 
@@ -51,7 +53,7 @@ namespace Readarr.Api.V3.Magazines
             };
         }
 
-        public static MagazineResource ToResource(this Magazine model, IEnumerable<MagazineIssue> issues)
+        public static MagazineResource ToResource(this Magazine model, IEnumerable<MagazineIssue> issues, List<MediaCover> images = null)
         {
             if (model == null)
             {
@@ -66,8 +68,11 @@ namespace Readarr.Api.V3.Magazines
                 Title = model.Title,
                 CleanTitle = model.CleanTitle,
                 Issn = model.Issn,
+                IssnL = model.IssnL,
                 WikidataId = model.WikidataId,
                 Publisher = model.Publisher,
+                Country = model.Country,
+                Language = model.Language,
                 Monitored = model.Monitored,
                 Path = model.Path,
                 RootFolderPath = model.RootFolderPath,
@@ -76,6 +81,7 @@ namespace Readarr.Api.V3.Magazines
                 Tags = model.Tags?.ToList(),
                 Added = model.Added,
                 AddOptions = model.AddOptions?.ToResource(),
+                Images = images ?? new List<MediaCover>(),
                 Statistics = new MagazineStatisticsResource
                 {
                     IssueCount = issueList.Count,
@@ -98,8 +104,11 @@ namespace Readarr.Api.V3.Magazines
                 Title = resource.Title,
                 CleanTitle = resource.CleanTitle,
                 Issn = resource.Issn,
+                IssnL = resource.IssnL,
                 WikidataId = resource.WikidataId,
                 Publisher = resource.Publisher,
+                Country = resource.Country,
+                Language = resource.Language,
                 Monitored = resource.Monitored,
                 Path = resource.Path,
                 RootFolderPath = resource.RootFolderPath,

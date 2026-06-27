@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.Qualities;
 using Readarr.Http.REST;
 
@@ -17,5 +19,6 @@ namespace Readarr.Api.V3.Magazines
         public bool HasFile { get; set; }
         public DateTime Added { get; set; }
         public QualityModel Quality { get; set; }
+        public List<MediaCover> Images { get; set; }
     }
 }

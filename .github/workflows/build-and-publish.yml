@@ -29,6 +29,12 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numeric dotted version for rehearsal artifacts and AssemblyVersion (for example 10.0.0.0)"
+        required: false
+        default: "10.0.0.0"
   release:
     types: [published]
 
@@ -41,8 +47,8 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/readarr
-  DOTNET_VERSION: "8.0.x"
-  NODE_VERSION: "20"
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "20.11.1"
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
@@ -113,20 +119,20 @@ jobs:
       - name: Run unit tests (Linux)
         if: runner.os == 'Linux'
         run: |
-          chmod +x _tests/net8.0/linux-x64/publish/test.sh
-          _tests/net8.0/linux-x64/publish/test.sh Linux Unit Test
+          chmod +x _tests/net10.0/linux-x64/publish/test.sh
+          _tests/net10.0/linux-x64/publish/test.sh Linux Unit Test
 
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          _tests/net8.0/win-x64/publish/test.sh Windows Unit Test
+          _tests/net10.0/win-x64/publish/test.sh Windows Unit Test
 
       - name: Run unit tests (macOS)
         if: runner.os == 'macOS'
         run: |
-          chmod +x _tests/net8.0/osx-x64/publish/test.sh
-          _tests/net8.0/osx-x64/publish/test.sh Mac Unit Test
+          chmod +x _tests/net10.0/osx-x64/publish/test.sh
+          _tests/net10.0/osx-x64/publish/test.sh Mac Unit Test
 
       - name: Publish test results
         uses: actions/upload-artifact@v4
@@ -174,7 +180,115 @@ jobs:
           sarif_file: trivy-results.sarif
 
   # ────────────────────────────────────────────────────────────────────────────
-  # 4. Build and publish multi-arch Docker image (release tags only)
+  # 4. Rehearse release archive generation and verification on demand
+  # ────────────────────────────────────────────────────────────────────────────
+  release-rehearsal:
+    name: Release Rehearsal
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch'
+    needs: [lint, backend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Resolve rehearsal version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="10.0.0.0"
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "workflow_dispatch input 'version' must be a numeric dotted AssemblyVersion such as 10.0.0.0" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build rehearsal images
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            --build-arg READARRVERSION="$VERSION" \
+            --build-arg BUILD_SOURCEBRANCHNAME="${{ github.ref_name }}" \
+            -t readarr:rehearsal-linux-core-x64 .
+
+          docker buildx build \
+            --platform linux/arm64 \
+            --load \
+            --build-arg READARRVERSION="$VERSION" \
+            --build-arg BUILD_SOURCEBRANCHNAME="${{ github.ref_name }}" \
+            -t readarr:rehearsal-linux-core-arm64 .
+
+      - name: Build rehearsal archives
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+
+          build_archive() {
+            local image="$1"
+            local label="$2"
+            local archive="Readarr.${VERSION}.${label}.tar.gz"
+            local container
+            local staging
+
+            staging="$(mktemp -d)"
+            container="$(docker create --entrypoint /bin/true "$image")"
+            cleanup() {
+              docker rm -f "$container" >/dev/null 2>&1 || true
+              rm -rf "$staging"
+            }
+            trap cleanup EXIT
+
+            docker cp "$container":/app/. "$staging"/
+            docker rm "$container" >/dev/null
+            tar czf "$archive" -C "$staging" .
+            rm -rf "$staging"
+            trap - EXIT
+          }
+
+          build_archive readarr:rehearsal-linux-core-x64 linux-core-x64
+          build_archive readarr:rehearsal-linux-core-arm64 linux-core-arm64
+
+      - name: Verify rehearsal archives
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.version }}"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-x64.tar.gz" "linux-core-x64" "linux/amd64"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-arm64.tar.gz" "linux-core-arm64" "linux/arm64"
+
+      - name: Generate rehearsal SHA256 checksums
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sha256sum \
+            "Readarr.${VERSION}.linux-core-x64.tar.gz" \
+            "Readarr.${VERSION}.linux-core-arm64.tar.gz" \
+            > "Readarr.${VERSION}.sha256"
+
+      - name: Upload rehearsal artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-rehearsal-${{ steps.version.outputs.version }}
+          path: |
+            Readarr.${{ steps.version.outputs.version }}.linux-core-x64.tar.gz
+            Readarr.${{ steps.version.outputs.version }}.linux-core-arm64.tar.gz
+            Readarr.${{ steps.version.outputs.version }}.sha256
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 5. Build and publish multi-arch Docker image (release tags only)
   # ────────────────────────────────────────────────────────────────────────────
   publish:
     name: Publish Docker Image
@@ -305,8 +419,8 @@ jobs:
           set -euo pipefail
 
           VERSION="${{ steps.version.outputs.version }}"
-          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-x64.tar.gz" "linux-core-x64"
-          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-arm64.tar.gz" "linux-core-arm64"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-x64.tar.gz" "linux-core-x64" "linux/amd64"
+          ./scripts/verify-release-archive.sh "Readarr.${VERSION}.linux-core-arm64.tar.gz" "linux-core-arm64" "linux/arm64"
 
       # ── SHA256 checksums ─────────────────────────────────────────────────────
       - name: Generate SHA256 checksums

@@ -34,7 +34,7 @@ found.
 
 ## Runtime requirements (bare-metal / non-Docker installs)
 
-- .NET 8 runtime (ASP.NET Core) — version 8.0.x or later patch release
+- .NET 10 runtime (ASP.NET Core) — version 10.0.x or later patch release
 - SQLite 3.35 or later (bundled on Windows; provided by the OS on Linux/macOS)
 - Optional: PostgreSQL 14 or 15 (external service; see configuration below)
 
@@ -203,7 +203,7 @@ cosign verify \
 | Older releases             | No support — please upgrade                |
 | develop branch             | Best-effort; no guaranteed fix timeline    |
 | .NET runtime               | Follows Microsoft's .NET LTS schedule      |
-| Node.js (build-time only)  | Node 20 LTS until April 2026               |
+| Node.js (build-time only)  | Pinned in-repo for frontend builds         |
 
 ---
 

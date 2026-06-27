@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.MediaCover;
 using Readarr.Http.REST;
 
 namespace Readarr.Api.V3.Magazines
@@ -10,8 +11,11 @@ namespace Readarr.Api.V3.Magazines
         public string Title { get; set; }
         public string CleanTitle { get; set; }
         public string Issn { get; set; }
+        public string IssnL { get; set; }
         public string WikidataId { get; set; }
         public string Publisher { get; set; }
+        public string Country { get; set; }
+        public string Language { get; set; }
         public bool Monitored { get; set; }
         public string Path { get; set; }
         public string RootFolderPath { get; set; }
@@ -21,6 +25,7 @@ namespace Readarr.Api.V3.Magazines
         public DateTime Added { get; set; }
         public AddMagazineOptionsResource AddOptions { get; set; }
         public MagazineStatisticsResource Statistics { get; set; }
+        public List<MediaCover> Images { get; set; }
     }
 
     public class MagazineStatisticsResource

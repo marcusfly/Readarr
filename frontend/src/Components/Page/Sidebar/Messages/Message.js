@@ -19,6 +19,8 @@ function getIconName(name) {
       return icons.HOUSEKEEPING;
     case 'RescanFolders':
       return icons.RESCAN;
+    case 'RescanMagazine':
+      return icons.RESCAN;
     case 'RefreshAuthor':
       return icons.REFRESH;
     case 'RssSync':

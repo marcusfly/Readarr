@@ -132,7 +132,7 @@ namespace NzbDrone.Core.Datastore
                 conn.ConnectionString = connectionString;
                 return conn;
             }
-            catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException)
+            catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException or DllNotFoundException)
             {
                 Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop symbols are unavailable.");
                 return CreateSqliteFallbackConnection(connectionString);

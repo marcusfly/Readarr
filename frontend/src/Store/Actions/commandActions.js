@@ -19,6 +19,13 @@ let lastCommandTimeout = null;
 const removeCommandTimeoutIds = {};
 const commandFinishedCallbacks = {};
 
+const commandStatusOrder = {
+  queued: 0,
+  started: 1,
+  completed: 2,
+  failed: 2
+};
+
 //
 // State
 
@@ -120,6 +127,20 @@ function scheduleRemoveCommand(command, dispatch) {
   }, 60000 * 5);
 }
 
+function scheduleCommandSync(dispatch, command) {
+  if (!command.sendUpdatesToClient) {
+    return;
+  }
+
+  // Fast commands can complete before SignalR delivers the completion update.
+  // Re-fetch shortly after enqueue so the UI can reconcile the final status.
+  [500, 2000].forEach((delay) => {
+    setTimeout(() => {
+      dispatch(fetchCommands());
+    }, delay);
+  });
+}
+
 export function executeCommandHelper(payload, dispatch) {
   // TODO: show a message for the user
   if (lastCommand && isSameCommand(lastCommand, payload)) {
@@ -155,7 +176,19 @@ export function executeCommandHelper(payload, dispatch) {
     }
 
     dispatch(addCommand(data));
+    scheduleCommandSync(dispatch, data);
   });
+}
+
+function shouldIgnoreOlderCommandUpdate(existingCommand, incomingCommand) {
+  if (!existingCommand) {
+    return false;
+  }
+
+  const existingStatusOrder = commandStatusOrder[existingCommand.status] ?? -1;
+  const incomingStatusOrder = commandStatusOrder[incomingCommand.status] ?? -1;
+
+  return existingStatusOrder > incomingStatusOrder;
 }
 
 //
@@ -171,10 +204,22 @@ export const actionHandlers = handleThunks({
   [CANCEL_COMMAND]: createRemoveItemHandler(section, '/command'),
 
   [ADD_COMMAND]: function(getState, payload, dispatch) {
+    const existingCommand = getState().commands.items.find((command) => command.id === payload.id);
+
+    if (shouldIgnoreOlderCommandUpdate(existingCommand, payload)) {
+      return;
+    }
+
     dispatch(updateItem({ section: 'commands', ...payload }));
   },
 
   [UPDATE_COMMAND]: function(getState, payload, dispatch) {
+    const existingCommand = getState().commands.items.find((command) => command.id === payload.id);
+
+    if (shouldIgnoreOlderCommandUpdate(existingCommand, payload)) {
+      return;
+    }
+
     dispatch(updateItem({ section: 'commands', ...payload }));
 
     showCommandMessage(payload, dispatch);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NLog;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Core.Magazines.Metadata;
@@ -14,16 +15,19 @@ namespace NzbDrone.Core.Magazines
     {
         private readonly IMagazineService _magazineService;
         private readonly IMagazineTitleAuthorityProvider _titleAuthorityProvider;
+        private readonly IIssnLTableImporter _issnLTableImporter;
         private readonly IBuildMagazinePaths _magazinePathBuilder;
         private readonly Logger _logger;
 
         public AddMagazineService(IMagazineService magazineService,
                                  IMagazineTitleAuthorityProvider titleAuthorityProvider,
+                                 IIssnLTableImporter issnLTableImporter,
                                  IBuildMagazinePaths magazinePathBuilder,
                                  Logger logger)
         {
             _magazineService = magazineService;
             _titleAuthorityProvider = titleAuthorityProvider;
+            _issnLTableImporter = issnLTableImporter;
             _magazinePathBuilder = magazinePathBuilder;
             _logger = logger;
         }
@@ -41,6 +45,7 @@ namespace NzbDrone.Core.Magazines
             magazine.NormalizedTitle = magazine.NormalizedTitle.IsNotNullOrWhiteSpace()
                                          ? magazine.NormalizedTitle
                                          : magazine.CleanTitle;
+            magazine.Aliases ??= new List<string>();
 
             magazine.Path = magazine.Path.IsNullOrWhiteSpace() ? _magazinePathBuilder.BuildPath(magazine) : magazine.Path;
 
@@ -72,12 +77,14 @@ namespace NzbDrone.Core.Magazines
 
                 magazine.WikidataId = result.WikidataId;
                 magazine.Issn = result.Issn;
+                magazine.IssnL = result.IssnL.IsNotNullOrWhiteSpace()
+                    ? result.IssnL
+                    : _issnLTableImporter?.GetIssnL(result.Issn);
                 magazine.Publisher = result.Publisher;
+                magazine.Country = result.Country;
+                magazine.Language = result.Language;
 
-                if (result.Aliases != null)
-                {
-                    magazine.Aliases = result.Aliases;
-                }
+                magazine.Aliases = result.Aliases ?? new List<string>();
             }
             catch (Exception ex)
             {

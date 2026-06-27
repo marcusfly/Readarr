@@ -5,6 +5,10 @@ interface CssExports {
   'contentBodyContainer': string;
   'errorMessage': string;
   'filters': string;
+  'graphic': string;
+  'graphicImage': string;
+  'graphicPlaceholder': string;
+  'graphicText': string;
   'innerContentBody': string;
   'pageContentBodyWrapper': string;
   'pageIndicator': string;
@@ -14,6 +18,7 @@ interface CssExports {
   'tableLink': string;
   'tableWrapper': string;
   'textInput': string;
+  'titleCell': string;
 }
 export const cssExports: CssExports;
 export default cssExports;
