@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
+using NzbDrone.Common.Http;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.MediaCover;
 using NzbDrone.Core.Test.Framework;
 using SixLabors.ImageSharp;
@@ -62,6 +65,18 @@ namespace NzbDrone.Core.Test.Magazines.Services
                     {
                         File.Delete(path);
                     }
+                });
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(x => x.ReadAllText(It.IsAny<string>()))
+                .Returns((string path) => File.ReadAllText(path));
+
+            Mocker.GetMock<IDiskProvider>()
+                .Setup(x => x.WriteAllText(It.IsAny<string>(), It.IsAny<string>()))
+                .Callback((string path, string contents) =>
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllText(path, contents);
                 });
 
             _coverPath = Path.Combine(TempFolder, "MediaCover", "Magazines", "7", "cover.jpg");
@@ -169,6 +184,111 @@ namespace NzbDrone.Core.Test.Magazines.Services
             result[0].Url.Should().Be("/MediaCover/MagazineIssues/17/cover.jpg");
             File.Exists(_issueCoverPath).Should().BeTrue();
             new FileInfo(_issueCoverPath).Length.Should().BeGreaterThan(0);
+        }
+
+        [Test]
+        public void should_fallback_to_authority_cover_when_no_issue_files_exist()
+        {
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Playboy", default))
+                .Returns(Task.FromResult(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Playboy",
+                    ImageUrl = "https://images.example/playboy-cover.jpg"
+                }));
+
+            Mocker.GetMock<IHttpClient>()
+                .Setup(x => x.DownloadFile("https://images.example/playboy-cover.jpg", _coverPath, null))
+                .Callback(() =>
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
+                    using var image = new Image<Rgba32>(300, 500, new Rgba32(80, 80, 80));
+                    image.SaveAsJpeg(_coverPath);
+                });
+
+            var result = Subject.GetImages(magazine, Array.Empty<MagazineIssue>());
+
+            result.Should().HaveCount(1);
+            result[0].Url.Should().Be("/MediaCover/Magazines/7/cover.jpg");
+            result[0].RemoteUrl.Should().Be("https://images.example/playboy-cover.jpg");
+            File.Exists(_coverPath).Should().BeTrue();
+        }
+
+        [Test]
+        public void should_refresh_existing_magazine_cover_when_authority_source_differs()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
+
+            using (var image = new Image<Rgba32>(300, 500, new Rgba32(40, 40, 40)))
+            {
+                image.SaveAsJpeg(_coverPath);
+            }
+
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Playboy", default))
+                .Returns(Task.FromResult(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Playboy",
+                    ImageUrl = "https://images.example/playboy-cover.jpg"
+                }));
+
+            Mocker.GetMock<IHttpClient>()
+                .Setup(x => x.DownloadFile("https://images.example/playboy-cover.jpg", _coverPath, null))
+                .Callback(() =>
+                {
+                    using var image = new Image<Rgba32>(300, 500, new Rgba32(220, 40, 40));
+                    image.SaveAsJpeg(_coverPath);
+                });
+
+            var result = Subject.GetImages(magazine, Array.Empty<MagazineIssue>());
+
+            result.Should().HaveCount(1);
+            result[0].RemoteUrl.Should().Be("https://images.example/playboy-cover.jpg");
+            Mocker.GetMock<IHttpClient>()
+                .Verify(x => x.DownloadFile("https://images.example/playboy-cover.jpg", _coverPath, null), Times.Once());
+        }
+
+        [Test]
+        public void should_reuse_existing_magazine_cover_when_authority_cover_is_unavailable()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_coverPath));
+
+            using (var image = new Image<Rgba32>(300, 500, new Rgba32(40, 40, 40)))
+            {
+                image.SaveAsJpeg(_coverPath);
+            }
+
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Existing Cover"
+            };
+
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Setup(x => x.LookupByTitleAsync("Existing Cover", default))
+                .Returns(Task.FromResult(new MagazineAuthorityResult
+                {
+                    CanonicalTitle = "Existing Cover"
+                }));
+
+            var result = Subject.GetImages(magazine, Array.Empty<MagazineIssue>());
+
+            result.Should().HaveCount(1);
+            result[0].Url.Should().StartWith("/MediaCover/Magazines/7/cover.jpg");
+            Mocker.GetMock<IMagazineTitleAuthorityProvider>()
+                .Verify(x => x.LookupByTitleAsync("Existing Cover", default), Times.Once());
         }
     }
 }

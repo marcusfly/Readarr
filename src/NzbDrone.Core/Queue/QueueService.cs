@@ -6,6 +6,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Qualities;
 
 namespace NzbDrone.Core.Queue
@@ -47,20 +48,26 @@ namespace NzbDrone.Core.Queue
 
         private IEnumerable<Queue> MapQueue(TrackedDownload trackedDownload)
         {
+            if (trackedDownload.RemoteBook is RemoteMagazineIssue remoteMagazineIssue)
+            {
+                yield return MapQueueItem(trackedDownload, null, remoteMagazineIssue);
+                yield break;
+            }
+
             if (trackedDownload.RemoteBook?.Books != null && trackedDownload.RemoteBook.Books.Any())
             {
                 foreach (var book in trackedDownload.RemoteBook.Books)
                 {
-                    yield return MapQueueItem(trackedDownload, book);
+                    yield return MapQueueItem(trackedDownload, book, null);
                 }
             }
             else
             {
-                yield return MapQueueItem(trackedDownload, null);
+                yield return MapQueueItem(trackedDownload, null, null);
             }
         }
 
-        private Queue MapQueueItem(TrackedDownload trackedDownload, Book book)
+        private Queue MapQueueItem(TrackedDownload trackedDownload, Book book, RemoteMagazineIssue remoteMagazineIssue)
         {
             var downloadForced = false;
             var history = _historyService.Find(trackedDownload.DownloadItem.DownloadId, EntityHistoryEventType.Grabbed).FirstOrDefault();
@@ -73,6 +80,8 @@ namespace NzbDrone.Core.Queue
             {
                 Author = trackedDownload.RemoteBook?.Author,
                 Book = book,
+                Magazine = remoteMagazineIssue?.Magazine,
+                MagazineIssue = remoteMagazineIssue?.Issue,
                 Quality = trackedDownload.RemoteBook?.ParsedBookInfo.Quality ?? new QualityModel(Quality.Unknown),
                 Title = Parser.Parser.RemoveFileExtension(trackedDownload.DownloadItem.Title),
                 Size = trackedDownload.DownloadItem.TotalSize,
@@ -93,7 +102,13 @@ namespace NzbDrone.Core.Queue
                 DownloadClientHasPostImportCategory = trackedDownload.DownloadItem.DownloadClientInfo.HasPostImportCategory
             };
 
-            queue.Id = HashConverter.GetHashInt31($"trackedDownload-{trackedDownload.DownloadClient}-{trackedDownload.DownloadItem.DownloadId}-book{book?.Id ?? 0}");
+            var identity = remoteMagazineIssue?.Issue != null
+                ? $"magazine{remoteMagazineIssue.Magazine?.Id ?? 0}-issue{remoteMagazineIssue.Issue.Id}"
+                : remoteMagazineIssue?.Magazine != null
+                    ? $"magazine{remoteMagazineIssue.Magazine.Id}"
+                    : $"book{book?.Id ?? 0}";
+
+            queue.Id = HashConverter.GetHashInt31($"trackedDownload-{trackedDownload.DownloadClient}-{trackedDownload.DownloadItem.DownloadId}-{identity}");
 
             if (queue.Timeleft.HasValue)
             {

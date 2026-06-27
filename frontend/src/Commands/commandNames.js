@@ -9,6 +9,7 @@ export const DELETE_UPDATE_LOG_FILES = 'DeleteUpdateLogFiles';
 export const DOWNLOADED_BOOKS_SCAN = 'DownloadedBooksScan';
 export const BOOK_SEARCH = 'BookSearch';
 export const INTERACTIVE_IMPORT = 'ManualImport';
+export const MAGAZINE_SEARCH = 'MagazineSearch';
 export const MAGAZINE_ISSUE_SEARCH = 'MagazineIssueSearch';
 export const MISSING_BOOK_SEARCH = 'MissingBookSearch';
 export const MISSING_MAGAZINE_ISSUE_SEARCH = 'MissingMagazineIssueSearch';

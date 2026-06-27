@@ -50,7 +50,7 @@ namespace NzbDrone.Core.Magazines.Metadata
             if (seedCacheResult != null)
             {
                 _logger.Debug("Magazine title authority lookup matched seed cache for {0}", rawTitle);
-                return Task.FromResult(BackfillIssnL(seedCacheResult));
+                return EnrichSeedCacheResultAsync(rawTitle, seedCacheResult);
             }
 
             if (_configService.DisableWikidataLookup)
@@ -60,6 +60,24 @@ namespace NzbDrone.Core.Magazines.Metadata
             }
 
             return BackfillIssnLAsync(rawTitle);
+        }
+
+        private async Task<MagazineAuthorityResult> EnrichSeedCacheResultAsync(string rawTitle, MagazineAuthorityResult seedCacheResult)
+        {
+            var result = BackfillIssnL(seedCacheResult);
+
+            if (_configService.DisableWikidataLookup || HasArtwork(result))
+            {
+                return result;
+            }
+
+            var wikidataResult = await _wikidataTitleAuthorityImporter.LookupByTitleAsync(result.CanonicalTitle ?? rawTitle);
+            if (wikidataResult == null)
+            {
+                return result;
+            }
+
+            return Merge(result, BackfillIssnL(wikidataResult));
         }
 
         private async Task<MagazineAuthorityResult> BackfillIssnLAsync(string rawTitle)
@@ -81,6 +99,39 @@ namespace NzbDrone.Core.Magazines.Metadata
             }
 
             return result;
+        }
+
+        private static bool HasArtwork(MagazineAuthorityResult result)
+        {
+            return result?.ImageUrl.IsNotNullOrWhiteSpace() == true ||
+                   result?.LogoUrl.IsNotNullOrWhiteSpace() == true;
+        }
+
+        private static MagazineAuthorityResult Merge(MagazineAuthorityResult primary, MagazineAuthorityResult secondary)
+        {
+            if (primary == null)
+            {
+                return secondary;
+            }
+
+            if (secondary == null)
+            {
+                return primary;
+            }
+
+            primary.WikidataId = primary.WikidataId.IsNotNullOrWhiteSpace() ? primary.WikidataId : secondary.WikidataId;
+            primary.Issn = primary.Issn.IsNotNullOrWhiteSpace() ? primary.Issn : secondary.Issn;
+            primary.IssnL = primary.IssnL.IsNotNullOrWhiteSpace() ? primary.IssnL : secondary.IssnL;
+            primary.Country = primary.Country.IsNotNullOrWhiteSpace() ? primary.Country : secondary.Country;
+            primary.Language = primary.Language.IsNotNullOrWhiteSpace() ? primary.Language : secondary.Language;
+            primary.Publisher = primary.Publisher.IsNotNullOrWhiteSpace() ? primary.Publisher : secondary.Publisher;
+            primary.ImageUrl = primary.ImageUrl.IsNotNullOrWhiteSpace() ? primary.ImageUrl : secondary.ImageUrl;
+            primary.LogoUrl = primary.LogoUrl.IsNotNullOrWhiteSpace() ? primary.LogoUrl : secondary.LogoUrl;
+            primary.OfficialWebsite = primary.OfficialWebsite.IsNotNullOrWhiteSpace() ? primary.OfficialWebsite : secondary.OfficialWebsite;
+            primary.Description = primary.Description.IsNotNullOrWhiteSpace() ? primary.Description : secondary.Description;
+            primary.Aliases = primary.Aliases?.Count > 0 ? primary.Aliases : secondary.Aliases;
+
+            return primary;
         }
     }
 }

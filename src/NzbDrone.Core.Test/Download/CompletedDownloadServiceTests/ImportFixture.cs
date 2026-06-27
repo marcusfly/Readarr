@@ -9,6 +9,8 @@ using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Services;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.Messaging.Events;
@@ -280,6 +282,76 @@ namespace NzbDrone.Core.Test.Download.CompletedDownloadServiceTests
             Subject.Import(_trackedDownload);
 
             AssertNotImported();
+        }
+
+        [Test]
+        public void should_import_completed_magazine_downloads_with_magazine_import_service()
+        {
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            var issue = new MagazineIssue
+            {
+                Id = 42,
+                MagazineId = 7,
+                IssueYear = 2025,
+                IssueMonth = 2,
+                ReleaseTitle = "Playboy 2025-02"
+            };
+
+            var remoteIssue = new RemoteMagazineIssue
+            {
+                Magazine = magazine,
+                Issue = issue,
+                ParsedMagazineIssueInfo = new ParsedMagazineIssueInfo
+                {
+                    MagazineTitle = magazine.Title,
+                    IssueYear = 2025,
+                    IssueMonth = 2,
+                    ReleaseTitle = issue.ReleaseTitle,
+                    Confidence = 0.6f
+                },
+                ParsedBookInfo = new ParsedBookInfo()
+            };
+
+            _trackedDownload.RemoteBook = remoteIssue;
+
+            Mocker.GetMock<IMagazineIssueService>()
+                .Setup(s => s.GetIssue(issue.Id))
+                .Returns(issue);
+
+            Mocker.GetMock<IMagazineImportService>()
+                .Setup(s => s.GetMediaFiles(It.IsAny<string>(), issue))
+                .Returns(new List<MagazineImportItem>
+                {
+                    new MagazineImportItem
+                    {
+                        Path = @"C:\DropFolder\MyDownload\playboy.pdf".AsOsAgnostic(),
+                        MagazineIssueId = issue.Id
+                    }
+                });
+
+            Mocker.GetMock<IMagazineImportService>()
+                .Setup(s => s.UpdateItems(It.Is<List<MagazineImportItem>>(items => items.Count == 1 && items[0].MagazineIssueId == issue.Id)))
+                .Returns(new List<MagazineImportItem>
+                {
+                    new MagazineImportItem
+                    {
+                        Path = @"C:\DropFolder\MyDownload\playboy.pdf".AsOsAgnostic(),
+                        MagazineIssueId = issue.Id
+                    }
+                });
+
+            Subject.Import(_trackedDownload);
+
+            _trackedDownload.State.Should().Be(TrackedDownloadState.Imported);
+            Mocker.GetMock<IEventAggregator>()
+                .Verify(v => v.PublishEvent(It.IsAny<DownloadCompletedEvent>()), Times.Once());
+            Mocker.GetMock<IDownloadedBooksImportService>()
+                .Verify(v => v.ProcessPath(It.IsAny<string>(), It.IsAny<ImportMode>(), It.IsAny<Author>(), It.IsAny<DownloadClientItem>()), Times.Never());
         }
 
         [Test]

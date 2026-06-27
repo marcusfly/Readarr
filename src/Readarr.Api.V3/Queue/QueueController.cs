@@ -148,7 +148,7 @@ namespace Readarr.Api.V3.Queue
             var orderByFunc = GetOrderByFunc(pagingSpec);
 
             var queue = _queueService.GetQueue();
-            var filteredQueue = includeUnknownAuthorItems ? queue : queue.Where(q => q.Author != null);
+            var filteredQueue = includeUnknownAuthorItems ? queue : queue.Where(q => q.Author != null || q.Magazine != null);
             var pending = _pendingReleaseService.GetPendingQueue();
             var fullQueue = filteredQueue.Concat(pending).ToList();
             IOrderedEnumerable<NzbDrone.Core.Queue.Queue> ordered;
@@ -216,17 +216,17 @@ namespace Readarr.Api.V3.Queue
                 case "status":
                     return q => q.Status;
                 case "authors.sortName":
-                    return q => q.Author?.Metadata.Value.SortName ?? q.Title;
+                    return q => q.Author?.Metadata.Value.SortName ?? q.Magazine?.CleanTitle ?? q.Magazine?.Title ?? q.Title;
                 case "authors.sortNameLastFirst":
-                    return q => q.Author?.Metadata.Value.SortNameLastFirst ?? string.Empty;
+                    return q => q.Author?.Metadata.Value.SortNameLastFirst ?? q.Magazine?.CleanTitle ?? string.Empty;
                 case "title":
                     return q => q.Title;
                 case "book":
-                    return q => q.Book;
+                    return q => q.Book ?? (object)q.MagazineIssue;
                 case "book.title":
-                    return q => q.Book?.Title ?? string.Empty;
+                    return q => q.Book?.Title ?? q.MagazineIssue?.ReleaseTitle ?? q.Title;
                 case "book.releaseDate":
-                    return q => q.Book?.ReleaseDate ?? DateTime.MinValue;
+                    return q => q.Book?.ReleaseDate ?? (q.MagazineIssue != null ? new DateTime(q.MagazineIssue.IssueYear, Math.Max(1, q.MagazineIssue.IssueMonth), q.MagazineIssue.IssueDay ?? 1) : DateTime.MinValue);
                 case "quality":
                     return q => q.Quality;
                 case "size":

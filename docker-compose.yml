@@ -68,6 +68,9 @@ services:
       - "${AUDIOBOOKS_DIR:-./audiobooks}:/audiobooks"
       # Mount your magazine library here for magazine add/import/scan workflows
       - "${MAGAZINES_DIR:-/Users/mfly/magazines}:/magazines"
+      # Mount the SABnzbd downloads share so completed/incomplete download paths are accessible
+      # from inside the container for queue visibility and completed-download import handling.
+      - "${DOWNLOADS_DIR:-/Volumes/Sabnzb}:/downloads"
 
     # Run as UID:GID 1000:1000 (the built-in 'readarr' account).
     # Change to match your host user if bind-mount permissions require it.

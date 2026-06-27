@@ -8,10 +8,13 @@ using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Services;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.MediaFiles.BookImport;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.Parser.Model;
 
 namespace NzbDrone.Core.Download
 {
@@ -28,6 +31,8 @@ namespace NzbDrone.Core.Download
         private readonly IHistoryService _historyService;
         private readonly IProvideImportItemService _provideImportItemService;
         private readonly IDownloadedBooksImportService _downloadedTracksImportService;
+        private readonly IMagazineIssueService _magazineIssueService;
+        private readonly IMagazineImportService _magazineImportService;
         private readonly ITrackedDownloadAlreadyImported _trackedDownloadAlreadyImported;
         private readonly Logger _logger;
 
@@ -35,6 +40,8 @@ namespace NzbDrone.Core.Download
                                         IHistoryService historyService,
                                         IProvideImportItemService provideImportItemService,
                                         IDownloadedBooksImportService downloadedTracksImportService,
+                                        IMagazineIssueService magazineIssueService,
+                                        IMagazineImportService magazineImportService,
                                         ITrackedDownloadAlreadyImported trackedDownloadAlreadyImported,
                                         Logger logger)
         {
@@ -42,6 +49,8 @@ namespace NzbDrone.Core.Download
             _historyService = historyService;
             _provideImportItemService = provideImportItemService;
             _downloadedTracksImportService = downloadedTracksImportService;
+            _magazineIssueService = magazineIssueService;
+            _magazineImportService = magazineImportService;
             _trackedDownloadAlreadyImported = trackedDownloadAlreadyImported;
             _logger = logger;
         }
@@ -89,6 +98,13 @@ namespace NzbDrone.Core.Download
             trackedDownload.State = TrackedDownloadState.Importing;
 
             var outputPath = trackedDownload.ImportItem.OutputPath.FullPath;
+
+            if (trackedDownload.RemoteBook is RemoteMagazineIssue remoteMagazineIssue)
+            {
+                ImportMagazine(trackedDownload, remoteMagazineIssue, outputPath);
+                return;
+            }
+
             var importResults = _downloadedTracksImportService.ProcessPath(outputPath, ImportMode.Auto, trackedDownload.RemoteBook?.Author, trackedDownload.DownloadItem);
 
             if (importResults.Empty())
@@ -185,6 +201,80 @@ namespace NzbDrone.Core.Download
 
             _logger.Debug("Not all books have been imported for {0}", trackedDownload.DownloadItem.Title);
             return false;
+        }
+
+        private void ImportMagazine(TrackedDownload trackedDownload, RemoteMagazineIssue remoteMagazineIssue, string outputPath)
+        {
+            var issue = EnsureMagazineIssue(remoteMagazineIssue);
+
+            if (issue == null)
+            {
+                trackedDownload.Warn("Unable to determine a magazine issue for {0}", trackedDownload.DownloadItem.Title);
+                trackedDownload.State = TrackedDownloadState.ImportFailed;
+                return;
+            }
+
+            var items = _magazineImportService.GetMediaFiles(outputPath, issue);
+
+            if (items.Empty())
+            {
+                trackedDownload.Warn("No files found are eligible for import in {0}", outputPath);
+                trackedDownload.State = TrackedDownloadState.ImportPending;
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                item.MagazineIssueId = issue.Id;
+            }
+
+            var imported = _magazineImportService.UpdateItems(items);
+
+            if (imported.Empty())
+            {
+                trackedDownload.Warn("No files found are eligible for import in {0}", outputPath);
+                trackedDownload.State = TrackedDownloadState.ImportPending;
+                return;
+            }
+
+            trackedDownload.State = TrackedDownloadState.Imported;
+            _eventAggregator.PublishEvent(new DownloadCompletedEvent(trackedDownload, 0));
+        }
+
+        private MagazineIssue EnsureMagazineIssue(RemoteMagazineIssue remoteMagazineIssue)
+        {
+            if (remoteMagazineIssue?.Issue?.Id > 0)
+            {
+                return _magazineIssueService.GetIssue(remoteMagazineIssue.Issue.Id);
+            }
+
+            if (remoteMagazineIssue?.Magazine == null || remoteMagazineIssue.ParsedMagazineIssueInfo == null)
+            {
+                return null;
+            }
+
+            if (remoteMagazineIssue.ParsedMagazineIssueInfo.IssueYear <= 0 || remoteMagazineIssue.ParsedMagazineIssueInfo.IssueMonth <= 0)
+            {
+                return null;
+            }
+
+            var issue = new MagazineIssue
+            {
+                MagazineId = remoteMagazineIssue.Magazine.Id,
+                IssueYear = remoteMagazineIssue.ParsedMagazineIssueInfo.IssueYear,
+                IssueMonth = remoteMagazineIssue.ParsedMagazineIssueInfo.IssueMonth,
+                IssueDay = remoteMagazineIssue.ParsedMagazineIssueInfo.IssueDay,
+                Volume = remoteMagazineIssue.ParsedMagazineIssueInfo.Volume,
+                IssueNumber = remoteMagazineIssue.ParsedMagazineIssueInfo.IssueNumber,
+                ReleaseTitle = remoteMagazineIssue.Issue?.ReleaseTitle ?? remoteMagazineIssue.ParsedMagazineIssueInfo.ReleaseTitle,
+                Monitored = true,
+                Added = DateTime.UtcNow
+            };
+
+            var persisted = _magazineIssueService.UpsertIssue(issue);
+            remoteMagazineIssue.Issue = persisted;
+
+            return persisted;
         }
 
         private void SetImportItem(TrackedDownload trackedDownload)

@@ -12,13 +12,19 @@ namespace NzbDrone.Core.IndexerSearch.Definitions
         public int IssueMonth { get; set; }
         public int? IssueDay { get; set; }
 
-        public string IssueQuery => $"{SearchCriteriaBase.GetQueryTitle(MagazineTitle)} {IssueYear:D4}-{IssueMonth:D2}{(IssueDay.HasValue ? $"-{IssueDay.Value:D2}" : string.Empty)}";
+        public string IssueQuery => HasIssueDate
+            ? $"{SearchCriteriaBase.GetQueryTitle(MagazineTitle)} {IssueYear:D4}-{IssueMonth:D2}{(IssueDay.HasValue ? $"-{IssueDay.Value:D2}" : string.Empty)}"
+            : SearchCriteriaBase.GetQueryTitle(MagazineTitle);
+
+        public bool HasIssueDate => IssueYear > 0 && IssueMonth > 0;
 
         // Categories: 7000 (books parent) and 7010 (misc books)
         public override int[] IndexerCategories => new[] { 7000, 7010 };
         public override HashSet<int> Tags => Magazine?.Tags;
 
         public override string ToString() =>
-            $"[{MagazineTitle} {IssueYear:D4}-{IssueMonth:D2}{(IssueDay.HasValue ? $"-{IssueDay.Value:D2}" : string.Empty)}]";
+            HasIssueDate
+                ? $"[{MagazineTitle} {IssueYear:D4}-{IssueMonth:D2}{(IssueDay.HasValue ? $"-{IssueDay.Value:D2}" : string.Empty)}]"
+                : $"[{MagazineTitle}]";
     }
 }

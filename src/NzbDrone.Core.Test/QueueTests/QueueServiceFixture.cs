@@ -9,6 +9,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.History;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Queue;
 using NzbDrone.Core.Test.Framework;
@@ -74,6 +75,49 @@ namespace NzbDrone.Core.Test.QueueTests
             var distinct = queue.Select(v => v.Id).Distinct().ToArray();
 
             distinct.Should().HaveCount(3);
+        }
+
+        [Test]
+        public void should_create_single_queue_item_for_magazine_downloads()
+        {
+            var magazine = new Magazine
+            {
+                Id = 7,
+                Title = "Playboy"
+            };
+
+            var issue = new MagazineIssue
+            {
+                Id = 42,
+                MagazineId = 7,
+                IssueYear = 2025,
+                IssueMonth = 2,
+                ReleaseTitle = "Playboy 2025-02"
+            };
+
+            var trackedDownload = _trackedDownloads.Single();
+            trackedDownload.RemoteBook = new RemoteMagazineIssue
+            {
+                Magazine = magazine,
+                Issue = issue,
+                ParsedMagazineIssueInfo = new ParsedMagazineIssueInfo
+                {
+                    MagazineTitle = magazine.Title,
+                    IssueYear = 2025,
+                    IssueMonth = 2,
+                    Confidence = 0.6f
+                },
+                ParsedBookInfo = new ParsedBookInfo()
+            };
+
+            Subject.Handle(new TrackedDownloadRefreshedEvent(_trackedDownloads));
+
+            var queue = Subject.GetQueue();
+
+            queue.Should().HaveCount(1);
+            queue.Single().Magazine.Should().NotBeNull();
+            queue.Single().Magazine.Title.Should().Be("Playboy");
+            queue.Single().MagazineIssue.ReleaseTitle.Should().Be("Playboy 2025-02");
         }
     }
 }

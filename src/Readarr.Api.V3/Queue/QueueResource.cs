@@ -8,6 +8,7 @@ using NzbDrone.Core.Qualities;
 using Readarr.Api.V3.Author;
 using Readarr.Api.V3.Books;
 using Readarr.Api.V3.CustomFormats;
+using Readarr.Api.V3.Magazines;
 using Readarr.Http.REST;
 
 namespace Readarr.Api.V3.Queue
@@ -16,8 +17,12 @@ namespace Readarr.Api.V3.Queue
     {
         public int? AuthorId { get; set; }
         public int? BookId { get; set; }
+        public int? MagazineId { get; set; }
+        public int? MagazineIssueId { get; set; }
         public AuthorResource Author { get; set; }
         public BookResource Book { get; set; }
+        public MagazineResource Magazine { get; set; }
+        public MagazineIssueResource MagazineIssue { get; set; }
         public QualityModel Quality { get; set; }
         public List<CustomFormatResource> CustomFormats { get; set; }
         public int CustomFormatScore { get; set; }
@@ -57,8 +62,12 @@ namespace Readarr.Api.V3.Queue
                 Id = model.Id,
                 AuthorId = model.Author?.Id,
                 BookId = model.Book?.Id,
+                MagazineId = model.Magazine?.Id,
+                MagazineIssueId = model.MagazineIssue?.Id,
                 Author = includeAuthor && model.Author != null ? model.Author.ToResource() : null,
                 Book = includeBook && model.Book != null ? model.Book.ToResource() : null,
+                Magazine = model.Magazine != null ? model.Magazine.ToResource(null) : null,
+                MagazineIssue = model.MagazineIssue?.ToResource(),
                 Quality = model.Quality,
                 CustomFormats = customFormats?.ToResource(false),
                 CustomFormatScore = customFormatScore,

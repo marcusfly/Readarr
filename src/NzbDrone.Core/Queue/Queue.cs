@@ -4,6 +4,7 @@ using NzbDrone.Core.Books;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Magazines;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Qualities;
 
@@ -13,6 +14,8 @@ namespace NzbDrone.Core.Queue
     {
         public Author Author { get; set; }
         public Book Book { get; set; }
+        public Magazine Magazine { get; set; }
+        public MagazineIssue MagazineIssue { get; set; }
         public QualityModel Quality { get; set; }
         public decimal Size { get; set; }
         public string Title { get; set; }

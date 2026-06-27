@@ -98,7 +98,7 @@ class AddNewMagazineModalContent extends Component {
 
           <label className={styles.searchForMissingBooksLabelContainer}>
             <span className={styles.searchForMissingBooksLabel}>
-              Start search for missing issues
+              Start search for recent issues
             </span>
 
             <CheckInput

@@ -10,6 +10,9 @@ using NzbDrone.Core.Books.Events;
 using NzbDrone.Core.CustomFormats;
 using NzbDrone.Core.Download.History;
 using NzbDrone.Core.History;
+using NzbDrone.Core.IndexerSearch.Definitions;
+using NzbDrone.Core.Magazines;
+using NzbDrone.Core.Magazines.Parser;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
@@ -35,6 +38,9 @@ namespace NzbDrone.Core.Download.TrackedDownloads
         private readonly IEventAggregator _eventAggregator;
         private readonly IDownloadHistoryService _downloadHistoryService;
         private readonly ICustomFormatCalculationService _formatCalculator;
+        private readonly IMagazineService _magazineService;
+        private readonly IMagazineFilenameParser _magazineFilenameParser;
+        private readonly IMagazineParsingService _magazineParsingService;
         private readonly Logger _logger;
         private readonly ICached<TrackedDownload> _cache;
 
@@ -44,6 +50,9 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                                       IEventAggregator eventAggregator,
                                       IDownloadHistoryService downloadHistoryService,
                                       ICustomFormatCalculationService formatCalculator,
+                                      IMagazineService magazineService,
+                                      IMagazineFilenameParser magazineFilenameParser,
+                                      IMagazineParsingService magazineParsingService,
                                       Logger logger)
         {
             _parsingService = parsingService;
@@ -52,6 +61,9 @@ namespace NzbDrone.Core.Download.TrackedDownloads
             _formatCalculator = formatCalculator;
             _eventAggregator = eventAggregator;
             _downloadHistoryService = downloadHistoryService;
+            _magazineService = magazineService;
+            _magazineFilenameParser = magazineFilenameParser;
+            _magazineParsingService = magazineParsingService;
             _cache = cacheManager.GetCache<TrackedDownload>(GetType());
             _logger = logger;
         }
@@ -138,6 +150,8 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                     trackedDownload.RemoteBook = _parsingService.Map(parsedBookInfo);
                 }
 
+                trackedDownload.RemoteBook ??= TryMapMagazine(trackedDownload.DownloadItem.Title);
+
                 var downloadHistory = _downloadHistoryService.GetLatestDownloadHistoryItem(downloadItem.DownloadId);
 
                 if (downloadHistory != null)
@@ -159,9 +173,12 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
                     trackedDownload.Indexer = grabbedEvent?.Data?.GetValueOrDefault("indexer");
 
-                    if (parsedBookInfo == null ||
-                        trackedDownload.RemoteBook?.Author == null ||
-                        trackedDownload.RemoteBook.Books.Empty())
+                    var requiresBookHistoryLookup = parsedBookInfo == null ||
+                                                    (trackedDownload.RemoteBook is not RemoteMagazineIssue &&
+                                                     (trackedDownload.RemoteBook?.Author == null ||
+                                                      trackedDownload.RemoteBook.Books.Empty()));
+
+                    if (requiresBookHistoryLookup)
                     {
                         // Try parsing the original source title and if that fails, try parsing it as a special
                         var historyAuthor = firstHistoryItem.Author;
@@ -193,6 +210,8 @@ namespace NzbDrone.Core.Download.TrackedDownloads
                         }
                     }
 
+                    trackedDownload.RemoteBook ??= TryMapMagazine(firstHistoryItem.SourceTitle);
+
                     if (trackedDownload.RemoteBook != null &&
                         Enum.TryParse(grabbedEvent?.Data?.GetValueOrDefault("indexerFlags"), true, out IndexerFlags flags))
                     {
@@ -223,6 +242,54 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
             _cache.Set(trackedDownload.DownloadItem.DownloadId, trackedDownload);
             return trackedDownload;
+        }
+
+        private RemoteMagazineIssue TryMapMagazine(string title)
+        {
+            if (title.IsNullOrWhiteSpace())
+            {
+                return null;
+            }
+
+            RemoteMagazineIssue bestMatch = null;
+            var bestConfidence = 0f;
+
+            var magazines = _magazineService.GetAllMagazines();
+
+            if (magazines == null || magazines.Count == 0)
+            {
+                return null;
+            }
+
+            foreach (var magazine in magazines)
+            {
+                var parsed = _magazineFilenameParser.ParseFilename(title, magazine.Title);
+
+                if (parsed?.Confidence <= 0 || parsed.IssueYear <= 0 || parsed.IssueMonth <= 0)
+                {
+                    continue;
+                }
+
+                var remoteIssue = _magazineParsingService.Map(parsed, new MagazineIssueSearchCriteria
+                {
+                    Magazine = magazine,
+                    MagazineTitle = magazine.Title,
+                    UserInvokedSearch = true
+                });
+
+                if (remoteIssue?.Magazine == null)
+                {
+                    continue;
+                }
+
+                if (parsed.Confidence > bestConfidence)
+                {
+                    bestConfidence = parsed.Confidence;
+                    bestMatch = remoteIssue;
+                }
+            }
+
+            return bestMatch;
         }
 
         public List<TrackedDownload> GetTrackedDownloads()
