@@ -1,0 +1,35 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+
+  align-content: start;
+  flex: 1 0 auto;
+  margin: 0 auto;
+  padding: 4px 4px 28px;
+  width: 100%;
+}
+
+.empty {
+  padding: 32px 24px;
+  border: 1px dashed rgb(255 255 255 / 0.12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent),
+    rgb(20 20 20 / 0.72);
+  color: var(--disabledColor);
+  text-align: center;
+}
+
+@media only screen and (max-width: $breakpointSmall) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 12px;
+
+    padding: 2px 2px 18px;
+  }
+
+  .empty {
+    padding: 24px 16px;
+  }
+}

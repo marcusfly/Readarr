@@ -1,0 +1,68 @@
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  min-width: 0;
+}
+
+.monitoredIcon {
+  flex: 0 0 auto;
+}
+
+.monitored {
+  color: var(--successColor);
+}
+
+.unmonitored {
+  color: var(--disabledColor);
+}
+
+.title {
+  @add-mixin truncate;
+
+  color: var(--defaultColor);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.publisher {
+  @add-mixin truncate;
+
+  color: var(--disabledColor);
+  font-size: 12px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat {
+  padding: 10px;
+  border: 1px solid rgb(255 255 255 / 0.06);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.03);
+}
+
+.statLabel {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--disabledColor);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+
+.statValue {
+  color: var(--defaultColor);
+  font-weight: 600;
+  font-size: 13px;
+}

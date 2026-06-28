@@ -1,7 +1,5 @@
 import PropTypes from 'prop-types';
 import React, { Component } from 'react';
-import { Link } from 'react-router-dom';
-import Button from 'Components/Link/Button';
 import LoadingIndicator from 'Components/Loading/LoadingIndicator';
 import PageContent from 'Components/Page/PageContent';
 import PageContentBody from 'Components/Page/PageContentBody';
@@ -12,11 +10,9 @@ import PageToolbarSeparator from 'Components/Page/Toolbar/PageToolbarSeparator';
 import { align, icons } from 'Helpers/Props';
 import { buildAddNewSearchPath, searchScopes } from 'Search/searchScopes';
 import getErrorMessage from 'Utilities/Object/getErrorMessage';
-import MagazineGraphic from './MagazineGraphic';
 import NoMagazine from './NoMagazine';
+import MagazineIndexPosters from './Posters/MagazineIndexPosters';
 import styles from './MagazineIndex.css';
-
-const PAGE_SIZE = 20;
 
 function compareValues(left, right) {
   if (typeof left === 'string' || typeof right === 'string') {
@@ -35,44 +31,31 @@ class MagazineIndex extends Component {
       filterText: '',
       monitoredFilter: 'all',
       sortKey: 'title',
-      sortDirection: 'asc',
-      currentPage: 1
+      sortDirection: 'asc'
     };
   }
 
   onFilterTextChange = (event) => {
     this.setState({
-      filterText: event.target.value,
-      currentPage: 1
+      filterText: event.target.value
     });
   };
 
   onMonitoredFilterChange = (event) => {
     this.setState({
-      monitoredFilter: event.target.value,
-      currentPage: 1
+      monitoredFilter: event.target.value
     });
   };
 
   onSortKeyChange = (event) => {
     this.setState({
-      sortKey: event.target.value,
-      currentPage: 1
+      sortKey: event.target.value
     });
   };
 
   onSortDirectionChange = (event) => {
     this.setState({
-      sortDirection: event.target.value,
-      currentPage: 1
-    });
-  };
-
-  onPageChange = (direction) => {
-    this.setState((prevState) => {
-      return {
-        currentPage: Math.max(prevState.currentPage + direction, 1)
-      };
+      sortDirection: event.target.value
     });
   };
 
@@ -157,16 +140,14 @@ class MagazineIndex extends Component {
       filterText,
       monitoredFilter,
       sortKey,
-      sortDirection,
-      currentPage
+      sortDirection
     } = this.state;
 
     const filteredItems = this.getFilteredItems();
     const totalItems = items.length;
-    const totalPages = Math.max(Math.ceil(filteredItems.length / PAGE_SIZE), 1);
-    const safePage = Math.min(currentPage, totalPages);
-    const startIndex = (safePage - 1) * PAGE_SIZE;
-    const pageItems = filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
+    const monitoredCount = items.filter((item) => item.monitored).length;
+    const issueCount = items.reduce((sum, item) => sum + (item.statistics?.issueCount || 0), 0);
+    const fileCount = items.reduce((sum, item) => sum + (item.statistics?.issueFileCount || 0), 0);
     const hasNoMagazines = !totalItems;
 
     return (
@@ -225,113 +206,95 @@ class MagazineIndex extends Component {
             {
               !error && isPopulated && !!totalItems &&
                 <div className={styles.contentBodyContainer}>
-                  <div className={styles.filters}>
-                    <input
-                      className={styles.textInput}
-                      type="text"
-                      placeholder="Filter by title or publisher"
-                      value={filterText}
-                      onChange={this.onFilterTextChange}
-                    />
+                  <div className={styles.heroPanel}>
+                    <div className={styles.heroCopy}>
+                      <div className={styles.heroEyebrow}>Magazine Library</div>
+                      <div className={styles.heroTitle}>Browse your magazines visually</div>
+                      <div className={styles.heroDescription}>
+                        Posters, publisher context, and issue progress are all visible at a glance so the page uses the available space instead of collapsing into a narrow table.
+                      </div>
+                    </div>
 
-                    <select
-                      className={styles.selectInput}
-                      value={monitoredFilter}
-                      onChange={this.onMonitoredFilterChange}
-                    >
-                      <option value="all">All magazines</option>
-                      <option value="monitored">Monitored only</option>
-                      <option value="unmonitored">Unmonitored only</option>
-                      <option value="missing">Missing issues</option>
-                    </select>
+                    <div className={styles.heroStats}>
+                      <div className={styles.heroStat}>
+                        <div className={styles.heroStatValue}>{totalItems}</div>
+                        <div className={styles.heroStatLabel}>Titles</div>
+                      </div>
 
-                    <select
-                      className={styles.selectInput}
-                      value={sortKey}
-                      onChange={this.onSortKeyChange}
-                    >
-                      <option value="title">Sort by title</option>
-                      <option value="publisher">Sort by publisher</option>
-                      <option value="monitored">Sort by monitored</option>
-                      <option value="issueCount">Sort by issue count</option>
-                      <option value="issueFileCount">Sort by file count</option>
-                    </select>
+                      <div className={styles.heroStat}>
+                        <div className={styles.heroStatValue}>{monitoredCount}</div>
+                        <div className={styles.heroStatLabel}>Monitored</div>
+                      </div>
 
-                    <select
-                      className={styles.selectInput}
-                      value={sortDirection}
-                      onChange={this.onSortDirectionChange}
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
-                    </select>
+                      <div className={styles.heroStat}>
+                        <div className={styles.heroStatValue}>{issueCount}</div>
+                        <div className={styles.heroStatLabel}>Issues</div>
+                      </div>
+
+                      <div className={styles.heroStat}>
+                        <div className={styles.heroStatValue}>{fileCount}</div>
+                        <div className={styles.heroStatLabel}>Files</div>
+                      </div>
+                    </div>
                   </div>
 
                   {
-                    pageItems.length ?
-                      <div className={styles.tableWrapper}>
-                        <table className={styles.table}>
-                          <thead>
-                            <tr>
-                              <th>Title</th>
-                              <th>Publisher</th>
-                              <th>Monitored</th>
-                              <th>Issues</th>
-                              <th>Files</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {
-                              pageItems.map((magazine) => {
-                                const statistics = magazine.statistics || {};
+                    <div className={styles.filtersPanel}>
+                      <input
+                        className={styles.textInput}
+                        type="text"
+                        placeholder="Filter by title or publisher"
+                        value={filterText}
+                        onChange={this.onFilterTextChange}
+                      />
 
-                                return (
-                                  <tr key={magazine.id}>
-                                    <td>
-                                      <div className={styles.titleCell}>
-                                        <MagazineGraphic title={magazine.title} images={magazine.images} />
+                      <select
+                        className={styles.selectInput}
+                        value={monitoredFilter}
+                        onChange={this.onMonitoredFilterChange}
+                      >
+                        <option value="all">All magazines</option>
+                        <option value="monitored">Monitored only</option>
+                        <option value="unmonitored">Unmonitored only</option>
+                        <option value="missing">Missing issues</option>
+                      </select>
 
-                                        <Link className={styles.tableLink} to={`/magazine/${magazine.id}`}>
-                                          {magazine.title}
-                                        </Link>
-                                      </div>
-                                    </td>
-                                    <td>{magazine.publisher || 'Unknown'}</td>
-                                    <td>{magazine.monitored ? 'Yes' : 'No'}</td>
-                                    <td>{statistics.issueCount || 0}</td>
-                                    <td>{statistics.issueFileCount || 0}</td>
-                                  </tr>
-                                );
-                              })
-                            }
-                          </tbody>
-                        </table>
-                      </div> :
-                      <NoMagazine totalItems={totalItems} />
+                      <select
+                        className={styles.selectInput}
+                        value={sortKey}
+                        onChange={this.onSortKeyChange}
+                      >
+                        <option value="title">Sort by title</option>
+                        <option value="publisher">Sort by publisher</option>
+                        <option value="monitored">Sort by monitored</option>
+                        <option value="issueCount">Sort by issue count</option>
+                        <option value="issueFileCount">Sort by file count</option>
+                      </select>
+
+                      <select
+                        className={styles.selectInput}
+                        value={sortDirection}
+                        onChange={this.onSortDirectionChange}
+                      >
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
+                      </select>
+                    </div>
                   }
 
                   {
-                    pageItems.length ?
-                      <div className={styles.pagination}>
-                        <Button
-                          isDisabled={safePage <= 1}
-                          onPress={() => this.onPageChange(-1)}
-                        >
-                          Previous
-                        </Button>
-
-                        <div className={styles.pageIndicator}>
-                          Page {safePage} of {totalPages}
+                    filteredItems.length ?
+                      <>
+                        <div className={styles.resultsSummary}>
+                          Showing {filteredItems.length} of {totalItems} magazines
                         </div>
 
-                        <Button
-                          isDisabled={safePage >= totalPages}
-                          onPress={() => this.onPageChange(1)}
-                        >
-                          Next
-                        </Button>
-                      </div> :
-                      null
+                        <MagazineIndexPosters items={filteredItems} />
+                      </> :
+                      <MagazineIndexPosters
+                        items={[]}
+                        emptyMessage="All magazines are hidden by the current filter."
+                      />
                   }
                 </div>
             }
