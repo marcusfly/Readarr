@@ -1,5 +1,6 @@
 using System;
 using NzbDrone.Core.Datastore;
+using NzbDrone.Core.Messaging.Commands;
 
 namespace NzbDrone.Core.Jobs.Durable
 {
@@ -21,5 +22,8 @@ namespace NzbDrone.Core.Jobs.Durable
         /// Null until the attempt has been dispatched.
         /// </summary>
         public int? CommandId { get; set; }
+        public Command CommandBody { get; set; }
+        public CommandPriority CommandPriority { get; set; }
+        public CommandTrigger CommandTrigger { get; set; }
     }
 }

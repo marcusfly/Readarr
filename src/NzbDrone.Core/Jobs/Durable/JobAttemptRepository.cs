@@ -27,6 +27,11 @@ namespace NzbDrone.Core.Jobs.Durable
             return Query(x => x.State == state);
         }
 
+        public List<JobAttempt> GetPendingReplay()
+        {
+            return Query(x => x.State == JobState.Retrying || (x.State == JobState.Queued && x.CommandId == null));
+        }
+
         public List<JobAttempt> GetStuckRunning()
         {
             return Query(x => x.State == JobState.Running);

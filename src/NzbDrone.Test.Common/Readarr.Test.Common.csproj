@@ -16,5 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\NzbDrone.Common\Readarr.Common.csproj" />
     <ProjectReference Include="..\NzbDrone.Core\Readarr.Core.csproj" />
+    <ProjectReference Include="..\NzbDrone.Mono\Readarr.Mono.csproj" Condition="'$(IsWindows)' != 'true'" />
   </ItemGroup>
 </Project>

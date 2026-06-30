@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NzbDrone.Core\Readarr.Core.csproj" />
     <ProjectReference Include="..\NzbDrone.Test.Common\Readarr.Test.Common.csproj" />
+    <ProjectReference Include="..\Readarr.Api.V3\Readarr.Api.V3.csproj" />
     <ProjectReference Include="..\Readarr.Http\Readarr.Http.csproj" />
   </ItemGroup>
 </Project>

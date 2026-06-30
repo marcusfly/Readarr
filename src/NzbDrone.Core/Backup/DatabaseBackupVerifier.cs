@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Data.SQLite;
 using System.IO;
+using System.Linq;
 using Dapper;
+using Microsoft.Data.Sqlite;
 using NLog;
 using NzbDrone.Common.Instrumentation;
+using NzbDrone.Core.Datastore;
 
 namespace NzbDrone.Core.Backup
 {
@@ -52,26 +56,11 @@ namespace NzbDrone.Core.Backup
         /// usable.  If a table is missing the backup is from an incompatible
         /// (too-old) schema or is corrupt.
         /// </summary>
-        public static readonly IReadOnlyList<string> RequiredTables = new List<string>
-        {
-            "Authors",
-            "AuthorMetadata",
-            "Books",
-            "Editions",
-            "BookFiles",
-            "Config",
-            "RootFolders",
-            "QualityProfiles",
-            "MetadataProfiles",
-            "NamingConfig",
-            "History",
-            "Blocklist",
-            "DownloadClients",
-            "Indexers",
-            "Tags",
-            "ScheduledTasks",
-            "Users",
-        };
+        public static readonly IReadOnlyList<string> RequiredTables = MigrationIntegrityCheck.RequiredColumns
+            .Select(x => x.Table)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         public BackupVerificationResult VerifyBackup(string path)
         {
@@ -90,10 +79,7 @@ namespace NzbDrone.Core.Backup
 
             try
             {
-                var connectionString = $"Data Source={path};Version=3;Read Only=True;";
-
-                using var conn = new SQLiteConnection(connectionString);
-                conn.Open();
+                using var conn = OpenReadOnlyConnection(path);
 
                 // Quick integrity check.
                 var integrityResult = conn.QueryFirst<string>("PRAGMA integrity_check;");
@@ -107,12 +93,27 @@ namespace NzbDrone.Core.Backup
                 var actualTables = new HashSet<string>(
                     conn.Query<string>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"),
                     StringComparer.OrdinalIgnoreCase);
+                var actualColumns = GetActualColumns(conn, actualTables);
 
                 foreach (var required in RequiredTables)
                 {
                     if (!actualTables.Contains(required))
                     {
                         problems.Add($"Backup is missing required table: {required}");
+                    }
+                }
+
+                foreach (var (table, column) in MigrationIntegrityCheck.RequiredColumns)
+                {
+                    if (!actualTables.Contains(table))
+                    {
+                        continue;
+                    }
+
+                    var key = $"{table.ToLowerInvariant()}.{column.ToLowerInvariant()}";
+                    if (!actualColumns.Contains(key))
+                    {
+                        problems.Add($"Backup is missing required column: {table}.{column}");
                     }
                 }
 
@@ -139,6 +140,68 @@ namespace NzbDrone.Core.Backup
             }
 
             return new BackupVerificationResult(problems);
+        }
+
+        private static DbConnection OpenReadOnlyConnection(string path)
+        {
+            var sqliteConnectionString = $"Data Source={path};Version=3;Read Only=True;";
+
+            try
+            {
+                var conn = new SQLiteConnection(sqliteConnectionString);
+                conn.Open();
+                return conn;
+            }
+            catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException or DllNotFoundException)
+            {
+                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for backup verification because System.Data.SQLite interop symbols are unavailable.");
+                return OpenFallbackConnection(path);
+            }
+            catch (DllNotFoundException ex)
+            {
+                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for backup verification because System.Data.SQLite interop is unavailable.");
+                return OpenFallbackConnection(path);
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for backup verification because System.Data.SQLite interop entry points are unavailable.");
+                return OpenFallbackConnection(path);
+            }
+        }
+
+        private static DbConnection OpenFallbackConnection(string path)
+        {
+            var builder = new SqliteConnectionStringBuilder
+            {
+                DataSource = path,
+                Mode = SqliteOpenMode.ReadOnly
+            };
+
+            var conn = new SqliteConnection(builder.ConnectionString);
+            conn.Open();
+            return conn;
+        }
+
+        private static HashSet<string> GetActualColumns(DbConnection conn, HashSet<string> actualTables)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var table in actualTables)
+            {
+                var columns = conn.Query<SqliteColumnInfo>($"PRAGMA table_info(\"{table}\")");
+
+                foreach (var column in columns)
+                {
+                    result.Add($"{table.ToLowerInvariant()}.{column.Name.ToLowerInvariant()}");
+                }
+            }
+
+            return result;
+        }
+
+        private class SqliteColumnInfo
+        {
+            public string Name { get; set; }
         }
     }
 }

@@ -18,6 +18,7 @@ using NzbDrone.Core.Datastore.Extensions;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.TrackedDownloads;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Host;
@@ -42,6 +43,10 @@ namespace NzbDrone.App.Test
                 .AddNzbDroneLogger()
                 .AddDummyDatabase()
                 .AddStartupContext(args);
+
+            var durableJobScheduler = container.Resolve<DurableJobScheduler>();
+            container.RegisterInstance<IDurableJobScheduler>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+            container.RegisterInstance<IJobProgressReporter>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
 
             // set up a dummy broadcaster and lifetime to allow tests to resolve
             container.RegisterInstance<IHostLifetime>(new Mock<IHostLifetime>().Object);
@@ -112,6 +117,16 @@ namespace NzbDrone.App.Test
             var second = (DownloadMonitoringService)_container.GetRequiredService<IExecute<RefreshMonitoredDownloadsCommand>>();
 
             first.Should().BeSameAs(second);
+        }
+
+        [Test]
+        public void should_resolve_durable_job_scheduler_as_primary_progress_reporter()
+        {
+            var scheduler = _container.GetRequiredService<IDurableJobScheduler>();
+            var progressReporter = _container.GetRequiredService<IJobProgressReporter>();
+
+            progressReporter.Should().BeSameAs(scheduler);
+            progressReporter.Should().BeOfType<DurableJobScheduler>();
         }
     }
 }

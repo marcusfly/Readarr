@@ -1,9 +1,11 @@
 using System;
-using System.Data.SQLite;
 using System.IO;
+using System.Linq;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using NUnit.Framework;
 using NzbDrone.Core.Backup;
+using NzbDrone.Core.Datastore;
 using NzbDrone.Test.Common;
 
 namespace NzbDrone.Core.Test.Backup
@@ -31,12 +33,12 @@ namespace NzbDrone.Core.Test.Backup
             }
         }
 
-        private string CreateSqliteDb(Action<SQLiteConnection> populate)
+        private string CreateSqliteDb(Action<SqliteConnection> populate)
         {
             var path = Path.Combine(_tempDir, $"test_{Guid.NewGuid():N}.db");
-            var connectionString = $"Data Source={path};Version=3;";
+            var connectionString = new SqliteConnectionStringBuilder { DataSource = path }.ConnectionString;
 
-            using var conn = new SQLiteConnection(connectionString);
+            using var conn = new SqliteConnection(connectionString);
             conn.Open();
 
             populate(conn);
@@ -44,7 +46,27 @@ namespace NzbDrone.Core.Test.Backup
             return path;
         }
 
-        private static void CreateAllRequiredTables(SQLiteConnection conn)
+        private static void CreateAllRequiredTables(SqliteConnection conn)
+        {
+            var tables = MigrationIntegrityCheck.RequiredColumns
+                .GroupBy(x => x.Table, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var table in tables)
+            {
+                using var cmd = conn.CreateCommand();
+                var columns = table
+                    .Select(x => x.Column)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(column => string.Equals(column, "Id", StringComparison.OrdinalIgnoreCase)
+                        ? "\"Id\" INTEGER PRIMARY KEY"
+                        : $"\"{column}\" TEXT");
+
+                cmd.CommandText = $"CREATE TABLE IF NOT EXISTS \"{table.Key}\" ({string.Join(", ", columns)})";
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static void CreateLegacyTableOnlyBackup(SqliteConnection conn)
         {
             foreach (var table in DatabaseBackupVerifier.RequiredTables)
             {
@@ -81,7 +103,6 @@ namespace NzbDrone.Core.Test.Backup
         {
             var path = CreateSqliteDb(conn =>
             {
-                // Only create some tables — deliberately omit Authors
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "CREATE TABLE Config (Id INTEGER PRIMARY KEY, Key TEXT, Value TEXT)";
                 cmd.ExecuteNonQuery();
@@ -92,6 +113,40 @@ namespace NzbDrone.Core.Test.Backup
             result.IsValid.Should().BeFalse();
             result.Problems.Should().Contain(p => p.Contains("Authors"),
                 "missing Authors table must be flagged");
+        }
+
+        [Test]
+        public void VerifyBackup_should_fail_when_required_column_is_missing()
+        {
+            var path = CreateSqliteDb(conn =>
+            {
+                CreateAllRequiredTables(conn);
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "DROP TABLE Authors";
+                cmd.ExecuteNonQuery();
+
+                cmd.CommandText = "CREATE TABLE Authors (Id INTEGER PRIMARY KEY, CleanName TEXT, Path TEXT, Monitored TEXT, AuthorMetadataId TEXT)";
+                cmd.ExecuteNonQuery();
+            });
+
+            var result = _subject.VerifyBackup(path);
+
+            result.IsValid.Should().BeFalse();
+            result.Problems.Should().Contain(p => p.Contains("Authors.AudiobookPath"),
+                "missing canonical columns must be flagged");
+        }
+
+        [Test]
+        public void VerifyBackup_should_fail_for_table_only_backup_shape()
+        {
+            var path = CreateSqliteDb(CreateLegacyTableOnlyBackup);
+
+            var result = _subject.VerifyBackup(path);
+
+            result.IsValid.Should().BeFalse();
+            result.Problems.Should().Contain(p => p.Contains("required column"),
+                "a backup that only has the table names should not pass canonical schema verification");
         }
 
         [Test]
@@ -123,6 +178,8 @@ namespace NzbDrone.Core.Test.Backup
             DatabaseBackupVerifier.RequiredTables.Should().Contain("Books");
             DatabaseBackupVerifier.RequiredTables.Should().Contain("Editions");
             DatabaseBackupVerifier.RequiredTables.Should().Contain("BookFiles");
+            DatabaseBackupVerifier.RequiredTables.Should().Contain("Magazines");
+            DatabaseBackupVerifier.RequiredTables.Should().Contain("ImportAttempts");
         }
     }
 }

@@ -30,6 +30,7 @@ namespace NzbDrone.Core.ImportLists
         private readonly IAddBookService _addBookService;
         private readonly IEventAggregator _eventAggregator;
         private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
         private readonly Logger _logger;
 
         public ImportListSyncService(IImportListFactory importListFactory,
@@ -44,6 +45,7 @@ namespace NzbDrone.Core.ImportLists
                                      IAddBookService addBookService,
                                      IEventAggregator eventAggregator,
                                      IManageCommandQueue commandQueueManager,
+                                     IRefreshCommandSubmitter refreshCommandSubmitter,
                                      Logger logger)
         {
             _importListFactory = importListFactory;
@@ -58,6 +60,7 @@ namespace NzbDrone.Core.ImportLists
             _addBookService = addBookService;
             _eventAggregator = eventAggregator;
             _commandQueueManager = commandQueueManager;
+            _refreshCommandSubmitter = refreshCommandSubmitter;
             _logger = logger;
         }
 
@@ -143,7 +146,7 @@ namespace NzbDrone.Core.ImportLists
             var toRefresh = addedAuthors.Select(x => x.Id).Concat(addedBooks.Select(x => x.Author.Value.Id)).Distinct().ToList();
             if (toRefresh.Any())
             {
-                _commandQueueManager.Push(new BulkRefreshAuthorCommand(toRefresh, true));
+                _refreshCommandSubmitter.Submit(new BulkRefreshAuthorCommand(toRefresh, true));
             }
 
             return processed;

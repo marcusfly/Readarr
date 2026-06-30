@@ -21,7 +21,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
         private readonly IDownloadClientStatusService _downloadClientStatusService;
         private readonly IDownloadClientFactory _downloadClientFactory;
         private readonly IEventAggregator _eventAggregator;
-        private readonly IManageCommandQueue _manageCommandQueue;
+        private readonly IDownloadMonitoringCommandSubmitter _downloadMonitoringCommandSubmitter;
         private readonly IConfigService _configService;
         private readonly IFailedDownloadService _failedDownloadService;
         private readonly ICompletedDownloadService _completedDownloadService;
@@ -32,7 +32,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
         public DownloadMonitoringService(IDownloadClientStatusService downloadClientStatusService,
                                          IDownloadClientFactory downloadClientFactory,
                                          IEventAggregator eventAggregator,
-                                         IManageCommandQueue manageCommandQueue,
+                                         IDownloadMonitoringCommandSubmitter downloadMonitoringCommandSubmitter,
                                          IConfigService configService,
                                          IFailedDownloadService failedDownloadService,
                                          ICompletedDownloadService completedDownloadService,
@@ -42,7 +42,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
             _downloadClientStatusService = downloadClientStatusService;
             _downloadClientFactory = downloadClientFactory;
             _eventAggregator = eventAggregator;
-            _manageCommandQueue = manageCommandQueue;
+            _downloadMonitoringCommandSubmitter = downloadMonitoringCommandSubmitter;
             _configService = configService;
             _failedDownloadService = failedDownloadService;
             _completedDownloadService = completedDownloadService;
@@ -54,7 +54,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
         private void QueueRefresh()
         {
-            _manageCommandQueue.Push(new RefreshMonitoredDownloadsCommand(), CommandPriority.High);
+            _downloadMonitoringCommandSubmitter.Submit(new RefreshMonitoredDownloadsCommand(), CommandPriority.High);
         }
 
         private void Refresh()
@@ -75,7 +75,7 @@ namespace NzbDrone.Core.Download.TrackedDownloads
 
                 _trackedDownloadService.UpdateTrackable(trackedDownloads);
                 _eventAggregator.PublishEvent(new TrackedDownloadRefreshedEvent(trackedDownloads));
-                _manageCommandQueue.Push(new ProcessMonitoredDownloadsCommand(), CommandPriority.High);
+                _downloadMonitoringCommandSubmitter.Submit(new ProcessMonitoredDownloadsCommand(), CommandPriority.High);
             }
             finally
             {

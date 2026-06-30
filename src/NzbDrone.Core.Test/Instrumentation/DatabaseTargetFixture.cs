@@ -92,8 +92,6 @@ namespace NzbDrone.Core.Test.Instrumentation
             StoredModel.Message.Should().Be(ex.Message);
 
             VerifyLog(StoredModel, LogLevel.Error);
-
-            ExceptionVerification.ExpectedErrors(1);
         }
 
         [Test]

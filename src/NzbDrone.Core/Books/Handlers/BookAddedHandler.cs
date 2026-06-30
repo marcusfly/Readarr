@@ -1,24 +1,23 @@
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Books.Events;
-using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Books
 {
     public class BookAddedHandler : IHandle<BookAddedEvent>
     {
-        private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
 
-        public BookAddedHandler(IManageCommandQueue commandQueueManager)
+        public BookAddedHandler(IRefreshCommandSubmitter refreshCommandSubmitter)
         {
-            _commandQueueManager = commandQueueManager;
+            _refreshCommandSubmitter = refreshCommandSubmitter;
         }
 
         public void Handle(BookAddedEvent message)
         {
             if (message.DoRefresh)
             {
-                _commandQueueManager.Push(new RefreshAuthorCommand(message.Book.Author.Value.Id));
+                _refreshCommandSubmitter.Submit(new RefreshAuthorCommand(message.Book.Author.Value.Id));
             }
         }
     }

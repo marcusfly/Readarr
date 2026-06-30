@@ -38,13 +38,38 @@ namespace NzbDrone.Core.Datastore
                 Logger.Info("Restoring Database");
 
                 var dbPath = _appFolderInfo.GetDatabase();
+                var dbBackupPath = dbPath + ".restore-backup";
+                var databaseBackedUp = false;
 
                 _diskProvider.DeleteFile(dbPath + "-shm");
                 _diskProvider.DeleteFile(dbPath + "-wal");
                 _diskProvider.DeleteFile(dbPath + "-journal");
-                _diskProvider.DeleteFile(dbPath);
 
-                _diskProvider.MoveFile(dbRestorePath, dbPath);
+                if (_diskProvider.FileExists(dbPath))
+                {
+                    _diskProvider.MoveFile(dbPath, dbBackupPath, true);
+                    databaseBackedUp = true;
+                }
+
+                try
+                {
+                    _diskProvider.MoveFile(dbRestorePath, dbPath);
+
+                    if (databaseBackedUp)
+                    {
+                        _diskProvider.DeleteFile(dbBackupPath);
+                    }
+                }
+                catch
+                {
+                    if (databaseBackedUp)
+                    {
+                        _diskProvider.DeleteFile(dbPath);
+                        _diskProvider.MoveFile(dbBackupPath, dbPath, true);
+                    }
+
+                    throw;
+                }
             }
             catch (Exception e)
             {
