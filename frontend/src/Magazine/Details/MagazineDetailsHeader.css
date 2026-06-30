@@ -1,20 +1,37 @@
+/* stylelint-disable order/properties-order */
 .header {
-  width: 100%;
+  position: relative;
   min-height: 310px;
-  background: linear-gradient(135deg, rgba(24, 24, 24, 0.96), rgba(8, 8, 8, 0.98));
+  overflow: hidden;
+  width: 100%;
+  background: #111;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+}
+
+.backdropOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.56) 45%, rgb(0 0 0 / 0.74) 100%);
 }
 
 .headerContent {
+  position: relative;
   display: flex;
-  padding: 30px;
-  width: 100%;
   min-height: 310px;
+  width: 100%;
+  padding: 30px;
   color: var(--white);
 }
 
 .coverContainer {
   flex-shrink: 0;
-  margin-right: 35px;
+  margin-right: 30px;
 }
 
 .cover {
@@ -23,6 +40,7 @@
   height: 250px;
   border-radius: 4px;
   object-fit: cover;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.4);
 }
 
 .coverPlaceholder {
@@ -34,6 +52,7 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  justify-content: center;
   overflow: hidden;
 }
 
@@ -67,15 +86,15 @@
 
 .title {
   font-weight: 300;
-  font-size: 50px;
-  line-height: 60px;
+  font-size: 54px;
+  line-height: 1.1;
 }
 
 .subtitle {
   margin-top: 6px;
   font-weight: 300;
   font-size: 28px;
-  line-height: 32px;
+  line-height: 1.15;
 }
 
 .detailsLabels {
@@ -100,29 +119,9 @@
 
 .overview {
   margin-top: 20px;
-  max-width: 900px;
+  max-width: 920px;
   font-size: $intermediateFontSize;
   line-height: 1.5;
-}
-
-@media only screen and (max-width: $breakpointSmall) {
-  .headerContent {
-    padding: 15px;
-  }
-
-  .title {
-    font-size: 30px;
-    line-height: 34px;
-  }
-
-  .subtitle {
-    font-size: 20px;
-    line-height: 24px;
-  }
-
-  .labelText {
-    font-size: 15px;
-  }
 }
 
 @media only screen and (max-width: $breakpointLarge) {
@@ -132,5 +131,24 @@
 
   .titleBlock {
     margin-left: 15px;
+  }
+}
+
+@media only screen and (max-width: $breakpointSmall) {
+  .headerContent {
+    padding: 15px;
+    min-height: 260px;
+  }
+
+  .title {
+    font-size: 32px;
+  }
+
+  .subtitle {
+    font-size: 22px;
+  }
+
+  .labelText {
+    font-size: 15px;
   }
 }

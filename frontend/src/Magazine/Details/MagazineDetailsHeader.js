@@ -29,6 +29,10 @@ function getCoverImage(images = []) {
   return images.find((image) => image.coverType === 'cover');
 }
 
+function getBackdropImage(images = []) {
+  return images.find((image) => image.coverType === 'fanart') || getCoverImage(images);
+}
+
 function MagazineDetailsHeader({
   width,
   magazine,
@@ -38,10 +42,22 @@ function MagazineDetailsHeader({
   onMonitorTogglePress
 }) {
   const cover = getCoverImage(magazine.images);
+  const backdrop = getBackdropImage(magazine.images);
   const isMonitored = magazine.monitored;
 
   return (
     <div className={styles.header} style={{ width }}>
+      <div
+        className={styles.backdrop}
+        style={
+          backdrop ?
+            { backgroundImage: `url(${backdrop.url})` } :
+            null
+        }
+      >
+        <div className={styles.backdropOverlay} />
+      </div>
+
       <div className={styles.headerContent}>
         <div className={styles.coverContainer}>
           {

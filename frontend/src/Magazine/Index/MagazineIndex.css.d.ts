@@ -5,15 +5,6 @@ interface CssExports {
   'contentBodyContainer': string;
   'errorMessage': string;
   'filtersPanel': string;
-  'heroCopy': string;
-  'heroDescription': string;
-  'heroEyebrow': string;
-  'heroPanel': string;
-  'heroStat': string;
-  'heroStatLabel': string;
-  'heroStatValue': string;
-  'heroStats': string;
-  'heroTitle': string;
   'innerContentBody': string;
   'pageContentBodyWrapper': string;
   'resultsSummary': string;

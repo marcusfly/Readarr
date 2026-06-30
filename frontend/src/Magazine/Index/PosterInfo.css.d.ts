@@ -2,15 +2,11 @@
 // Please do not change this file!
 interface CssExports {
   'info': string;
+  'meta': string;
   'monitored': string;
-  'monitoredIcon': string;
   'publisher': string;
-  'stat': string;
-  'statLabel': string;
-  'statValue': string;
-  'stats': string;
+  'status': string;
   'title': string;
-  'titleRow': string;
   'unmonitored': string;
 }
 export const cssExports: CssExports;

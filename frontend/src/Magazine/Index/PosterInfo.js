@@ -1,7 +1,5 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import Icon from 'Components/Icon';
-import { icons } from 'Helpers/Props';
 import {
   getFileCountLabel,
   getIssueCountLabel
@@ -19,32 +17,24 @@ function PosterInfo({
 
   return (
     <div className={styles.info}>
-      <div className={styles.titleRow}>
-        <Icon
-          className={`${styles.monitoredIcon} ${monitoredClassName}`}
-          name={monitored ? icons.MONITORED : icons.UNMONITORED}
-          title={monitored ? 'Monitored' : 'Unmonitored'}
-        />
+      <div className={styles.title} title={title}>
+        {title}
+      </div>
 
-        <div className={styles.title} title={title}>
-          {title}
-        </div>
+      <div className={`${styles.status} ${monitoredClassName}`}>
+        {monitored ? 'Monitored' : 'Unmonitored'}
       </div>
 
       <div className={styles.publisher} title={publisher || 'Unknown publisher'}>
         {publisher || 'Unknown publisher'}
       </div>
 
-      <div className={styles.stats}>
-        <div className={styles.stat}>
-          <span className={styles.statLabel}>Issues</span>
-          <span className={styles.statValue}>{getIssueCountLabel(issueCount)}</span>
-        </div>
+      <div className={styles.meta}>
+        {getIssueCountLabel(issueCount)}
+      </div>
 
-        <div className={styles.stat}>
-          <span className={styles.statLabel}>Files</span>
-          <span className={styles.statValue}>{getFileCountLabel(issueFileCount)}</span>
-        </div>
+      <div className={styles.meta}>
+        {getFileCountLabel(issueFileCount)}
       </div>
     </div>
   );

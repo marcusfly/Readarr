@@ -39,42 +39,40 @@ function MagazineIssueYearGroup({
       )}
     >
       <div className={styles.yearGroupHeader}>
-        <button
-          type="button"
-          aria-expanded={isExpanded}
-          onClick={handleExpandPress}
-          className={styles.yearGroupToggle}
-        >
-          <div className={styles.yearGroupChevron}>
-            <Icon
-              name={isExpanded ? icons.COLLAPSE : icons.EXPAND}
-              size={18}
-              title={isExpanded ? 'Collapse year group' : 'Expand year group'}
-            />
-          </div>
-
+        <div className={styles.yearGroupLeft}>
           <div className={styles.yearGroupIdentity}>
-            <div className={styles.yearGroupTitleRow}>
-              <div className={styles.yearGroupTitle}>{group.year}</div>
-              <div className={styles.yearGroupBadge}>Year Group</div>
+            <div className={styles.yearGroupTitle}>{group.year}</div>
+            <div className={styles.yearGroupCount}>
+              {group.fileCount || 0} / {group.issueCount}
             </div>
-
             <div className={styles.yearGroupMeta}>
-              <span className={styles.yearGroupMetaItem}>
-                <span className={styles.yearGroupMetaAccent}>{summary.issueCount}</span>
-              </span>
+              <span className={styles.yearGroupMetaItem}>{summary.issueCount}</span>
               <span className={styles.yearGroupMetaItem}>{summary.monitoredCount}</span>
               <span className={styles.yearGroupMetaItem}>{summary.fileCount}</span>
-              <Icon
-                name={icons.CALENDAR}
-                size={12}
-                title="Latest issue"
-              />
               <span className={styles.yearGroupMetaItem}>
+                <Icon
+                  name={icons.CALENDAR}
+                  size={12}
+                  title="Latest issue"
+                />
                 Latest {latestIssue ? formatMagazineIssueDate(latestIssue) : 'Unknown'}
               </span>
             </div>
           </div>
+        </div>
+
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          onClick={handleExpandPress}
+          className={styles.expandButton}
+        >
+          <Icon
+            className={styles.expandButtonIcon}
+            name={isExpanded ? icons.COLLAPSE : icons.EXPAND}
+            size={24}
+            title={isExpanded ? 'Collapse year group' : 'Expand year group'}
+          />
         </button>
 
         <div className={styles.yearGroupStatus}>
@@ -117,6 +115,22 @@ function MagazineIssueYearGroup({
                   }
                 </tbody>
               </table>
+            </div>
+
+            <div className={styles.collapseButtonContainer}>
+              <button
+                type="button"
+                aria-expanded={isExpanded}
+                onClick={handleExpandPress}
+                className={styles.expandButton}
+              >
+                <Icon
+                  className={styles.collapseButtonIcon}
+                  name={icons.COLLAPSE}
+                  size={24}
+                  title="Collapse year group"
+                />
+              </button>
             </div>
           </div>
       }
