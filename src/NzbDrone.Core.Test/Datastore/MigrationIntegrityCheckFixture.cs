@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using FluentAssertions;
 using NUnit.Framework;
 using NzbDrone.Core.Datastore;
@@ -52,6 +53,78 @@ namespace NzbDrone.Core.Test.Datastore
             MigrationIntegrityCheck.RequiredColumns.Should().Contain(("Editions", "Id"));
             MigrationIntegrityCheck.RequiredColumns.Should().Contain(("BookFiles", "Id"));
             MigrationIntegrityCheck.RequiredColumns.Should().Contain(("Config", "Key"));
+        }
+
+        [Test]
+        public void RequiredIndexes_should_be_non_empty_and_well_formed()
+        {
+            MigrationIntegrityCheck.RequiredIndexes.Should().NotBeEmpty();
+
+            foreach (var (table, columns, unique) in MigrationIntegrityCheck.RequiredIndexes)
+            {
+                table.Should().NotBeNullOrWhiteSpace();
+                columns.Should().NotBeNullOrEmpty($"index definition for {table} should name at least one column");
+                columns.Should().OnlyContain(column => !string.IsNullOrWhiteSpace(column));
+                _ = unique;
+            }
+        }
+
+        [Test]
+        public void RequiredIndexes_should_not_contain_duplicates()
+        {
+            var duplicates = MigrationIntegrityCheck.RequiredIndexes
+                .GroupBy(index => $"{index.Table}|{string.Join(",", index.Columns)}|{index.Unique}", StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .ToArray();
+
+            duplicates.Should().BeEmpty();
+        }
+
+        [Test]
+        public void RequiredIndexes_should_contain_core_uniqueness_and_lookup_invariants()
+        {
+            MigrationIntegrityCheck.RequiredIndexes.Should().ContainEquivalentOf(("Config", new[] { "Key" }, true));
+            MigrationIntegrityCheck.RequiredIndexes.Should().ContainEquivalentOf(("BookFiles", new[] { "Path" }, true));
+            MigrationIntegrityCheck.RequiredIndexes.Should().ContainEquivalentOf(("Books", new[] { "AuthorMetadataId", "ReleaseDate" }, false));
+            MigrationIntegrityCheck.RequiredIndexes.Should().ContainEquivalentOf(("MagazineIssues", new[] { "MagazineId", "IssueYear", "IssueMonth", "IssueDay" }, true));
+        }
+
+        [Test]
+        public void RequiredForeignKeys_should_be_non_empty_and_well_formed()
+        {
+            MigrationIntegrityCheck.RequiredForeignKeys.Should().NotBeEmpty();
+
+            foreach (var (table, columns, referencedTable, referencedColumns, onDelete) in MigrationIntegrityCheck.RequiredForeignKeys)
+            {
+                table.Should().NotBeNullOrWhiteSpace();
+                columns.Should().NotBeNullOrEmpty();
+                columns.Should().OnlyContain(column => !string.IsNullOrWhiteSpace(column));
+                referencedTable.Should().NotBeNullOrWhiteSpace();
+                referencedColumns.Should().NotBeNullOrEmpty();
+                referencedColumns.Should().OnlyContain(column => !string.IsNullOrWhiteSpace(column));
+                onDelete.Should().NotBeNullOrWhiteSpace();
+            }
+        }
+
+        [Test]
+        public void RequiredForeignKeys_should_not_contain_duplicates()
+        {
+            var duplicates = MigrationIntegrityCheck.RequiredForeignKeys
+                .GroupBy(foreignKey => $"{foreignKey.Table}|{string.Join(",", foreignKey.Columns)}|{foreignKey.ReferencedTable}|{string.Join(",", foreignKey.ReferencedColumns)}|{foreignKey.OnDelete}", StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .ToArray();
+
+            duplicates.Should().BeEmpty();
+        }
+
+        [Test]
+        public void RequiredForeignKeys_should_cover_canonical_relationships()
+        {
+            MigrationIntegrityCheck.RequiredForeignKeys.Should().ContainEquivalentOf(("SeriesBookLink", new[] { "SeriesId" }, "Series", new[] { "Id" }, "CASCADE"));
+            MigrationIntegrityCheck.RequiredForeignKeys.Should().ContainEquivalentOf(("MagazineIssues", new[] { "MagazineId" }, "Magazines", new[] { "Id" }, "CASCADE"));
+            MigrationIntegrityCheck.RequiredForeignKeys.Should().ContainEquivalentOf(("MagazineIssueFiles", new[] { "MagazineIssueId" }, "MagazineIssues", new[] { "Id" }, "CASCADE"));
         }
     }
 }

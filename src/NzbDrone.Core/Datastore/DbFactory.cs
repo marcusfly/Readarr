@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using NLog;
+using NLog.Common;
 using Npgsql;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.EnvironmentInfo;
@@ -98,17 +99,12 @@ namespace NzbDrone.Core.Datastore
 
             var db = new Database(migrationContext.MigrationType.ToString(), () =>
             {
-                DbConnection conn;
-
                 if (connectionInfo.DatabaseType == DatabaseType.SQLite)
                 {
-                    conn = TryCreateSqliteConnection(connectionInfo.ConnectionString);
-                }
-                else
-                {
-                    conn = new NpgsqlConnection(connectionInfo.ConnectionString);
+                    return OpenSqliteConnection(connectionInfo.ConnectionString);
                 }
 
+                var conn = new NpgsqlConnection(connectionInfo.ConnectionString);
                 conn.Open();
                 return conn;
             });
@@ -124,24 +120,37 @@ namespace NzbDrone.Core.Datastore
             return new SqliteConnection(sqliteBuilder.ConnectionString);
         }
 
-        private static DbConnection TryCreateSqliteConnection(string connectionString)
+        private static DbConnection OpenSqliteConnection(string connectionString)
         {
             try
             {
                 var conn = SQLiteFactory.Instance.CreateConnection();
                 conn.ConnectionString = connectionString;
+                conn.Open();
                 return conn;
             }
             catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException or DllNotFoundException)
             {
-                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop symbols are unavailable.");
-                return CreateSqliteFallbackConnection(connectionString);
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop symbols are unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop entry points are unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
             }
             catch (DllNotFoundException ex)
             {
-                Logger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop is unavailable.");
-                return CreateSqliteFallbackConnection(connectionString);
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite because System.Data.SQLite interop is unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
             }
+        }
+
+        private static DbConnection OpenSqliteFallbackConnection(string connectionString)
+        {
+            var conn = CreateSqliteFallbackConnection(connectionString);
+            conn.Open();
+            return conn;
         }
 
         private void CreateMain(string connectionString, MigrationContext migrationContext, DatabaseType databaseType)

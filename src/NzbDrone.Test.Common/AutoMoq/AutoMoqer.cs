@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Abstractions;
 using System.IO.Abstractions.TestingHelpers;
 using System.Linq;
@@ -173,8 +174,7 @@ namespace NzbDrone.Test.Common.AutoMoq
                 assemblyName = "Readarr.Mono";
             }
 
-            var types = Assembly.Load(assemblyName).GetTypes();
-            var diskProvider = types.SingleOrDefault(x => x.Name == "DiskProvider");
+            var diskProvider = TryGetPlatformDiskProvider(assemblyName);
 
             // The standard dynamic mock registrations, explicit so DryIoC doesn't get confused when we add alternatives
             _container.Register(typeof(IFileSystem), GetMockFactory(typeof(IFileSystem)));
@@ -183,16 +183,91 @@ namespace NzbDrone.Test.Common.AutoMoq
             // A concrete registration from the platform library using a mock filesystem
             _container.RegisterInstance<IFileSystem>(new MockFileSystem(), serviceKey: FileSystemType.Mock);
             _container.Register(typeof(IDiskProvider),
-                diskProvider,
+                diskProvider ?? typeof(TestDiskProvider),
                 made: Parameters.Of.Type<IFileSystem>(serviceKey: FileSystemType.Mock),
                 serviceKey: FileSystemType.Mock);
 
             // A concrete registration from the platform library using the actual filesystem
             _container.Register<IFileSystem, FileSystem>(serviceKey: FileSystemType.Actual);
             _container.Register(typeof(IDiskProvider),
-                diskProvider,
+                diskProvider ?? typeof(TestDiskProvider),
                 made: Parameters.Of.Type<IFileSystem>(serviceKey: FileSystemType.Actual),
                 serviceKey: FileSystemType.Actual);
+        }
+
+        private static Type TryGetPlatformDiskProvider(string assemblyName)
+        {
+            try
+            {
+                return Assembly.Load(assemblyName).GetTypes().SingleOrDefault(x => x.Name == "DiskProvider");
+            }
+            catch (FileNotFoundException)
+            {
+                return null;
+            }
+        }
+
+        private sealed class TestDiskProvider : DiskProviderBase
+        {
+            public TestDiskProvider(IFileSystem fileSystem)
+                : base(fileSystem)
+            {
+            }
+
+            public override long? GetAvailableSpace(string path)
+            {
+                return GetDriveSize(path, drive => drive.AvailableFreeSpace);
+            }
+
+            public override void InheritFolderPermissions(string filename)
+            {
+            }
+
+            public override void SetEveryonePermissions(string filename)
+            {
+            }
+
+            public override void SetFilePermissions(string path, string mask, string group)
+            {
+            }
+
+            public override void SetPermissions(string path, string mask, string group)
+            {
+            }
+
+            public override void CopyPermissions(string sourcePath, string targetPath)
+            {
+            }
+
+            public override long? GetTotalSize(string path)
+            {
+                return GetDriveSize(path, drive => drive.TotalSize);
+            }
+
+            public override bool TryCreateHardLink(string source, string destination)
+            {
+                return false;
+            }
+
+            private static long? GetDriveSize(string path, Func<DriveInfo, long> selector)
+            {
+                try
+                {
+                    var fullPath = Path.GetFullPath(path);
+                    var root = Path.GetPathRoot(fullPath);
+
+                    if (string.IsNullOrWhiteSpace(root))
+                    {
+                        return null;
+                    }
+
+                    return selector(new DriveInfo(root));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
         }
     }
 }

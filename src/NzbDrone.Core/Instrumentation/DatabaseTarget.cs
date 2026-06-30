@@ -1,6 +1,8 @@
 using System;
 using System.Data;
+using System.Data.Common;
 using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using NLog;
 using NLog.Common;
 using NLog.Config;
@@ -132,23 +134,65 @@ namespace NzbDrone.Core.Instrumentation
 
         private void WriteSqliteLog(Log log, string connectionString)
         {
-            using (var connection =
-                SQLiteFactory.Instance.CreateConnection())
+            using (var connection = OpenSqliteConnection(connectionString))
             {
-                connection.ConnectionString = connectionString;
-                connection.Open();
                 using (var sqlCommand = connection.CreateCommand())
                 {
                     sqlCommand.CommandText = INSERT_COMMAND;
-                    sqlCommand.Parameters.Add(new SQLiteParameter("Message", DbType.String) { Value = log.Message });
-                    sqlCommand.Parameters.Add(new SQLiteParameter("Time", DbType.DateTime) { Value = log.Time.ToUniversalTime() });
-                    sqlCommand.Parameters.Add(new SQLiteParameter("Logger", DbType.String) { Value = log.Logger });
-                    sqlCommand.Parameters.Add(new SQLiteParameter("Exception", DbType.String) { Value = log.Exception });
-                    sqlCommand.Parameters.Add(new SQLiteParameter("ExceptionType", DbType.String) { Value = log.ExceptionType });
-                    sqlCommand.Parameters.Add(new SQLiteParameter("Level", DbType.String) { Value = log.Level });
+                    AddParameter(sqlCommand, "Message", DbType.String, log.Message);
+                    AddParameter(sqlCommand, "Time", DbType.DateTime, log.Time.ToUniversalTime());
+                    AddParameter(sqlCommand, "Logger", DbType.String, log.Logger);
+                    AddParameter(sqlCommand, "Exception", DbType.String, log.Exception);
+                    AddParameter(sqlCommand, "ExceptionType", DbType.String, log.ExceptionType);
+                    AddParameter(sqlCommand, "Level", DbType.String, log.Level);
                     sqlCommand.ExecuteNonQuery();
                 }
             }
+        }
+
+        private static DbConnection OpenSqliteConnection(string connectionString)
+        {
+            try
+            {
+                var connection = SQLiteFactory.Instance.CreateConnection();
+                connection.ConnectionString = connectionString;
+                connection.Open();
+                return connection;
+            }
+            catch (TypeInitializationException ex) when (ex.InnerException is EntryPointNotFoundException or DllNotFoundException)
+            {
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for database logging because System.Data.SQLite interop symbols are unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
+            }
+            catch (DllNotFoundException ex)
+            {
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for database logging because System.Data.SQLite interop is unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
+            }
+            catch (EntryPointNotFoundException ex)
+            {
+                InternalLogger.Warn(ex, "Falling back to Microsoft.Data.Sqlite for database logging because System.Data.SQLite interop entry points are unavailable.");
+                return OpenSqliteFallbackConnection(connectionString);
+            }
+        }
+
+        private static DbConnection OpenSqliteFallbackConnection(string connectionString)
+        {
+            var builder = new SQLiteConnectionStringBuilder(connectionString);
+            var sqliteBuilder = new SqliteConnectionStringBuilder { DataSource = builder.DataSource };
+
+            var connection = new SqliteConnection(sqliteBuilder.ConnectionString);
+            connection.Open();
+            return connection;
+        }
+
+        private static void AddParameter(DbCommand command, string name, DbType dbType, object value)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.DbType = dbType;
+            parameter.Value = value ?? DBNull.Value;
+            command.Parameters.Add(parameter);
         }
 
         public void Handle(ApplicationShutdownRequested message)
