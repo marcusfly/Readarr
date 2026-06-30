@@ -152,6 +152,24 @@ namespace NzbDrone.Core.Test.JobTests.Durable
         }
 
         [Test]
+        public void handle_command_executed_marks_attempt_canceled_on_cancellation()
+        {
+            const int commandId = 44;
+            var attempt = new JobAttempt { Id = 4, CommandId = commandId, State = JobState.Running };
+
+            Mocker.GetMock<IJobAttemptService>()
+                  .Setup(s => s.FindByCommandId(commandId))
+                  .Returns(attempt);
+
+            var commandModel = BuildCommandModel(commandId, CommandStatus.Cancelled);
+
+            Subject.Handle(new CommandExecutedEvent(commandModel));
+
+            Mocker.GetMock<IJobAttemptService>()
+                  .Verify(s => s.MarkCanceled(attempt), Times.Once());
+        }
+
+        [Test]
         public void handle_command_executed_does_nothing_when_no_matching_attempt()
         {
             const int commandId = 99;

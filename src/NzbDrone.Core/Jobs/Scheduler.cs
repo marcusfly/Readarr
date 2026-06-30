@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.TPL;
+using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
@@ -16,14 +17,19 @@ namespace NzbDrone.Core.Jobs
     {
         private readonly ITaskManager _taskManager;
         private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
         private readonly Logger _logger;
         private static readonly Timer Timer = new Timer();
         private static CancellationTokenSource _cancellationTokenSource;
 
-        public Scheduler(ITaskManager taskManager, IManageCommandQueue commandQueueManager, Logger logger)
+        public Scheduler(ITaskManager taskManager,
+                         IManageCommandQueue commandQueueManager,
+                         IRefreshCommandSubmitter refreshCommandSubmitter,
+                         Logger logger)
         {
             _taskManager = taskManager;
             _commandQueueManager = commandQueueManager;
+            _refreshCommandSubmitter = refreshCommandSubmitter;
             _logger = logger;
         }
 
@@ -39,6 +45,21 @@ namespace NzbDrone.Core.Jobs
 
                 foreach (var task in tasks)
                 {
+                    if (task.TypeName == typeof(RefreshAuthorCommand).FullName)
+                    {
+                        _refreshCommandSubmitter.Submit(
+                            new RefreshAuthorCommand
+                            {
+                                LastExecutionTime = task.LastExecution,
+                                LastStartTime = task.LastStartTime,
+                                Trigger = CommandTrigger.Scheduled
+                            },
+                            task.Priority,
+                            CommandTrigger.Scheduled);
+
+                        continue;
+                    }
+
                     _commandQueueManager.Push(task.TypeName, task.LastExecution, task.LastStartTime, task.Priority, CommandTrigger.Scheduled);
                 }
             }

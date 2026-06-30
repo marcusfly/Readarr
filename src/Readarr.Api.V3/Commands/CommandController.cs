@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Composition;
@@ -8,6 +9,8 @@ using NzbDrone.Common.Serializer;
 using NzbDrone.Common.TPL;
 using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Datastore.Events;
+using NzbDrone.Core.Exceptions;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.MediaFiles.BookImport.Manual;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
@@ -21,23 +24,26 @@ using Readarr.Http.Validation;
 namespace Readarr.Api.V3.Commands
 {
     [V1ApiController]
-    public class CommandController : RestControllerWithSignalR<CommandResource, CommandModel>, IHandle<CommandUpdatedEvent>
+    public class CommandController : RestControllerWithSignalR<CommandResource, CommandModel>, IHandle<CommandUpdatedEvent>, IHandle<DurableJobUpdatedEvent>
     {
         private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IJobAttemptService _jobAttemptService;
         private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
         private readonly KnownTypes _knownTypes;
         private readonly Debouncer _debouncer;
         private readonly Dictionary<int, CommandResource> _pendingUpdates;
-
         private readonly CommandPriorityComparer _commandPriorityComparer = new CommandPriorityComparer();
+        private bool _pendingSync;
 
         public CommandController(IManageCommandQueue commandQueueManager,
+                             IJobAttemptService jobAttemptService,
                              IRefreshCommandSubmitter refreshCommandSubmitter,
                              IBroadcastSignalRMessage signalRBroadcaster,
                              KnownTypes knownTypes)
             : base(signalRBroadcaster)
         {
             _commandQueueManager = commandQueueManager;
+            _jobAttemptService = jobAttemptService;
             _refreshCommandSubmitter = refreshCommandSubmitter;
             _knownTypes = knownTypes;
 
@@ -49,7 +55,12 @@ namespace Readarr.Api.V3.Commands
 
         protected override CommandResource GetResourceById(int id)
         {
-            return _commandQueueManager.Get(id).ToResource();
+            if (id < 0)
+            {
+                return GetProjectedDurableCommand(-id);
+            }
+
+            return _commandQueueManager.Get(id).ToResource(_jobAttemptService.FindByCommandId(id));
         }
 
         [RestPostById]
@@ -82,15 +93,42 @@ namespace Readarr.Api.V3.Commands
         [HttpGet]
         public List<CommandResource> GetStartedCommands()
         {
-            return _commandQueueManager.All()
+            var commands = _commandQueueManager.All();
+            var attempts = _jobAttemptService.GetAll();
+            var attemptsByCommandId = attempts
+                .Where(a => a.CommandId.HasValue)
+                .GroupBy(a => a.CommandId.Value)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AttemptCount).ThenByDescending(a => a.Id).First());
+
+            var durableOnlyCommands = attempts
+                .Where(a => ShouldProjectDurableAttempt(a, commands))
+                .Select(a => a.ToResource())
+                .Where(r => r != null);
+
+            return commands
+                .ToResource(attemptsByCommandId)
+                .Concat(durableOnlyCommands)
                 .OrderBy(c => c.Status, _commandPriorityComparer)
                 .ThenByDescending(c => c.Priority)
-                .ToResource();
+                .ToList();
         }
 
         [RestDeleteById]
         public void CancelCommand(int id)
         {
+            if (id < 0)
+            {
+                var attempt = _jobAttemptService.GetById(-id);
+
+                if (attempt == null || !CanCancelProjectedAttempt(attempt))
+                {
+                    throw new NzbDroneClientException(HttpStatusCode.Conflict, "Unable to cancel task");
+                }
+
+                _jobAttemptService.MarkCanceled(attempt);
+                return;
+            }
+
             _commandQueueManager.Cancel(id);
         }
 
@@ -108,12 +146,30 @@ namespace Readarr.Api.V3.Commands
             }
         }
 
+        [NonAction]
+        public void Handle(DurableJobUpdatedEvent message)
+        {
+            if (message.JobAttempt?.CommandBody?.SendUpdatesToClient != true)
+            {
+                return;
+            }
+
+            lock (_pendingUpdates)
+            {
+                _pendingSync = true;
+            }
+
+            _debouncer.Execute();
+        }
+
         private void SendUpdates()
         {
             lock (_pendingUpdates)
             {
                 var pendingUpdates = _pendingUpdates.Values.ToArray();
                 _pendingUpdates.Clear();
+                var shouldSync = _pendingSync;
+                _pendingSync = false;
 
                 foreach (var pendingUpdate in pendingUpdates)
                 {
@@ -124,6 +180,11 @@ namespace Readarr.Api.V3.Commands
                     {
                         BroadcastResourceChange(ModelAction.Sync);
                     }
+                }
+
+                if (shouldSync)
+                {
+                    BroadcastResourceChange(ModelAction.Sync);
                 }
             }
         }
@@ -145,6 +206,47 @@ namespace Readarr.Api.V3.Commands
             }
 
             return _commandQueueManager.Get(attempt.CommandId.Value);
+        }
+
+        private CommandResource GetProjectedDurableCommand(int jobAttemptId)
+        {
+            var attempt = _jobAttemptService.GetById(jobAttemptId);
+
+            if (!ShouldProjectDurableAttempt(attempt, _commandQueueManager.All()))
+            {
+                return null;
+            }
+
+            return attempt.ToResource();
+        }
+
+        private static bool ShouldProjectDurableAttempt(JobAttempt attempt, List<CommandModel> liveCommands)
+        {
+            if (attempt?.CommandBody == null)
+            {
+                return false;
+            }
+
+            if (attempt.State != JobState.Queued &&
+                attempt.State != JobState.Running &&
+                attempt.State != JobState.Retrying)
+            {
+                return false;
+            }
+
+            if (attempt.CommandId.HasValue && liveCommands.Any(c => c.Id == attempt.CommandId.Value))
+            {
+                return false;
+            }
+
+            return !liveCommands.Any(c =>
+                c.Name == attempt.CommandBody.Name &&
+                CommandEqualityComparer.Instance.Equals(c.Body, attempt.CommandBody));
+        }
+
+        private static bool CanCancelProjectedAttempt(JobAttempt attempt)
+        {
+            return attempt.State == JobState.Queued || attempt.State == JobState.Retrying;
         }
     }
 }

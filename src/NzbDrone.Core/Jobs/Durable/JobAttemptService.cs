@@ -2,17 +2,20 @@ using System;
 using System.Collections.Generic;
 using NLog;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
 
 namespace NzbDrone.Core.Jobs.Durable
 {
     public class JobAttemptService : IJobAttemptService
     {
         private readonly IJobAttemptRepository _repo;
+        private readonly IEventAggregator _eventAggregator;
         private readonly Logger _logger;
 
-        public JobAttemptService(IJobAttemptRepository repo, Logger logger)
+        public JobAttemptService(IJobAttemptRepository repo, IEventAggregator eventAggregator, Logger logger)
         {
             _repo = repo;
+            _eventAggregator = eventAggregator;
             _logger = logger;
         }
 
@@ -66,6 +69,7 @@ namespace NzbDrone.Core.Jobs.Durable
             };
 
             _repo.Insert(attempt);
+            PublishUpdatedEvent(attempt);
             _logger.Debug("Queued durable job {0} with key {1} (id={2})", jobType, idempotencyKey, attempt.Id);
             return attempt;
         }
@@ -89,6 +93,7 @@ namespace NzbDrone.Core.Jobs.Durable
                 a => a.AttemptCount,
                 a => a.LastError,
                 a => a.Progress);
+            PublishUpdatedEvent(attempt);
         }
 
         public void MarkCompleted(JobAttempt attempt)
@@ -100,6 +105,7 @@ namespace NzbDrone.Core.Jobs.Durable
                 a => a.State,
                 a => a.CompletedAt,
                 a => a.Progress);
+            PublishUpdatedEvent(attempt);
         }
 
         public void MarkFailed(JobAttempt attempt, string error, int maxAttempts)
@@ -111,6 +117,7 @@ namespace NzbDrone.Core.Jobs.Durable
                 a => a.State,
                 a => a.LastError,
                 a => a.CompletedAt);
+            PublishUpdatedEvent(attempt);
         }
 
         public void MarkCanceled(JobAttempt attempt)
@@ -120,6 +127,7 @@ namespace NzbDrone.Core.Jobs.Durable
             _repo.SetFields(attempt,
                 a => a.State,
                 a => a.CompletedAt);
+            PublishUpdatedEvent(attempt);
         }
 
         public void UpdateProgress(JobAttempt attempt, int progress)
@@ -139,6 +147,12 @@ namespace NzbDrone.Core.Jobs.Durable
             attempt.State = JobState.Retrying;
             attempt.LeaseToken = null;
             _repo.SetFields(attempt, a => a.State, a => a.LeaseToken);
+            PublishUpdatedEvent(attempt);
+        }
+
+        private void PublishUpdatedEvent(JobAttempt attempt)
+        {
+            _eventAggregator.PublishEvent(new DurableJobUpdatedEvent(attempt));
         }
     }
 }

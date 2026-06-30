@@ -4,6 +4,7 @@ using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.Messaging.Commands;
+using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Test.Framework;
 
 namespace NzbDrone.Core.Test.JobTests.Durable
@@ -46,6 +47,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
 
             Mocker.GetMock<IJobAttemptRepository>()
                   .Verify(r => r.Insert(It.IsAny<JobAttempt>()), Times.Once());
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == result)), Times.Once());
         }
 
         [Test]
@@ -68,6 +71,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             result.Id.Should().Be(7);
             Mocker.GetMock<IJobAttemptRepository>()
                   .Verify(r => r.Insert(It.IsAny<JobAttempt>()), Times.Never());
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.IsAny<DurableJobUpdatedEvent>()), Times.Never());
         }
 
         [Test]
@@ -90,6 +95,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             result.Id.Should().Be(8);
             Mocker.GetMock<IJobAttemptRepository>()
                   .Verify(r => r.Insert(It.IsAny<JobAttempt>()), Times.Never());
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.IsAny<DurableJobUpdatedEvent>()), Times.Never());
         }
 
         [Test]
@@ -120,6 +127,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             result.State.Should().Be(JobState.Queued);
             Mocker.GetMock<IJobAttemptRepository>()
                   .Verify(r => r.Insert(It.IsAny<JobAttempt>()), Times.Once());
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == result)), Times.Once());
         }
 
         [Test]
@@ -131,6 +140,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
 
             attempt.State.Should().Be(JobState.Retrying);
             attempt.LastError.Should().Be("boom");
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
         }
 
         [Test]
@@ -141,6 +152,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             Subject.MarkFailed(attempt, "boom", 3);
 
             attempt.State.Should().Be(JobState.Failed);
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
         }
 
         [Test]
@@ -153,6 +166,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             attempt.State.Should().Be(JobState.Completed);
             attempt.Progress.Should().Be(100);
             attempt.CompletedAt.Should().NotBeNull();
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
         }
 
         [Test]
@@ -176,6 +191,33 @@ namespace NzbDrone.Core.Test.JobTests.Durable
             attempt.LastError.Should().BeNull();
             attempt.Progress.Should().Be(0);
             attempt.AttemptCount.Should().Be(2);
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
+        }
+
+        [Test]
+        public void mark_canceled_sets_terminal_state_and_publishes_update()
+        {
+            var attempt = new JobAttempt { Id = 21, State = JobState.Running };
+
+            Subject.MarkCanceled(attempt);
+
+            attempt.State.Should().Be(JobState.Canceled);
+            attempt.CompletedAt.Should().NotBeNull();
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
+        }
+
+        [Test]
+        public void update_progress_does_not_publish_durable_update_event()
+        {
+            var attempt = new JobAttempt { Id = 1, Progress = 50 };
+
+            Subject.UpdateProgress(attempt, 75);
+
+            attempt.Progress.Should().Be(75);
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.IsAny<DurableJobUpdatedEvent>()), Times.Never());
         }
 
         [Test]
@@ -192,6 +234,8 @@ namespace NzbDrone.Core.Test.JobTests.Durable
 
             attempt.State.Should().Be(JobState.Retrying);
             attempt.LeaseToken.Should().BeNull();
+            Mocker.GetMock<IEventAggregator>()
+                  .Verify(v => v.PublishEvent(It.Is<DurableJobUpdatedEvent>(e => e.JobAttempt == attempt)), Times.Once());
         }
 
         [Test]

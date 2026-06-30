@@ -131,6 +131,10 @@ namespace NzbDrone.Core.Jobs.Durable
             {
                 _jobAttemptService.MarkCompleted(attempt);
             }
+            else if (message.Command.Status == CommandStatus.Cancelled)
+            {
+                _jobAttemptService.MarkCanceled(attempt);
+            }
             else if (message.Command.Status == CommandStatus.Failed)
             {
                 _jobAttemptService.MarkFailed(attempt,
