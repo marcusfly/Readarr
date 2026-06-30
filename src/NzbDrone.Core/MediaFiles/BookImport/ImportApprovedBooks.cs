@@ -17,7 +17,6 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.Extras;
 using NzbDrone.Core.History;
 using NzbDrone.Core.MediaFiles.Events;
-using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
@@ -48,7 +47,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
         private readonly IDiskProvider _diskProvider;
         private readonly IHistoryService _historyService;
         private readonly IEventAggregator _eventAggregator;
-        private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
         private readonly IImportAttemptService _importAttemptService;
         private readonly Logger _logger;
 
@@ -65,7 +64,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
                                    IDiskProvider diskProvider,
                                    IHistoryService historyService,
                                    IEventAggregator eventAggregator,
-                                   IManageCommandQueue commandQueueManager,
+                                   IRefreshCommandSubmitter refreshCommandSubmitter,
                                    IImportAttemptService importAttemptService,
                                    Logger logger)
         {
@@ -82,7 +81,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             _diskProvider = diskProvider;
             _historyService = historyService;
             _eventAggregator = eventAggregator;
-            _commandQueueManager = commandQueueManager;
+            _refreshCommandSubmitter = refreshCommandSubmitter;
             _importAttemptService = importAttemptService;
             _logger = logger;
         }
@@ -391,7 +390,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             // Refresh any authors we added
             if (addedAuthors.Any())
             {
-                _commandQueueManager.Push(new BulkRefreshAuthorCommand(addedAuthors.Select(x => x.Id).ToList(), true));
+                _refreshCommandSubmitter.Submit(new BulkRefreshAuthorCommand(addedAuthors.Select(x => x.Id).ToList(), true));
             }
 
             var addedAuthorMetadataIds = addedAuthors.Select(x => x.AuthorMetadataId).ToHashSet();
@@ -400,7 +399,7 @@ namespace NzbDrone.Core.MediaFiles.BookImport
             if (booksToRefresh.Any())
             {
                 _logger.Debug("Refreshing info for {0} new books", booksToRefresh.Count);
-                _commandQueueManager.Push(new BulkRefreshBookCommand(booksToRefresh.Select(x => x.Id).ToList()));
+                _refreshCommandSubmitter.Submit(new BulkRefreshBookCommand(booksToRefresh.Select(x => x.Id).ToList()));
             }
 
             return importResults;

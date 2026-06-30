@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NzbDrone.Core.Messaging.Commands;
 
 namespace NzbDrone.Core.Jobs.Durable
 {
@@ -8,7 +9,8 @@ namespace NzbDrone.Core.Jobs.Durable
         JobAttempt FindByCommandId(int commandId);
         List<JobAttempt> GetAll();
         List<JobAttempt> GetByState(JobState state);
-        JobAttempt Submit(string jobType, string idempotencyKey);
+        List<JobAttempt> GetPendingReplay();
+        JobAttempt Submit(Command command, string jobType, string idempotencyKey, CommandPriority priority, CommandTrigger trigger);
         void MarkRunning(JobAttempt attempt, System.Guid leaseToken, int commandId);
         void MarkCompleted(JobAttempt attempt);
         void MarkFailed(JobAttempt attempt, string error, int maxAttempts);

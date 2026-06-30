@@ -5,8 +5,10 @@ using FizzWare.NBuilder;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
+using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.ImportLists;
 using NzbDrone.Core.ImportLists.Exclusions;
+using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.MetadataSource;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Test.Framework;
@@ -329,6 +331,17 @@ namespace NzbDrone.Core.Test.ImportListTests
                 .Verify(v => v.AddAuthors(It.Is<List<Author>>(t => t.Count == 1 &&
                                                                    t.First().AddOptions.BooksToMonitor.Count == expectedBooksMonitored &&
                                                                    t.First().Monitored == expectedAuthorMonitored), false));
+        }
+
+        [Test]
+        public void should_submit_bulk_refresh_for_added_authors()
+        {
+            WithAuthorId();
+
+            Subject.Execute(new ImportListSyncCommand());
+
+            Mocker.GetMock<IRefreshCommandSubmitter>()
+                .Verify(v => v.Submit(It.Is<BulkRefreshAuthorCommand>(c => c.AreNewAuthors && c.AuthorIds.Count == 1), It.IsAny<CommandPriority>(), It.IsAny<CommandTrigger>()), Times.Once());
         }
 
         [Test]

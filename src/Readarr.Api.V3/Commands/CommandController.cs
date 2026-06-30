@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using NzbDrone.Common.Composition;
 using NzbDrone.Common.Serializer;
 using NzbDrone.Common.TPL;
+using NzbDrone.Core.Books.Commands;
 using NzbDrone.Core.Datastore.Events;
 using NzbDrone.Core.MediaFiles.BookImport.Manual;
 using NzbDrone.Core.Messaging.Commands;
@@ -23,6 +24,7 @@ namespace Readarr.Api.V3.Commands
     public class CommandController : RestControllerWithSignalR<CommandResource, CommandModel>, IHandle<CommandUpdatedEvent>
     {
         private readonly IManageCommandQueue _commandQueueManager;
+        private readonly IRefreshCommandSubmitter _refreshCommandSubmitter;
         private readonly KnownTypes _knownTypes;
         private readonly Debouncer _debouncer;
         private readonly Dictionary<int, CommandResource> _pendingUpdates;
@@ -30,11 +32,13 @@ namespace Readarr.Api.V3.Commands
         private readonly CommandPriorityComparer _commandPriorityComparer = new CommandPriorityComparer();
 
         public CommandController(IManageCommandQueue commandQueueManager,
+                             IRefreshCommandSubmitter refreshCommandSubmitter,
                              IBroadcastSignalRMessage signalRBroadcaster,
                              KnownTypes knownTypes)
             : base(signalRBroadcaster)
         {
             _commandQueueManager = commandQueueManager;
+            _refreshCommandSubmitter = refreshCommandSubmitter;
             _knownTypes = knownTypes;
 
             _debouncer = new Debouncer(SendUpdates, TimeSpan.FromSeconds(0.1));
@@ -69,7 +73,8 @@ namespace Readarr.Api.V3.Commands
             command.SendUpdatesToClient = true;
             command.ClientUserAgent = Request.Headers["User-Agent"];
 
-            var trackedCommand = _commandQueueManager.Push(command, priority, CommandTrigger.Manual);
+            var trackedCommand = TrySubmitDurableRefreshCommand((object)command, priority) ??
+                                 _commandQueueManager.Push(command, priority, CommandTrigger.Manual);
 
             return Created(trackedCommand.Id);
         }
@@ -121,6 +126,25 @@ namespace Readarr.Api.V3.Commands
                     }
                 }
             }
+        }
+
+        private CommandModel TrySubmitDurableRefreshCommand(object command, CommandPriority priority)
+        {
+            var attempt = command switch
+            {
+                RefreshAuthorCommand refreshAuthor => _refreshCommandSubmitter.Submit(refreshAuthor, priority, CommandTrigger.Manual),
+                BulkRefreshAuthorCommand bulkRefreshAuthor => _refreshCommandSubmitter.Submit(bulkRefreshAuthor, priority, CommandTrigger.Manual),
+                RefreshBookCommand refreshBook => _refreshCommandSubmitter.Submit(refreshBook, priority, CommandTrigger.Manual),
+                BulkRefreshBookCommand bulkRefreshBook => _refreshCommandSubmitter.Submit(bulkRefreshBook, priority, CommandTrigger.Manual),
+                _ => null
+            };
+
+            if (attempt?.CommandId == null)
+            {
+                return null;
+            }
+
+            return _commandQueueManager.Get(attempt.CommandId.Value);
         }
     }
 }

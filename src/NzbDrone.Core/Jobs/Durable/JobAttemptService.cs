@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NLog;
+using NzbDrone.Core.Messaging.Commands;
 
 namespace NzbDrone.Core.Jobs.Durable
 {
@@ -35,7 +36,12 @@ namespace NzbDrone.Core.Jobs.Durable
             return _repo.GetByState(state);
         }
 
-        public JobAttempt Submit(string jobType, string idempotencyKey)
+        public List<JobAttempt> GetPendingReplay()
+        {
+            return _repo.GetPendingReplay();
+        }
+
+        public JobAttempt Submit(Command command, string jobType, string idempotencyKey, CommandPriority priority, CommandTrigger trigger)
         {
             var existing = _repo.FindByIdempotencyKey(idempotencyKey);
 
@@ -48,6 +54,9 @@ namespace NzbDrone.Core.Jobs.Durable
 
             var attempt = new JobAttempt
             {
+                CommandBody = command,
+                CommandPriority = priority,
+                CommandTrigger = trigger,
                 JobType = jobType,
                 IdempotencyKey = idempotencyKey,
                 State = JobState.Queued,
@@ -65,15 +74,21 @@ namespace NzbDrone.Core.Jobs.Durable
         {
             attempt.State = JobState.Running;
             attempt.StartedAt = DateTime.UtcNow;
+            attempt.CompletedAt = null;
             attempt.LeaseToken = leaseToken;
             attempt.CommandId = commandId;
             attempt.AttemptCount++;
+            attempt.LastError = null;
+            attempt.Progress = 0;
             _repo.SetFields(attempt,
                 a => a.State,
                 a => a.StartedAt,
+                a => a.CompletedAt,
                 a => a.LeaseToken,
                 a => a.CommandId,
-                a => a.AttemptCount);
+                a => a.AttemptCount,
+                a => a.LastError,
+                a => a.Progress);
         }
 
         public void MarkCompleted(JobAttempt attempt)

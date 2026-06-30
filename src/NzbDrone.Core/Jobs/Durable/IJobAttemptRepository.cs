@@ -8,6 +8,7 @@ namespace NzbDrone.Core.Jobs.Durable
         JobAttempt FindByIdempotencyKey(string key);
         JobAttempt FindByCommandId(int commandId);
         List<JobAttempt> GetByState(JobState state);
+        List<JobAttempt> GetPendingReplay();
         List<JobAttempt> GetStuckRunning();
     }
 }

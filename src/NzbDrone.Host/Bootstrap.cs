@@ -25,6 +25,7 @@ using NzbDrone.Common.Instrumentation.Extensions;
 using NzbDrone.Common.Options;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Datastore.Extensions;
+using NzbDrone.Core.Jobs.Durable;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Magazines.Metadata;
 using NzbDrone.Core.Messaging.Events;
@@ -96,6 +97,9 @@ namespace NzbDrone.Host
                                     .AddNzbDroneLogger()
                                     .AddDatabase()
                                     .AddStartupContext(startupContext);
+                                var durableJobScheduler = c.Resolve<DurableJobScheduler>();
+                                c.RegisterInstance<IDurableJobScheduler>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+                                c.RegisterInstance<IJobProgressReporter>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
                                 c.Register<IMagazineTitleAuthorityProvider, DefaultMagazineTitleAuthorityProvider>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
                                 c.Resolve<UtilityModeRouter>()
                                     .Route(appMode);
@@ -162,6 +166,9 @@ namespace NzbDrone.Host
                         .AddNzbDroneLogger()
                         .AddDatabase()
                         .AddStartupContext(context);
+                    var durableJobScheduler = c.Resolve<DurableJobScheduler>();
+                    c.RegisterInstance<IDurableJobScheduler>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
+                    c.RegisterInstance<IJobProgressReporter>(durableJobScheduler, ifAlreadyRegistered: IfAlreadyRegistered.Replace);
                     c.Register<IMagazineTitleAuthorityProvider, DefaultMagazineTitleAuthorityProvider>(ifAlreadyRegistered: IfAlreadyRegistered.Replace);
                     c.Resolve<IEventAggregator>().PublishEvent(new ApplicationStartingEvent());
                 })

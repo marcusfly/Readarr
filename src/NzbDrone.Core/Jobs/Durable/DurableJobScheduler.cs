@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using NLog;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.Messaging.Commands;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.ProgressMessaging;
 
 namespace NzbDrone.Core.Jobs.Durable
 {
@@ -19,7 +21,8 @@ namespace NzbDrone.Core.Jobs.Durable
     /// On application start, any attempts left in Running state (leaked from a
     /// previous process) are transitioned to Retrying.
     /// </summary>
-    public class DurableJobScheduler : IHandle<ApplicationStartedEvent>,
+    public class DurableJobScheduler : IDurableJobScheduler,
+                                       IHandle<ApplicationStartedEvent>,
                                        IHandle<CommandExecutedEvent>,
                                        IJobProgressReporter
     {
@@ -28,12 +31,6 @@ namespace NzbDrone.Core.Jobs.Durable
         private readonly IJobAttemptService _jobAttemptService;
         private readonly IManageCommandQueue _commandQueueManager;
         private readonly Logger _logger;
-
-        // Per-thread reference to the active JobAttempt so that progress
-        // reports can be routed back without passing the context through every
-        // call site.
-        [ThreadStatic]
-        private static JobAttempt _currentAttempt;
 
         public DurableJobScheduler(IJobAttemptService jobAttemptService,
                                    IManageCommandQueue commandQueueManager,
@@ -60,7 +57,7 @@ namespace NzbDrone.Core.Jobs.Durable
                                            CommandTrigger trigger = CommandTrigger.Unspecified)
             where TCommand : Command
         {
-            var attempt = _jobAttemptService.Submit(typeof(TCommand).FullName, idempotencyKey);
+            var attempt = _jobAttemptService.Submit(command, typeof(TCommand).FullName, idempotencyKey, priority, trigger);
 
             // Only dispatch when we just created a new Queued attempt.
             if (attempt.State != JobState.Queued || attempt.CommandId.HasValue)
@@ -69,18 +66,10 @@ namespace NzbDrone.Core.Jobs.Durable
             }
 
             var leaseToken = Guid.NewGuid();
-            _currentAttempt = attempt;
-            try
-            {
-                var commandModel = _commandQueueManager.Push(command, priority, trigger);
+            var commandModel = _commandQueueManager.Push(command, priority, trigger);
 
-                // Record the CommandModel id so CommandExecutedEvent can find us.
-                _jobAttemptService.MarkRunning(attempt, leaseToken, commandModel.Id);
-            }
-            finally
-            {
-                _currentAttempt = null;
-            }
+            // Record the CommandModel id so CommandExecutedEvent can find us.
+            _jobAttemptService.MarkRunning(attempt, leaseToken, commandModel.Id);
 
             return attempt;
         }
@@ -90,7 +79,13 @@ namespace NzbDrone.Core.Jobs.Durable
         // ------------------------------------------------------------------ //
         public void ReportProgress(int percent)
         {
-            var attempt = _currentAttempt;
+            var command = ProgressMessageContext.CommandModel;
+            if (command == null)
+            {
+                return;
+            }
+
+            var attempt = _jobAttemptService.FindByCommandId(command.Id);
             if (attempt == null)
             {
                 return;
@@ -111,6 +106,13 @@ namespace NzbDrone.Core.Jobs.Durable
             {
                 _logger.Warn("Requeueing stuck durable job {0} (id={1})", attempt.JobType, attempt.Id);
                 _jobAttemptService.RequeueStuck(attempt);
+            }
+
+            var pendingReplay = _jobAttemptService.GetPendingReplay();
+
+            foreach (var attempt in pendingReplay)
+            {
+                Replay(attempt);
             }
         }
 
@@ -135,6 +137,37 @@ namespace NzbDrone.Core.Jobs.Durable
                     message.Command.Exception ?? "Unknown failure",
                     DefaultMaxAttempts);
             }
+        }
+
+        private void Replay(JobAttempt attempt)
+        {
+            if (!CanReplay(attempt))
+            {
+                _logger.Warn("Skipping durable job replay for {0} (id={1}) because no supported command metadata was persisted", attempt.JobType, attempt.Id);
+                return;
+            }
+
+            _logger.Info("Replaying durable job {0} (id={1})", attempt.JobType, attempt.Id);
+
+            var leaseToken = Guid.NewGuid();
+            var commandModel = PushReplayCommand(attempt.CommandBody, attempt.CommandPriority, attempt.CommandTrigger);
+            _jobAttemptService.MarkRunning(attempt, leaseToken, commandModel.Id);
+        }
+
+        private static bool CanReplay(JobAttempt attempt)
+        {
+            return attempt.CommandBody != null && !(attempt.CommandBody is UnknownCommand);
+        }
+
+        private CommandModel PushReplayCommand(Command command, CommandPriority priority, CommandTrigger trigger)
+        {
+            var pushMethod = typeof(IManageCommandQueue).GetMethods()
+                .Single(m => m.Name == nameof(IManageCommandQueue.Push) &&
+                             m.IsGenericMethodDefinition &&
+                             m.GetParameters().Length == 3);
+
+            var closedMethod = pushMethod.MakeGenericMethod(command.GetType());
+            return (CommandModel)closedMethod.Invoke(_commandQueueManager, new object[] { command, priority, trigger });
         }
     }
 }
